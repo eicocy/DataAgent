@@ -33,6 +33,12 @@ def build_registry(include_legacy=False):
         register(name,ToolCategory.STATISTICS,StatisticsInput,StatisticsResult,partial(stats.statistics,operation=name))
     register('correlation',ToolCategory.STATISTICS,StatisticsInput,CorrelationResult,stats.correlation)
     register('covariance',ToolCategory.STATISTICS,StatisticsInput,StatisticsResult,partial(stats.correlation,covariance=True))
+    from app.analysis.inputs import KPIInput, PeriodComparisonInput, ContributionInput
+    from app.analysis.models import KPIResult, PeriodComparisonResult, ContributionResult
+    from app.analysis.business_tools import kpi_analysis, period_comparison, contribution_analysis
+    register('kpi_analysis',ToolCategory.BUSINESS,KPIInput,KPIResult,kpi_analysis)
+    register('period_comparison',ToolCategory.BUSINESS,PeriodComparisonInput,PeriodComparisonResult,period_comparison)
+    register('contribution_analysis',ToolCategory.BUSINESS,ContributionInput,ContributionResult,contribution_analysis)
     from app.analysis.inputs import ForecastInput
     from app.analysis.models import ForecastResult
     from app.analysis.forecast_tools import forecast

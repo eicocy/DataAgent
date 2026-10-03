@@ -335,7 +335,82 @@ class ForecastResult(StrictModel):
         return self
 
 
-SimpleResult = TableResult | AggregationResult | StatisticsResult | CorrelationResult | DataQualityResult | CleaningResult | ChartResult | RecommendationResult | OverviewResult | LegacyResult | LegacyChartResult | ForecastResult
+class BusinessValue(StrictModel):
+    value: str | None
+    status: Literal['valid','zero_denominator','insufficient_coverage']='valid'
+    explanation: str | None=None
+    @model_validator(mode='after')
+    def consistency(self):
+        from decimal import Decimal, InvalidOperation
+        if (self.value is not None) != (self.status == 'valid'):
+            raise ValueError('business value and status disagree')
+        if self.value is None and not self.explanation:
+            raise ValueError('undefined business value requires explanation')
+        if self.value is not None:
+            try:
+                if not Decimal(self.value).is_finite(): raise ValueError('nonfinite decimal')
+            except InvalidOperation: raise ValueError('invalid decimal') from None
+        return self
+
+
+class BusinessResult(StrictModel):
+    dataset_id: int
+    dataset_version: int | None
+    source_ref: str
+    currency: str | None
+    unit: str | None
+    limitations: list[str]
+
+
+class KPIResult(BusinessResult):
+    kind: Literal['kpi']='kpi'
+    metrics: dict[str, BusinessValue]
+    row_count: int=Field(ge=0)
+
+
+class BusinessPeriodRange(StrictModel):
+    start: str
+    end: str
+    expected_periods: int=Field(ge=1)
+    observed_periods: int=Field(ge=0)
+
+
+class PeriodComparisonResult(BusinessResult):
+    value_kind: Literal['money','quantity']='money'
+    kind: Literal['period_comparison']='period_comparison'
+    date_column: str
+    value_column: str
+    granularity: Literal['day','month','quarter','year']
+    comparison: Literal['yoy','mom','custom']
+    status: Literal['valid','insufficient_coverage']
+    current_range: BusinessPeriodRange
+    previous_range: BusinessPeriodRange
+    current: BusinessValue
+    previous: BusinessValue
+    delta: BusinessValue
+    growth_rate: BusinessValue
+
+
+class ContributionGroup(StrictModel):
+    dimension: str | None
+    current: str
+    previous: str
+    delta: str
+    contribution_share: str | None
+    @model_validator(mode='after')
+    def finite_decimals(self):
+        for item in (self.current,self.previous,self.delta,self.contribution_share):
+            if item is not None: BusinessValue(value=item)
+        return self
+
+
+class ContributionResult(PeriodComparisonResult):
+    kind: Literal['contribution']='contribution'
+    dimension: str
+    groups: list[ContributionGroup]
+
+
+SimpleResult = TableResult | AggregationResult | StatisticsResult | CorrelationResult | DataQualityResult | CleaningResult | ChartResult | RecommendationResult | OverviewResult | LegacyResult | LegacyChartResult | ForecastResult | KPIResult | PeriodComparisonResult | ContributionResult
 
 
 class EDASection(StrictModel):

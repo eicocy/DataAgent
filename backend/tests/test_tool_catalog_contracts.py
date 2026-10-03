@@ -7,6 +7,9 @@ from app.analysis.models import Permission
 from app.analysis.errors import ToolError
 
 PARAMETERS={
+    'kpi_analysis':{'metrics':{'revenue':'x'},'currency':'USD','unit':'dollar'},
+    'period_comparison':{'date_column':'time','value_column':'x','granularity':'month','start':'2024-03-01','end':'2024-04-01','comparison':'mom','currency':'USD','unit':'dollar'},
+    'contribution_analysis':{'date_column':'time','value_column':'x','granularity':'month','start':'2024-03-01','end':'2024-04-01','comparison':'mom','currency':'USD','unit':'dollar','dimension':'label'},
     'forecast':{'time_column':'time','target_column':'x','horizon':1,'granularity':'month','aggregation':'sum'},
     'dataset_overview':{},'column_summary':{'columns':['x']},
     'select_columns':{'columns':['x']},'filter_rows':{'filters':[{'column':'x','operator':'gt','value':0}]},
@@ -36,6 +39,8 @@ def test_each_available_tool_has_real_typed_output_and_preserves_input(name):
     frame=pd.DataFrame({'label':['A','A','B','B'],'x':[1.,2.,3.,4.],'y':[2.,4.,6.,8.],'time':[1,2,3,4],'weight':[1.,1.,2.,2.],'day':['2026-01-01']*4})
     if name=='forecast':
         frame=pd.DataFrame({'time':pd.date_range('2020-01-01',periods=12,freq='MS'),'x':range(1,13)})
+    if name in {'kpi_analysis','period_comparison','contribution_analysis'}:
+        frame=pd.DataFrame({'time':['2024-02-01','2024-03-01'],'x':['0.1','0.2'],'label':['A','B']})
     original=frame.copy(deep=True)
     output=registry.calculate(name,DatasetContext.from_frame(frame),PARAMETERS[name],frozenset({Permission.READ_DATA,Permission.TRANSFORM_DATA}))
     output.data.model_dump_json()

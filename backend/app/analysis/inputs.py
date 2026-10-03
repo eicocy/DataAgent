@@ -124,3 +124,34 @@ class ChartInput(DataInput):
     title: str=Field(default='Analysis', min_length=1, max_length=100)
     bins: int=Field(default=10, ge=1, le=50)
     options: ChartOptions=Field(default_factory=ChartOptions)
+
+
+class BusinessInput(StrictModel):
+    currency: str | None=Field(default=None, min_length=1, max_length=32)
+    unit: str | None=Field(default=None, min_length=1, max_length=32)
+    currency_column: str | None=None
+    unit_column: str | None=None
+    filters: list[FilterCondition]=Field(default_factory=list, max_length=20)
+
+
+class KPIInput(BusinessInput):
+    metrics: dict[Literal['revenue','gmv','cost','profit','operating_expense','budget','actual'], str]=Field(default_factory=dict, max_length=7)
+    order_id_column: str | None=None
+    customer_id_column: str | None=None
+    product_id_column: str | None=None
+
+
+class PeriodComparisonInput(BusinessInput):
+    value_kind: Literal['money','quantity']='money'
+    date_column: str=Field(min_length=1)
+    value_column: str=Field(min_length=1)
+    granularity: Literal['day','month','quarter','year']
+    start: str=Field(min_length=1)
+    end: str=Field(min_length=1)
+    comparison: Literal['yoy','mom','custom']
+    previous_start: str | None=None
+    previous_end: str | None=None
+
+
+class ContributionInput(PeriodComparisonInput):
+    dimension: str=Field(min_length=1)
