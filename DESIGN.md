@@ -17,9 +17,9 @@ typography:
   data:
     fontFamily: "Cascadia Mono, Consolas, monospace"
 rounded:
-  DEFAULT: "0.625rem"
-  sm: "0.375rem"
-  md: "0.625rem"
+  DEFAULT: "0.875rem"
+  sm: "0.5rem"
+  md: "0.875rem"
   lg: "1rem"
 spacing:
   compact: "0.5rem"
@@ -40,7 +40,7 @@ components:
 
 ### Creative North Star
 
-界面借鉴“分析师工作台上的实验记录板”：结论旁边始终能看到数据来源、计算步骤和工具状态。产品不是聊天气泡的放大版，而是一张把数据上下文、推理动作与计算结果并列摆放的分析桌面。
+自然语言是入口，Prompt Composer 是首页视觉中心。空会话只显示欢迎语、输入、附件与少量示例；分析开始后展开执行证据与交付区。白色与浅灰构成安静的三栏工作台，沿用真实计算证据的来源标识。
 
 ### Product context and register
 
@@ -50,9 +50,9 @@ components:
 - **使用场景：** 1024px 以上桌面浏览器为主，频繁查看表格、字段、工具参数和图表。
 - **产品风格：** 任务型产品界面，效率和证据可读性优先。
 - **记忆点：** “Evidence Rail（证据轨）”——一条青绿色执行轨把意图、Tool、参数、结果和总结串联起来。
-- **克制：** 导航、表单、表格遵循熟悉后台模式；不使用无意义渐变、玻璃拟态和装饰动画。
+- **克制：** 首页采用对话工作台，次级页面保留熟悉的数据管理控件；不使用无意义渐变、玻璃拟态和装饰动画。
 - **反例：** 不做纯聊天机器人、不做黑色终端风、不做密集 BI 仪表盘拼贴。
-- **Token 所有权：** 本文件是设计意图与语义 Token 源；`frontend/src/styles/tokens.css` 是正式 Vue 应用运行映射；`产品原型/assets/css/tokens.css` 保留静态原型映射。现有 Vue 控件与卡片圆角由运行映射定义，本次不重做视觉。
+- **Token 所有权：** 本文件是设计意图与语义 Token 源；`frontend/src/styles/tokens.css` 是正式 Vue 应用运行映射；历史静态原型不作为新工作台验收依据。卡片沿用 14px、Composer 为 16px 圆角。
 
 ## Colors
 
@@ -64,7 +64,7 @@ components:
 
 ## Layout
 
-后台使用 232px 固定侧栏与 68px 顶栏。内容区采用 24px 外边距，最大宽度不锁死以适应数据表。分析工作台在 1440px 使用 260px / minmax(420px, 1fr) / minmax(360px, 0.9fr) 三栏；1280px 压缩间距；低于 1024px 按数据上下文、对话、结果的顺序纵向排列。表格自身拥有水平滚动，不通过裁切隐藏字段。
+工作台复用 240px 侧栏与 68px 顶栏。首页中间 Prompt 最大 940px，空会话折叠右栏；有结果时为侧栏 / 弹性对话 / 420—720px 工件栏。窄屏导航与工件采用抽屉，输入框和主要内容单列排列。数据管理页继续复用已有布局，表格自身拥有水平滚动，不通过裁切隐藏字段。
 
 ## Elevation & Depth
 
@@ -72,7 +72,7 @@ components:
 
 ## Shapes
 
-控件与普通卡片使用 10px 圆角，关键指标和空状态容器可使用 16px。Tag 使用完整圆角，但主按钮不做胶囊形。分隔线保持 1px，图标为 1.75px 圆角描边风格。
+控件沿用 8px 圆角，卡片 14px，Composer 16px。Tag 使用完整圆角，但主按钮不做胶囊形。分隔线保持 1px，图标沿用现有 Element Plus 图标。
 
 ## Components
 

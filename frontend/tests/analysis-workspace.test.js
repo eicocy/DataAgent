@@ -7,11 +7,12 @@ import { datasetApi } from '../src/api/datasets'
 import AnalysisWorkspaceView from '../src/views/AnalysisWorkspaceView.vue'
 
 vi.mock('../src/api/analysis', () => ({
-  analysisApi: { createSession: vi.fn(), session: vi.fn(), submit: vi.fn(), run: vi.fn(), trace: vi.fn(), cancel: vi.fn() },
+  analysisApi: { createSession: vi.fn(), updateSession: vi.fn(), session: vi.fn(), submit: vi.fn(), run: vi.fn(), trace: vi.fn(), cancel: vi.fn() },
 }))
 vi.mock('../src/api/datasets', () => ({
   datasetApi: { detail: vi.fn(), list: vi.fn(), columns: vi.fn(), preview: vi.fn(), upload: vi.fn(), remove: vi.fn() },
 }))
+vi.mock('../src/api/workspace', () => ({ workspaceApi: { capabilities: vi.fn(async () => ({})), profiles: vi.fn(async () => ({ categories: [], items: [] })) } }))
 
 describe('analysis workspace', () => {
   beforeEach(() => {
@@ -45,6 +46,50 @@ describe('analysis workspace', () => {
       },
     })
   }
+
+  it('does not create empty sessions on the landing page and creates once on send', async () => {
+    analysisApi.createSession.mockResolvedValue({ id: 5 })
+    analysisApi.run.mockResolvedValue({ record_id: 9, status: 'succeeded', answer: '你好', tool_calls: [] })
+    const wrapper = mountWorkspace({ params: {}, query: {} })
+    await flushPromises()
+    expect(analysisApi.createSession).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Hey！今天想分析什么数据？')
+    wrapper.vm.question = '你好'
+    await wrapper.vm.submitQuestion()
+    expect(analysisApi.createSession).toHaveBeenCalledTimes(1)
+    expect(analysisApi.submit).toHaveBeenCalledWith(expect.objectContaining({ session_id: 5 }), expect.any(Object))
+    wrapper.unmount()
+  })
+  it('resets upload busy state when replacing a workspace', async () => {
+    const route = { params: { sessionId: '5' }, query: {} }
+    const wrapper = mountWorkspace(route)
+    await flushPromises()
+    wrapper.vm.uploadBusy = true
+    route.params.sessionId = '6'
+    await wrapper.vm.initializeWorkspace()
+    expect(wrapper.vm.sessionId).toBe(6)
+    expect(wrapper.vm.uploadBusy).toBe(false)
+    wrapper.unmount()
+  })
+  it('serializes removal behind an in-flight addition and restores a removal control', async () => {
+    let finish
+    analysisApi.updateSession.mockImplementationOnce(() => new Promise(resolve => { finish = resolve })).mockResolvedValue({ id: 5 })
+    const wrapper = mountWorkspace()
+    await flushPromises()
+    wrapper.vm.attachedDatasets = [{ id: 7, original_name: 'old.csv' }]
+    const addition = wrapper.vm.attachDataset({ id: 8, original_name: 'new.csv' })
+    await flushPromises()
+    const removal = wrapper.vm.removeAttachment(7)
+    await flushPromises()
+    expect(analysisApi.updateSession).toHaveBeenCalledTimes(1)
+    finish({ id: 5 })
+    await Promise.all([addition, removal])
+    expect(analysisApi.updateSession.mock.calls.map(call => call[1].attached_dataset_ids)).toEqual([[7, 8], [8]])
+    expect(wrapper.vm.attachedDatasets.map(item => item.id)).toEqual([8])
+    await flushPromises()
+    expect(wrapper.find('button[aria-label="移除附件 new.csv"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
 
   it('shows the answer and evidence returned by the background run API', async () => {
     analysisApi.run.mockResolvedValue({
@@ -88,6 +133,7 @@ describe('analysis workspace', () => {
     analysisApi.submit.mockImplementationOnce(() => new Promise((resolve, reject) => { rejectOld = reject }))
     wrapper.vm.question = 'old question'
     const oldSubmission = wrapper.vm.submitQuestion()
+    await flushPromises()
     wrapper.vm.controller.abort()
     wrapper.vm.controller = new AbortController()
     wrapper.vm.messages = []

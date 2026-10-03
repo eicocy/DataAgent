@@ -5,6 +5,9 @@ import AppShell from '../components/AppShell.vue'
 import AgentSteps from '../components/AgentSteps.vue'
 import AnalysisResult from '../components/AnalysisResult.vue'
 import ReportWorkbench from '../components/ReportWorkbench.vue'
+import PromptComposer from '../components/PromptComposer.vue'
+import UploadQueue from '../components/UploadQueue.vue'
+import { workspaceApi } from '../api/workspace'
 import { mapState } from 'pinia'
 import { useAnalysisStore } from '../stores/analysis'
 import { analysisApi } from '../api/analysis'
@@ -12,7 +15,7 @@ import { datasetApi } from '../api/datasets'
 
 export default {
   name: 'AnalysisWorkspaceView',
-  components: { AppShell, AgentSteps, AnalysisResult, ReportWorkbench, ChatLineRound, DataAnalysis, Refresh, Promotion },
+  components: { AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, ChatLineRound, DataAnalysis, Refresh, Promotion },
   data() {
     return {
       dataset: null,
@@ -22,7 +25,7 @@ export default {
       datasetSearchToken: 0,
       cancelRequested: false,
       reportDialogVisible: false,
-      artifactPanelOpen: true,
+      artifactPanelOpen: false,
       artifactPanelMaximized: false,
       artifactPanelWidth: 560,
       resizePointer: null,
@@ -36,12 +39,21 @@ export default {
       initializing: true,
       errorMessage: '',
       controller: null,
+      sessionCreation: null,
+      attachedDatasets: [],
+      uploadBusy: false,
+      attachmentBindings: 0,
+      attachmentChain: Promise.resolve(),
+      capabilities: {},
+      catalog: { categories: [], items: [] },
+      capabilityError: '',
     }
   },
   computed: {
     ...mapState(useAnalysisStore, { activeTrace: 'trace', activeResult: 'result' }),
     analysisLayoutStyle() { return { '--artifact-panel-width': `${this.artifactPanelWidth}px` } },
     latestEvidence() { return [...this.messages].reverse().find((message) => message.evidence)?.evidence || null },
+    isLanding() { return !this.messages.length && !this.loading },
     canCreateReport() { return Boolean(this.sessionId && this.latestEvidence?.record_id && this.latestEvidence?.dataset_id && this.latestEvidence?.dataset_version_id && ['succeeded', 'partial'].includes(this.latestEvidence.status)) },
     runningLabel() {
       if (this.cancelRequested) return '正在取消任务…'
@@ -56,7 +68,7 @@ export default {
   },
   watch: {
     '$route.params.sessionId'(value) {
-      if (value && Number(value) !== this.sessionId) this.initializeWorkspace()
+      if ((value ? Number(value) : null) !== this.sessionId) this.initializeWorkspace()
     },
   },
   created() { this.restorePanelPreference(); this.initializeWorkspace() },
@@ -99,13 +111,21 @@ export default {
     },
     async initializeWorkspace() {
       // 路由切换只停止客户端轮询，后台任务仍可在原会话恢复。
+      this.$refs.uploadQueue?.stop()
       this.controller?.abort()
       const controller = new AbortController()
       this.controller = controller
       this.loading = false
+      this.uploadBusy = false
       this.initializing = true
       this.errorMessage = ''
       this.messages = []
+      this.dataset = null
+      this.sessionId = null
+      this.sessionCreation = null
+      this.attachedDatasets = []
+      this.attachmentBindings = 0
+      this.attachmentChain = Promise.resolve()
       this.olderLoading = false
       this.messageCursor = null
       this.cancelRequested = false
@@ -117,11 +137,6 @@ export default {
         if (!routeSessionId) {
           this.dataset = queryDatasetId ? await datasetApi.detail(queryDatasetId, { signal: controller.signal }) : null
           if (!this.isCurrent(controller)) return
-          const session = await analysisApi.createSession({ dataset_id: this.dataset?.id ?? null }, { signal: controller.signal })
-          if (!this.isCurrent(controller)) return
-          const query = { ...this.$route.query, datasetId: queryDatasetId }
-          this.$router.replace({ name: 'analysis', params: { sessionId: session.id }, query })
-          this.sessionId = session.id
         } else {
           this.sessionId = Number(routeSessionId)
           const history = await analysisApi.session(this.sessionId, {}, { signal: controller.signal })
@@ -132,6 +147,9 @@ export default {
           this.dataset = dataset
           historyMessages = history.messages
           this.messages = history.messages.map(this.toChatMessage)
+          const attachments = await Promise.all((history.session?.attached_dataset_ids || []).map(id => datasetApi.detail(id, { signal: controller.signal })))
+          if (!this.isCurrent(controller)) return
+          this.attachedDatasets = attachments
           // 澄清候选以持久任务详情为准，刷新后恢复最近的待补充响应。
           const latest = this.messages.at(-1)
           if (latest?.role === 'assistant' && latest.evidence?.status === 'waiting') {
@@ -148,16 +166,21 @@ export default {
         this.datasetChoices = available?.items || []
         if (this.dataset && !this.datasetChoices.some((item) => item.id === this.dataset.id)) this.datasetChoices.push(this.dataset)
         if (this.$route.query.question) this.question = String(this.$route.query.question)
+        await this.loadCapabilities(controller)
+        if (!this.isCurrent(controller)) return
+        if (this.latestEvidence) this.artifactPanelOpen = true
+        else this.artifactPanelOpen = false
         const pending = useAnalysisStore().restore(this.sessionId, this.dataset?.id ?? null, historyMessages)
         if (pending) {
           this.loading = true
+          this.artifactPanelOpen = true
           this.resumeTask(controller).catch((error) => { if (this.isCurrent(controller) && error.name !== 'AbortError' && error.code !== 'ERR_CANCELED') this.errorMessage = error.message }).finally(() => { if (this.isCurrent(controller)) this.loading = false })
         }
       } catch (error) {
         if (this.isCurrent(controller) && error.name !== 'AbortError' && error.code !== 'ERR_CANCELED') this.errorMessage = error.message || '工作区加载失败'
       } finally {
         if (this.isCurrent(controller)) this.initializing = false
-        if (this.isCurrent(controller) && this.$route.query.run === '1' && this.question && this.sessionId) {
+        if (this.isCurrent(controller) && this.$route.query.run === '1' && this.question) {
           const query = { ...this.$route.query }
           delete query.run
           this.$router.replace({ query })
@@ -165,13 +188,76 @@ export default {
         }
       }
     },
+    async loadCapabilities(controller) {
+      const responses = await Promise.allSettled([workspaceApi.capabilities({ signal: controller.signal }), workspaceApi.profiles({}, { signal: controller.signal })])
+      if (!this.isCurrent(controller)) return
+      if (responses[0].status === 'fulfilled') this.capabilities = responses[0].value
+      if (responses[1].status === 'fulfilled') this.catalog = responses[1].value
+      this.capabilityError = responses.some(response => response.status === 'rejected') ? '能力目录暂时不可用，可继续使用现有数据分析，稍后重试。' : ''
+    },
+    async ensureSession(controller = this.controller) {
+      if (this.sessionId) return this.sessionId
+      if (this.sessionCreation) return this.sessionCreation
+      const creation = analysisApi.createSession({ dataset_id: this.dataset?.id ?? null }, { signal: controller.signal }).then(session => {
+        if (!this.isCurrent(controller)) throw new DOMException('Workspace changed', 'AbortError')
+        this.sessionId = session.id
+        this.$router.replace({ name: 'analysis', params: { sessionId: session.id }, query: { ...this.$route.query } })
+        return session.id
+      })
+      this.sessionCreation = creation
+      try { return await creation } finally { if (this.sessionCreation === creation) this.sessionCreation = null }
+    },
+    startUpload() {
+      this.ensureSession().catch(error => { if (error.name !== 'AbortError' && error.code !== 'ERR_CANCELED') this.errorMessage = error.message || '会话创建失败；文件仍保留在数据集页面。' })
+    },
+    attachDataset(dataset) {
+      const controller = this.controller
+      this.attachmentBindings++
+      this.attachmentChain = this.attachmentChain.then(() => this.bindDataset(dataset, controller)).finally(() => { if (this.isCurrent(controller)) this.attachmentBindings-- })
+      return this.attachmentChain
+    },
+    async bindDataset(dataset, controller) {
+      if (!this.isCurrent(controller)) return
+      try {
+        await this.ensureSession(controller)
+        if (!this.isCurrent(controller)) return
+        const next = [...this.attachedDatasets.filter(item => item.id !== dataset.id), dataset]
+        await analysisApi.updateSession(this.sessionId, { attached_dataset_ids: next.map(item => item.id) }, { signal: controller.signal })
+        if (!this.isCurrent(controller)) return
+        this.attachedDatasets = next
+        if (!this.datasetChoices.some(item => item.id === dataset.id)) this.datasetChoices.push(dataset)
+        if (!this.dataset) { this.dataset = dataset; this.selectedDatasetId = dataset.id }
+      } catch (error) {
+        if (this.isCurrent(controller)) this.errorMessage = `文件已上传，但会话绑定失败：${error.message}。可在数据集列表选择后继续分析。`
+      }
+    },
+    removeAttachment(id) {
+      if (!id || !this.sessionId) return
+      const controller = this.controller
+      this.attachmentBindings++
+      this.attachmentChain = this.attachmentChain.then(async () => {
+        if (!this.isCurrent(controller)) return
+        const next = this.attachedDatasets.filter(item => item.id !== id)
+        try {
+          await analysisApi.updateSession(this.sessionId, { attached_dataset_ids: next.map(item => item.id) }, { signal: controller.signal })
+          if (this.isCurrent(controller)) { this.attachedDatasets = next; this.$refs.uploadQueue?.forgetDataset(id) }
+        } catch (error) { if (this.isCurrent(controller)) this.errorMessage = error.message || '附件移除失败' }
+      }).finally(() => { if (this.isCurrent(controller)) this.attachmentBindings-- })
+      return this.attachmentChain
+    },
     async submitQuestion() {
       const question = this.question.trim()
-      if (!question || this.loading || this.choosingDataset || !this.sessionId) return
+      if (!question || this.loading || this.initializing || this.choosingDataset || this.uploadBusy || this.attachmentBindings) return
+      this.loading = true
+      const sessionController = this.controller
+      try { await this.ensureSession(sessionController) }
+      catch (error) { if (this.isCurrent(sessionController)) { this.loading = false; this.errorMessage = error.message || '会话创建失败' }; return }
+      if (!this.isCurrent(sessionController)) return
       this.controller?.abort()
       this.controller = new AbortController()
       const controller = this.controller
       this.loading = true
+      this.artifactPanelOpen = true
       this.cancelRequested = false
       this.errorMessage = ''
       this.question = ''
@@ -188,6 +274,7 @@ export default {
         this.messages.push({ id: result.message_id || result.record_id, role: 'assistant', content: result.answer || result.error_message, status: result.status, evidence: result })
       } catch (error) {
         if (!this.isCurrent(controller) || error.name === 'AbortError' || error.code === 'ERR_CANCELED') return
+        this.question = question
         userMessage.error = error.message || '分析失败，请保留问题后重试。'
         userMessage.errorCode = error.code
       } finally {
@@ -302,7 +389,7 @@ export default {
 
 <template>
   <AppShell>
-    <section class="analysis-heading">
+    <section v-if="!isLanding" class="analysis-heading">
       <div>
         <p class="eyebrow">真实数据计算 · 可核对执行证据</p>
         <h1>智能分析</h1>
@@ -312,19 +399,19 @@ export default {
     </section>
 
     <div v-if="errorMessage" class="inline-error" role="alert"><span>{{ errorMessage }}</span><el-button text type="primary" @click="initializeWorkspace"><el-icon><Refresh /></el-icon>重试</el-button></div>
+    <p v-if="capabilityError" class="capability-warning" role="status">{{ capabilityError }} <button type="button" @click="loadCapabilities(controller)">重试目录</button></p>
     <section v-if="initializing" class="panel analysis-loading" aria-live="polite"><span class="large-loader"></span><h2>正在准备分析工作区</h2></section>
-    <section v-else class="analysis-layout" :class="{ 'panel-hidden': !artifactPanelOpen, 'panel-maximized': artifactPanelMaximized }" :style="analysisLayoutStyle">
+    <section v-else class="analysis-layout" :class="{ 'panel-hidden': !artifactPanelOpen, 'panel-maximized': artifactPanelMaximized, 'workspace-landing': isLanding }" :style="analysisLayoutStyle">
       <div class="panel conversation-panel">
-        <header class="conversation-header"><div class="conversation-title"><span class="analysis-mark"><el-icon><DataAnalysis /></el-icon></span><div><h2>分析对话</h2><p>基于服务器端计算结果回答</p></div></div><div class="conversation-header-actions"><el-tag v-if="sessionId" effect="plain" round>会话 #{{ sessionId }}</el-tag><el-button v-if="!artifactPanelOpen" text @click="toggleArtifactPanel">打开工件面板</el-button></div></header>
+        <header v-if="!isLanding" class="conversation-header"><div class="conversation-title"><span class="analysis-mark"><el-icon><DataAnalysis /></el-icon></span><div><h2>分析对话</h2><p>基于服务器端计算结果回答</p></div></div><div class="conversation-header-actions"><el-tag v-if="sessionId" effect="plain" round>会话 #{{ sessionId }}</el-tag><el-button v-if="!artifactPanelOpen" text @click="toggleArtifactPanel">打开工件面板</el-button></div></header>
         <div class="analysis-dataset-picker"><label for="analysis-dataset">当前数据集</label><el-select id="analysis-dataset" v-model="selectedDatasetId" filterable remote :remote-method="searchDatasets" placeholder="选择数据集（聊天可留空）" :disabled="loading" @change="chooseDataset"><el-option v-for="option in datasetChoices" :key="option.id" :label="option.original_name" :value="option.id" /></el-select></div>
 
         <div class="conversation-stream" aria-live="polite" aria-relevant="additions text">
           <el-button v-if="messageCursor" class="load-older-button" text :loading="olderLoading" @click="loadOlderMessages">加载更早的消息</el-button>
           <div v-if="messages.length === 0" class="conversation-empty">
-            <span class="empty-analysis-icon"><el-icon><ChatLineRound /></el-icon></span>
-            <h3>从一个具体问题开始</h3>
-            <p>例如：按地区汇总销售额，并生成柱状图。</p>
-            <button type="button" class="suggestion-chip" @click="question = '按地区汇总销售额，并生成柱状图'">按地区汇总销售额</button>
+            <p class="workspace-wordmark">DATA ANALYSIS WORKSPACE</p>
+            <h1>Hey！今天想分析什么数据？</h1>
+            <p>上传数据，提出业务问题，让分析从这里开始。</p>
           </div>
           <article v-for="message in messages" :key="message.id" class="chat-message" :class="`message-${message.role}`">
             <div class="message-role">{{ message.role === 'user' ? '你' : 'DataLens Agent' }}</div>
@@ -337,16 +424,17 @@ export default {
           <div v-if="loading" class="agent-pending" role="status"><span class="status-pulse"></span>{{ runningLabel }}<el-button text type="danger" :disabled="cancelRequested" @click="cancelTask">取消任务</el-button></div>
         </div>
 
-        <form novalidate class="analysis-composer" @submit.prevent="submitQuestion">
-          <label class="sr-only" for="analysis-question">分析问题</label>
-          <el-input id="analysis-question" v-model="question" type="textarea" :rows="3" maxlength="2000" show-word-limit resize="none" placeholder="输入数据分析问题；Enter 发送，Shift+Enter 换行" :disabled="loading" @keydown.enter.exact="handleEnter" />
-          <div class="composer-footer"><span>模型可能出错，结论可在下方核对计算证据。</span><el-button type="primary" native-type="submit" :loading="loading" :disabled="!question.trim() || choosingDataset"><el-icon><Promotion /></el-icon>发送问题</el-button></div>
-        </form>
+        <PromptComposer v-model="question" :busy="loading || choosingDataset" :uploading="uploadBusy || attachmentBindings > 0" :catalog="catalog" :capabilities="capabilities" @submit="submitQuestion" @upload="$refs.uploadQueue.addFiles($event)" @templates="$router.push('/templates')">
+          <UploadQueue ref="uploadQueue" :formats="capabilities.file_formats" :attached-ids="attachedDatasets.map(item => item.id)" :max-files="capabilities.max_files || 10" :max-bytes="capabilities.max_upload_bytes || 20971520" @busy="uploadBusy = $event" @started="startUpload" @ready="attachDataset" @removed="removeAttachment" />
+          <div v-if="attachedDatasets.length" class="session-attachments" aria-label="会话数据附件"><span v-for="item in attachedDatasets" :key="item.id"><button type="button" :disabled="loading" @click="chooseDataset(item.id)">{{ item.original_name }}{{ dataset?.id === item.id ? ' · 当前' : '' }}</button><button type="button" :disabled="loading || attachmentBindings > 0" :aria-label="`移除附件 ${item.original_name}`" @click="removeAttachment(item.id)">×</button></span></div>
+        </PromptComposer>
+        <div v-if="isLanding" class="workspace-suggestions"><button type="button" @click="question = '帮我分析一下这个表'">探索这份数据</button><button type="button" @click="question = '检查缺失值、重复数据和异常值'">检查数据质量</button><button type="button" @click="question = '按地区汇总销售额，并生成柱状图'">比较业务表现</button><button type="button" @click="$router.push('/templates')">浏览分析模板 ↗</button></div>
+        <p v-if="!dataset && isLanding" class="workspace-help">可先聊天，分析前请选择数据集或上传文件。</p>
       </div>
 
       <button v-if="artifactPanelOpen" type="button" class="artifact-panel-backdrop" aria-label="关闭工件面板" @click="toggleArtifactPanel"></button>
       <aside v-if="artifactPanelOpen" class="panel evidence-panel artifact-panel" aria-label="工件与分析证据">
-        <button v-if="!artifactPanelMaximized" class="artifact-panel-resizer" type="button" role="separator" aria-label="调整工件面板宽度" aria-orientation="vertical" :aria-valuenow="artifactPanelWidth" aria-valuemin="420" aria-valuemax="720" @pointerdown="startPanelResize" @pointermove="movePanelResize" @pointerup="endPanelResize" @pointercancel="endPanelResize"><span></span></button>
+        <div v-if="!artifactPanelMaximized" class="artifact-panel-resizer" tabindex="0" role="separator" aria-label="调整工件面板宽度" aria-orientation="vertical" :aria-valuenow="artifactPanelWidth" aria-valuemin="420" aria-valuemax="720" @keydown.left.prevent="artifactPanelWidth = Math.min(720, artifactPanelWidth + 20); savePanelPreference()" @keydown.right.prevent="artifactPanelWidth = Math.max(420, artifactPanelWidth - 20); savePanelPreference()" @pointerdown="startPanelResize" @pointermove="movePanelResize" @pointerup="endPanelResize" @pointercancel="endPanelResize"><span></span></div>
         <div class="evidence-panel-heading"><span class="evidence-dot"></span><div><h2>工件与证据</h2><p>图表、结果表和工具轨迹</p></div><el-button v-if="canCreateReport" size="small" plain @click="reportDialogVisible = true">生成报告</el-button><el-button text aria-label="最大化工件面板" @click="toggleArtifactPanelSize">{{ artifactPanelMaximized ? '还原' : '展开' }}</el-button><el-button text aria-label="关闭工件面板" @click="toggleArtifactPanel">关闭</el-button></div>
         <p v-if="loading && activeResult?.progress?.total" class="caption">已完成 {{ activeResult.progress.completed }} / {{ activeResult.progress.total }} 步</p>
         <AgentSteps :trace="activeTrace" :calls="loading ? [] : latestEvidence?.tool_calls || []" />
@@ -354,6 +442,28 @@ export default {
         <AnalysisResult v-else-if="latestEvidence" :evidence="latestEvidence" />
       </aside>
     </section>
-    <ReportWorkbench v-model="reportDialogVisible" :session-id="sessionId" :source="latestEvidence" />
+    <ReportWorkbench v-if="sessionId" v-model="reportDialogVisible" :session-id="sessionId" :source="latestEvidence" />
   </AppShell>
 </template>
+
+<style scoped>
+.workspace-landing { margin: 5vh auto 0; max-width: 1100px; }
+.workspace-landing .conversation-panel { min-height: 0; width: 100%; max-width: 940px; background: transparent; border: 0; box-shadow: none; overflow: visible; }
+.workspace-landing .conversation-stream { min-height: 0; padding: 0; order: -2; }
+.workspace-landing .conversation-empty { min-height: 160px; padding: 16px 0 30px; }
+.conversation-empty h1 { font-size: clamp(22px, 2.5vw, 32px); font-weight: 550; margin: 8px 0 14px; letter-spacing: -.6px; }
+.conversation-empty p { font-size: 13px; }
+.conversation-empty .workspace-wordmark { color: var(--muted); font-size: 10px; letter-spacing: 2px; }
+.workspace-landing .analysis-dataset-picker { order: 2; background: transparent; padding: 16px 0; border: 0; }
+.conversation-panel > .prompt-composer { width: auto; margin: 12px; }
+.workspace-landing .conversation-panel > .prompt-composer { width: 100%; margin: 0; }
+.workspace-suggestions, .session-attachments { display: flex; flex-wrap: wrap; gap: 8px; }
+.workspace-suggestions { justify-content: center; margin: 18px 0 2px; }
+.workspace-suggestions button, .session-attachments button { cursor: pointer; border: 1px solid var(--line); padding: 8px 12px; border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 12px; }
+.workspace-suggestions button:hover, .session-attachments button:hover { color: var(--ink); background: var(--canvas); }
+.session-attachments { margin-bottom: 8px; }
+.workspace-help { color: var(--muted); text-align: center; font-size: 12px; }
+.capability-warning { font-size: 12px; color: var(--muted); }
+.capability-warning button { border: 0; background: none; color: var(--brand); cursor: pointer; }
+@media (max-width: 700px) { .workspace-landing { margin-top: 10px; } .workspace-landing .conversation-empty { min-height: 135px; } }
+</style>

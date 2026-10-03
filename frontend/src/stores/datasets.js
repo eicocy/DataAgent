@@ -56,11 +56,12 @@ export const useDatasetStore = defineStore('datasets', {
     async loadDataset(id, config = {}) { this.currentDataset = await datasetApi.detail(id, config); return this.currentDataset },
     async loadColumns(id, config = {}) { this.columns = await datasetApi.columns(id, config); return this.columns },
     async loadPreview(id, params = {}, config = {}) { this.preview = await datasetApi.preview(id, params, config); return this.preview },
-    async upload(file, { signal, onUploadProgress, sheetName } = {}) {
+    async upload(file, { signal, onUploadProgress, sheetName, onAccepted, datasetId } = {}) {
       this.uploadStatus = 'uploading'
       this.error = null
       try {
-        const accepted = await datasetApi.upload(file, sheetName, { signal, onUploadProgress })
+        const accepted = datasetId ? { id: datasetId } : await datasetApi.upload(file, sheetName, { signal, onUploadProgress })
+        onAccepted?.(accepted)
         this.currentDataset = accepted
         this.uploadStatus = 'parsing'
         const deadline = Date.now() + 120000
@@ -71,7 +72,7 @@ export const useDatasetStore = defineStore('datasets', {
           if (result.status === 'ready') { this.uploadStatus = 'ready'; return result }
           if (result.status === 'failed') {
             this.uploadStatus = 'failed'
-            throw new Error(result.parse_error_message || '文件解析失败')
+            throw Object.assign(new Error(result.parse_error_message || '文件解析失败'), { code: 'DATASET_PARSE_FAILED' })
           }
           await delay(1000, signal)
         }

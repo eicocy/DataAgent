@@ -12,7 +12,7 @@ export default {
     return { recentSessions: [], recentLoading: false, mobileSidebarOpen: false,
       editingSessionId: null, editingTitle: '', renameSaving: false,
       deleteSessionId: null, deleteDialogOpen: false, deletingSession: false,
-      sidebarError: '' }
+      sidebarError: '', recentController: null }
   },
   computed: {
     ...mapState(useAuthStore, ['user']),
@@ -21,21 +21,26 @@ export default {
     '$route.params.sessionId'() { this.loadRecentSessions() },
   },
   created() { this.loadRecentSessions() },
+  beforeUnmount() { this.recentController?.abort(); this.recentController = null },
   methods: {
     ...mapActions(useAuthStore, ['logout']),
     async loadRecentSessions() {
+      this.recentController?.abort()
+      const controller = new AbortController()
+      this.recentController = controller
       this.recentLoading = true
       try {
-        const result = await analysisApi.sessions({ page: 1, page_size: 20 })
+        const result = await analysisApi.sessions({ page: 1, page_size: 20 }, { signal: controller.signal })
+        if (this.recentController !== controller || controller.signal.aborted) return
         this.recentSessions = result.items || []
         this.sidebarError = ''
       } catch (error) {
-        if (error.code !== 'ERR_CANCELED') this.sidebarError = error.message || '会话列表加载失败'
-      } finally { this.recentLoading = false }
+        if (this.recentController === controller && !controller.signal.aborted) this.sidebarError = error.message || '会话列表加载失败'
+      } finally { if (this.recentController === controller) this.recentLoading = false }
     },
     newConversation() {
       this.mobileSidebarOpen = false
-      this.$router.push({ name: 'analysis' })
+      this.$router.push({ name: 'workspace' })
     },
     openConversation(session) {
       this.mobileSidebarOpen = false
@@ -45,6 +50,7 @@ export default {
       this.editingSessionId = session.id
       this.editingTitle = session.title || ''
     },
+    renameEnter(event, session) { if (!event.isComposing) { event.preventDefault(); this.saveRename(session) } },
     async saveRename(session) {
       if (this.renameSaving || this.editingSessionId !== session.id) return
       const title = this.editingTitle.trim()
@@ -87,23 +93,22 @@ export default {
 
 <template>
   <div class="app-shell">
-    <div v-if="mobileSidebarOpen" class="sidebar-backdrop" @click="mobileSidebarOpen = false"></div>
-    <aside class="sidebar" :class="{ 'is-open': mobileSidebarOpen }" aria-label="主导航">
-      <router-link class="brand" :to="{ name: 'dashboard' }">
+    <button v-if="mobileSidebarOpen" type="button" class="sidebar-backdrop" aria-label="关闭导航" @click="mobileSidebarOpen = false"></button>
+    <aside id="workspace-navigation" class="sidebar" :class="{ 'is-open': mobileSidebarOpen }" aria-label="主导航">
+      <router-link class="brand" :to="{ name: 'workspace' }">
         <span class="brand-mark"><el-icon><DataAnalysis /></el-icon></span>
         <span><strong>DataLens</strong><small>AGENT WORKSPACE</small></span>
       </router-link>
       <p class="nav-caption">工作空间</p>
       <nav class="nav-list">
-        <router-link class="nav-item" :to="{ name: 'dashboard' }" exact-active-class="is-active" @click="mobileSidebarOpen = false">
-          <el-icon><DataAnalysis /></el-icon><span>Dashboard</span>
+        <router-link class="nav-item" :to="{ name: 'workspace' }" exact-active-class="is-active" @click="mobileSidebarOpen = false">
+          <el-icon><Plus /></el-icon><span>新分析</span>
         </router-link>
+        <router-link class="nav-item" to="/templates" @click="mobileSidebarOpen = false"><el-icon><DataAnalysis /></el-icon><span>分析模板</span></router-link>
         <router-link class="nav-item" to="/datasets" @click="mobileSidebarOpen = false"><el-icon><Files /></el-icon><span>数据集</span></router-link>
-        <router-link class="nav-item" to="/analysis" @click="mobileSidebarOpen = false"><el-icon><ChatLineRound /></el-icon><span>智能分析</span></router-link>
-        <router-link class="nav-item" to="/sessions" @click="mobileSidebarOpen = false"><el-icon><Clock /></el-icon><span>分析会话</span></router-link>
         <router-link class="nav-item" to="/files" @click="mobileSidebarOpen = false"><el-icon><Files /></el-icon><span>文件与工件</span></router-link>
-        <router-link class="nav-item" to="/history" @click="mobileSidebarOpen = false"><el-icon><Clock /></el-icon><span>分析历史</span></router-link>
       </nav>
+      <details class="sidebar-more"><summary>更多</summary><nav class="nav-list"><router-link class="nav-item" to="/overview">工作区概览</router-link><router-link class="nav-item" to="/sessions">全部会话</router-link><router-link class="nav-item" to="/history">分析历史</router-link></nav></details>
       <section class="sidebar-conversations" aria-label="最近会话">
         <div class="sidebar-section-heading"><span>最近会话</span><button type="button" aria-label="新建分析" @click="newConversation"><el-icon><Plus /></el-icon></button></div>
         <p v-if="sidebarError" class="sidebar-error" role="alert">{{ sidebarError }}</p>
@@ -111,7 +116,7 @@ export default {
         <p v-else-if="!recentSessions.length" class="sidebar-empty">还没有会话</p>
         <div v-for="session in recentSessions" :key="session.id" class="sidebar-conversation" :class="{ 'is-active': Number($route.params.sessionId) === session.id }">
           <button v-if="editingSessionId !== session.id" type="button" class="sidebar-conversation-title" @click="openConversation(session)"><el-icon v-if="session.is_pinned"><Star /></el-icon><span>{{ session.title || '新分析' }}</span></button>
-          <el-input v-else v-model="editingTitle" size="small" maxlength="200" autofocus :disabled="renameSaving" @keydown.enter.prevent="saveRename(session)" @blur="saveRename(session)" />
+          <el-input v-else v-model="editingTitle" size="small" maxlength="200" autofocus :disabled="renameSaving" @keydown.enter="renameEnter($event, session)" @blur="saveRename(session)" />
           <div class="sidebar-conversation-actions"><button type="button" :aria-label="session.is_pinned ? '取消置顶' : '置顶会话'" @click="togglePinned(session)"><el-icon><Star /></el-icon></button><button type="button" aria-label="重命名会话" @click="startRename(session)"><el-icon><EditPen /></el-icon></button><button type="button" aria-label="删除会话" @click="deleteSessionId = session.id; deleteDialogOpen = true"><el-icon><Delete /></el-icon></button></div>
         </div>
       </section>
@@ -126,7 +131,7 @@ export default {
     </aside>
     <div class="workspace">
       <header class="topbar">
-        <button type="button" class="mobile-menu-button" aria-label="打开导航" @click="mobileSidebarOpen = !mobileSidebarOpen"><el-icon><Menu /></el-icon></button>
+        <button type="button" class="mobile-menu-button" :aria-expanded="mobileSidebarOpen" aria-controls="workspace-navigation" aria-label="打开导航" @click="mobileSidebarOpen = !mobileSidebarOpen"><el-icon><Menu /></el-icon></button>
         <span class="breadcrumb">Data workspace <span>/</span> {{ $route.meta.title }}</span>
         <div class="topbar-status"><span class="status-pulse"></span>本地工作区</div>
       </header>

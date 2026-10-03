@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import current_user
 from app.models import AnalysisMessage, AnalysisRecord, AnalysisSession, Dataset, User, AnalysisArtifact, AnalysisReport, AnalysisReportVersion, CleanupTask
+from app.agent.context import ConversationContext
+from app.routers.datasets import _owned_dataset
 
 
 router = APIRouter(prefix="/analysis/sessions", tags=["analysis sessions"])
@@ -17,13 +19,16 @@ class SessionPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: str | None = Field(default=None, min_length=1, max_length=200)
     is_pinned: bool | None = None
+    attached_dataset_ids: list[int] | None = Field(default=None, max_length=10)
 
     @model_validator(mode="after")
     def require_update(self):
-        if self.title is None and self.is_pinned is None:
+        if self.title is None and self.is_pinned is None and self.attached_dataset_ids is None:
             raise ValueError("At least one session field is required")
         if self.title is not None and not self.title.strip():
             raise ValueError("Session title cannot be blank")
+        if self.attached_dataset_ids is not None and any(value <= 0 for value in self.attached_dataset_ids):
+            raise ValueError('Dataset IDs must be positive')
         return self
 
 
@@ -58,6 +63,13 @@ def _record_evidence(record: AnalysisRecord | None) -> dict | None:
         "error_message": record.error_message,
         "execution_time_ms": record.execution_time_ms,
     }
+
+
+def _visible_attachments(db: Session, session: AnalysisSession, user_id: int) -> list[int]:
+    ids = (session.context_json or {}).get('attached_dataset_ids', [])[:10]
+    # 文件可能已被删除或权限改变；读接口也不泄露失效附件。
+    owned = set(db.scalars(select(Dataset.id).where(Dataset.id.in_(ids), Dataset.user_id == user_id, Dataset.status == 'ready')).all())
+    return [value for value in ids if value in owned]
 
 
 @router.get("")
@@ -134,7 +146,7 @@ def get_analysis_session(
         "analysis_record": _record_evidence(by_message.get(message.id)),
     } for message in messages]
     return {"code": 200, "message": "success", "data": {
-        "session": {"id": session.id, "dataset_id": session.dataset_id, "title": session.title, "status": session.status, "is_pinned": session.is_pinned, "created_at": session.created_at.isoformat(), "updated_at": session.updated_at.isoformat()},
+        "session": {"id": session.id, "dataset_id": session.dataset_id, "attached_dataset_ids": _visible_attachments(db, session, user.id), "title": session.title, "status": session.status, "is_pinned": session.is_pinned, "created_at": session.created_at.isoformat(), "updated_at": session.updated_at.isoformat()},
         "dataset": {"id": dataset.id, "original_name": dataset.original_name, "row_count": dataset.row_count, "column_count": dataset.column_count, "file_type": dataset.file_type} if dataset else None,
         "messages": output_messages,
         "message_count": total_messages,
@@ -146,6 +158,19 @@ def get_analysis_session(
 def update_analysis_session(session_id: int, payload: SessionPatch,
                             user: User = Depends(current_user), db: Session = Depends(get_db)):
     session = _session_or_error(db, session_id, user.id)
+    if payload.attached_dataset_ids is not None:
+        # 与提交分析共用 Session 行锁；禁止运行期间覆盖正在持久化的上下文。
+        session = db.scalar(select(AnalysisSession).where(AnalysisSession.id == session_id).with_for_update().execution_options(populate_existing=True))
+        active = db.scalar(select(AnalysisRecord.id).where(AnalysisRecord.session_id == session_id, AnalysisRecord.status.in_(('pending', 'running'))).limit(1))
+        if active is not None:
+            raise HTTPException(409, detail={'code': 'SESSION_BUSY', 'message': '请等待当前分析结束后再调整附件'})
+        ids = list(dict.fromkeys(payload.attached_dataset_ids))
+        for dataset_id in ids:
+            dataset = _owned_dataset(db, dataset_id, user.id)
+            if dataset.status != 'ready':
+                raise HTTPException(409, detail={'code': 'DATASET_NOT_READY', 'message': '附件尚未完成解析'})
+        context = session.context_json or ConversationContext(conversation_id=session.id, user_id=user.id).model_dump()
+        session.context_json = {**context, 'attached_dataset_ids': ids}
     if payload.title is not None:
         session.title = payload.title.strip()
     if payload.is_pinned is not None:
@@ -154,7 +179,7 @@ def update_analysis_session(session_id: int, payload: SessionPatch,
     db.commit()
     db.refresh(session)
     return {"code": 200, "message": "success", "data": {
-        "id": session.id, "dataset_id": session.dataset_id, "title": session.title,
+        "id": session.id, "dataset_id": session.dataset_id, "attached_dataset_ids": _visible_attachments(db, session, user.id), "title": session.title,
         "status": session.status, "is_pinned": session.is_pinned,
         "created_at": session.created_at.isoformat(), "updated_at": session.updated_at.isoformat()}}
 

@@ -1,41 +1,45 @@
 #app { min-height: 100vh; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .app-shell { display: flex; min-height: 100vh; }
-.sidebar { width: 240px; flex: 0 0 240px; display: flex; flex-direction: column; padding: 23px 14px 14px; color: #dce5f2; background: #14243d; }
+.sidebar { width: 240px; flex: 0 0 240px; display: flex; flex-direction: column; padding: 23px 14px 14px; color: var(--ink); background: #f8f9fb; border-right: 1px solid var(--line); }
 .brand { display: inline-flex; align-items: center; gap: 11px; color: inherit; text-decoration: none; }
 .brand-mark { width: 37px; height: 37px; display: grid; place-items: center; border-radius: 11px; color: #fff; background: #2f6bff; font-size: 20px; }
-.brand strong { display: block; color: #fff; font-size: 16px; letter-spacing: -.35px; }
+.brand strong { display: block; color: var(--ink); font-size: 16px; letter-spacing: -.35px; }
 .brand small { display: block; margin-top: 3px; color: #8292aa; font-family: var(--font-data); font-size: 8px; letter-spacing: 1.1px; }
 .nav-caption { margin: 25px 11px 10px; color: #8191a9; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
 .nav-list { display: grid; gap: 5px; }
-.nav-item { min-height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-radius: 8px; color: #aebbd0; font-size: 13px; text-decoration: none; transition: background .15s ease, color .15s ease; }
+.nav-item { min-height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-radius: 8px; color: var(--muted); font-size: 13px; text-decoration: none; transition: background .15s ease, color .15s ease; }
 .nav-item .el-icon { font-size: 17px; }
-.nav-item:hover, .nav-item.is-active { color: #fff; background: #223957; }
+.nav-item:hover, .nav-item.is-active { color: var(--ink); background: var(--line); }
 .nav-item.is-active { box-shadow: inset 3px 0 #48c6b6; }
 .sidebar-bottom { margin-top: auto; }
-.sidebar-conversations { min-height: 80px; max-height: calc(100vh - 475px); overflow: auto; margin: 22px 1px 10px; padding-top: 12px; border-top: 1px solid #2b3d57; }
+.sidebar-conversations { min-height: 80px; max-height: calc(100vh - 410px); overflow: auto; margin: 22px 1px 10px; padding-top: 12px; border-top: 1px solid var(--line); }
 .sidebar-section-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 7px 8px; color: #8d9db3; font-size: 10px; font-weight: 650; }
 .sidebar-section-heading button, .sidebar-conversation-actions button { display: grid; place-items: center; width: 25px; height: 25px; border: 0; border-radius: 6px; color: #9cacbf; background: transparent; cursor: pointer; }
-.sidebar-section-heading button:hover, .sidebar-conversation-actions button:hover { color: #fff; background: #2a405e; }
+.sidebar-section-heading button:hover, .sidebar-conversation-actions button:hover { color: var(--ink); background: var(--line); }
 .sidebar-conversation { display: flex; align-items: center; gap: 4px; min-height: 35px; margin: 2px 0; border-radius: 7px; padding: 3px 4px 3px 8px; }
-.sidebar-conversation.is-active, .sidebar-conversation:hover { background: #223957; }
-.sidebar-conversation-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; border: 0; padding: 3px 0; color: #cad4e2; background: transparent; text-align: left; font-size: 10px; cursor: pointer; }
+.sidebar-conversation.is-active, .sidebar-conversation:hover { background: var(--line); }
+.sidebar-conversation-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; border: 0; padding: 3px 0; color: var(--ink); background: transparent; text-align: left; font-size: 12px; cursor: pointer; }
 .sidebar-conversation-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-conversation-title .el-icon { flex: 0 0 auto; color: #edbd59; }
 .sidebar-conversation-actions { display: flex; gap: 0; opacity: 0; }
 .sidebar-conversation:hover .sidebar-conversation-actions, .sidebar-conversation:focus-within .sidebar-conversation-actions { opacity: 1; }
 .sidebar-conversation-actions button { width: 22px; height: 24px; font-size: 12px; }
-.sidebar-conversation .el-input { --el-input-bg-color: #203653; --el-input-text-color: #fff; }
+.sidebar-conversation .el-input { --el-input-bg-color: var(--surface); --el-input-text-color: var(--ink); }
 .sidebar-empty, .sidebar-error { margin: 5px 7px; color: #8393a9; font-size: 9px; }
 .sidebar-error { color: #f4a9b5; }
 .evidence-note { display: flex; align-items: center; gap: 9px; margin: 0 4px 15px; padding: 12px 9px; border-top: 1px solid #2b3d57; color: #9eacc0; font-size: 10px; }
 .evidence-dot { width: 8px; height: 8px; display: inline-block; flex: 0 0 8px; border-radius: 50%; background: #18a999; box-shadow: 0 0 0 4px rgb(24 169 153 / 12%); }
-.profile-button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 8px; border: 0; border-top: 1px solid #2b3d57; color: #dce5f2; background: transparent; text-align: left; cursor: pointer; }
+.profile-button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 8px; border: 0; border-top: 1px solid var(--line); color: var(--ink); background: transparent; text-align: left; cursor: pointer; }
 .avatar { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 50%; color: #c8d8f0; background: #2b4261; }
 .profile-copy { flex: 1; min-width: 0; }
 .profile-copy strong, .profile-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.profile-copy strong { color: #fff; font-size: 11px; font-weight: 600; }
+.profile-copy strong { color: var(--ink); font-size: 11px; font-weight: 600; }
 .profile-copy small { margin-top: 3px; color: #90a0b6; font-size: 10px; }
 .workspace { flex: 1; min-width: 0; }
+.sidebar-more { margin: 8px 12px; font-size: 12px; color: var(--muted); }
+.sidebar-more summary { cursor: pointer; padding: 8px 0; }
+.sidebar-backdrop { border: 0; }
 .topbar { height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 35px; border-bottom: 1px solid #e8edf3; background: rgb(255 255 255 / 85%); }
 .mobile-menu-button { display: none; border: 0; color: #53647c; background: transparent; font-size: 18px; }
 .breadcrumb { color: #8995a7; font-size: 11px; }

@@ -36,7 +36,7 @@ test('signup, upload, preview, queued analysis and history with mocked APIs', as
   await page.waitForURL('**/datasets/7')
   await expect(page.getByText('演示数据缺失一个值')).toBeVisible()
   await page.getByRole('button', { name: '开始分析' }).click()
-  await page.waitForURL('**/analysis/5?*')
+  await page.waitForURL('**/analysis?*')
   await page.getByLabel('分析问题').fill('总销售额')
   await page.getByRole('button', { name: '发送问题' }).click()
   await expect(page.getByRole('button', { name: '取消任务' })).toBeVisible()

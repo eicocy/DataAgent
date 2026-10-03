@@ -1,0 +1,3869 @@
+{
+  "categories": [
+    {
+      "id": "general",
+      "name": "通用数据分析",
+      "description": "探索、质量与数据准备"
+    },
+    {
+      "id": "sales",
+      "name": "销售经营分析",
+      "description": "销售趋势、结构与贡献"
+    },
+    {
+      "id": "finance",
+      "name": "财务分析",
+      "description": "收入、成本、利润与预算"
+    },
+    {
+      "id": "customer",
+      "name": "用户增长分析",
+      "description": "用户、留存与生命周期"
+    },
+    {
+      "id": "marketing",
+      "name": "市场营销分析",
+      "description": "投放、渠道与转化"
+    },
+    {
+      "id": "ecommerce",
+      "name": "电商分析",
+      "description": "订单、商品与复购"
+    },
+    {
+      "id": "product",
+      "name": "产品运营分析",
+      "description": "行为、功能与路径"
+    },
+    {
+      "id": "supply",
+      "name": "供应链分析",
+      "description": "采购、供应商与交付"
+    },
+    {
+      "id": "inventory",
+      "name": "库存分析",
+      "description": "周转、结构与预警"
+    },
+    {
+      "id": "hr",
+      "name": "人力资源分析",
+      "description": "人员结构与趋势"
+    },
+    {
+      "id": "service",
+      "name": "客户服务分析",
+      "description": "工单、响应与满意度"
+    },
+    {
+      "id": "risk",
+      "name": "风险分析",
+      "description": "异常信号与调查线索"
+    },
+    {
+      "id": "forecast",
+      "name": "预测分析",
+      "description": "时间序列与不确定性"
+    },
+    {
+      "id": "statistics",
+      "name": "统计研究",
+      "description": "统计关系与前提检验"
+    },
+    {
+      "id": "custom",
+      "name": "自定义分析",
+      "description": "根据业务问题组织分析"
+    }
+  ],
+  "items": [
+    {
+      "id": "general-explore",
+      "name": "自动探索分析",
+      "category": "general",
+      "description": "探索、质量与数据准备：自动探索分析。",
+      "example_questions": [
+        "帮我分析一下这个表。"
+      ],
+      "recommended_for": [
+        "探索、质量与数据准备"
+      ],
+      "recommended_data": [
+        "一个表格数据集"
+      ],
+      "intent_keywords": [
+        "自动探索分析"
+      ],
+      "preferred_tools": [
+        "eda"
+      ],
+      "required_capabilities": [
+        "eda"
+      ],
+      "availability": "available",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "general-quality",
+      "name": "数据质量分析",
+      "category": "general",
+      "description": "探索、质量与数据准备：数据质量分析。",
+      "example_questions": [
+        "看看这个表有什么数据问题。"
+      ],
+      "recommended_for": [
+        "探索、质量与数据准备"
+      ],
+      "recommended_data": [
+        "一个表格数据集"
+      ],
+      "intent_keywords": [
+        "数据质量分析"
+      ],
+      "preferred_tools": [
+        "missing_value_analysis",
+        "duplicate_analysis",
+        "outlier_analysis"
+      ],
+      "required_capabilities": [
+        "missing_value_analysis",
+        "duplicate_analysis",
+        "outlier_analysis"
+      ],
+      "availability": "available",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "general-clean",
+      "name": "数据清洗",
+      "category": "general",
+      "description": "探索、质量与数据准备：数据清洗。",
+      "example_questions": [
+        "检查数据格式，并提出清洗建议。"
+      ],
+      "recommended_for": [
+        "探索、质量与数据准备"
+      ],
+      "recommended_data": [
+        "一个表格数据集"
+      ],
+      "intent_keywords": [
+        "数据清洗"
+      ],
+      "preferred_tools": [
+        "missing_value_analysis"
+      ],
+      "required_capabilities": [
+        "missing_value_analysis"
+      ],
+      "availability": "limited",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "general-eda",
+      "name": "探索性数据分析 EDA",
+      "category": "general",
+      "description": "探索、质量与数据准备：探索性数据分析 EDA。",
+      "example_questions": [
+        "分析字段分布、相关关系和异常值。"
+      ],
+      "recommended_for": [
+        "探索、质量与数据准备"
+      ],
+      "recommended_data": [
+        "一个表格数据集"
+      ],
+      "intent_keywords": [
+        "探索性数据分析 EDA"
+      ],
+      "preferred_tools": [
+        "eda"
+      ],
+      "required_capabilities": [
+        "eda"
+      ],
+      "availability": "available",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "sales-overview",
+      "name": "销售综合分析",
+      "category": "sales",
+      "description": "销售趋势、结构与贡献：销售综合分析。",
+      "example_questions": [
+        "分析销售趋势和不同地区的销售表现。"
+      ],
+      "recommended_for": [
+        "销售趋势、结构与贡献"
+      ],
+      "recommended_data": [
+        "日期、销售金额、地区、商品；订单指标需订单 ID"
+      ],
+      "intent_keywords": [
+        "销售综合分析"
+      ],
+      "preferred_tools": [
+        "aggregate_data",
+        "group_by_analysis"
+      ],
+      "required_capabilities": [
+        "aggregate_data",
+        "group_by_analysis"
+      ],
+      "availability": "limited",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "sales-growth",
+      "name": "销售增长分析",
+      "category": "sales",
+      "description": "销售趋势、结构与贡献：销售增长分析。",
+      "example_questions": [
+        "比较不同月份销售额的变化。"
+      ],
+      "recommended_for": [
+        "销售趋势、结构与贡献"
+      ],
+      "recommended_data": [
+        "日期、销售金额、地区、商品；订单指标需订单 ID"
+      ],
+      "intent_keywords": [
+        "销售增长分析"
+      ],
+      "preferred_tools": [
+        "time_group_analysis"
+      ],
+      "required_capabilities": [
+        "time_group_analysis"
+      ],
+      "availability": "limited",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "sales-decline",
+      "name": "销售下滑原因分析",
+      "category": "sales",
+      "description": "销售趋势、结构与贡献：销售下滑原因分析。",
+      "example_questions": [
+        "分析销售下降的时间、地区与商品，说明数据支持的发现。"
+      ],
+      "recommended_for": [
+        "销售趋势、结构与贡献"
+      ],
+      "recommended_data": [
+        "日期、销售金额、地区、商品；订单指标需订单 ID"
+      ],
+      "intent_keywords": [
+        "销售下滑原因分析"
+      ],
+      "preferred_tools": [
+        "group_by_analysis",
+        "time_group_analysis"
+      ],
+      "required_capabilities": [
+        "group_by_analysis",
+        "time_group_analysis"
+      ],
+      "availability": "limited",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "sales-ranking",
+      "name": "销售排行榜分析",
+      "category": "sales",
+      "description": "销售趋势、结构与贡献：销售排行榜分析。",
+      "example_questions": [
+        "按商品汇总销售额，列出销售额最高的商品。"
+      ],
+      "recommended_for": [
+        "销售趋势、结构与贡献"
+      ],
+      "recommended_data": [
+        "日期、销售金额、地区、商品；订单指标需订单 ID"
+      ],
+      "intent_keywords": [
+        "销售排行榜分析"
+      ],
+      "preferred_tools": [
+        "group_by_analysis",
+        "sort_data"
+      ],
+      "required_capabilities": [
+        "group_by_analysis",
+        "sort_data"
+      ],
+      "availability": "available",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "sales-report",
+      "name": "销售经营管理报告",
+      "category": "sales",
+      "description": "销售趋势、结构与贡献：销售经营管理报告。",
+      "example_questions": [
+        "分析销售经营情况并整理关键发现。"
+      ],
+      "recommended_for": [
+        "销售趋势、结构与贡献"
+      ],
+      "recommended_data": [
+        "日期、销售金额、地区、商品；订单指标需订单 ID"
+      ],
+      "intent_keywords": [
+        "销售经营管理报告"
+      ],
+      "preferred_tools": [
+        "eda"
+      ],
+      "required_capabilities": [
+        "eda"
+      ],
+      "availability": "limited",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "finance-overview",
+      "name": "财务综合分析",
+      "category": "finance",
+      "description": "收入、成本、利润与预算：财务综合分析。",
+      "example_questions": [
+        "帮我做财务综合分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "收入、成本、利润与预算"
+      ],
+      "recommended_data": [
+        "日期、收入、成本、利润、预算；注明币种与单位"
+      ],
+      "intent_keywords": [
+        "财务综合分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "finance-revenue",
+      "name": "收入分析",
+      "category": "finance",
+      "description": "收入、成本、利润与预算：收入分析。",
+      "example_questions": [
+        "帮我做收入分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "收入、成本、利润与预算"
+      ],
+      "recommended_data": [
+        "日期、收入、成本、利润、预算；注明币种与单位"
+      ],
+      "intent_keywords": [
+        "收入分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "finance-cost",
+      "name": "成本分析",
+      "category": "finance",
+      "description": "收入、成本、利润与预算：成本分析。",
+      "example_questions": [
+        "帮我做成本分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "收入、成本、利润与预算"
+      ],
+      "recommended_data": [
+        "日期、收入、成本、利润、预算；注明币种与单位"
+      ],
+      "intent_keywords": [
+        "成本分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "finance-profit",
+      "name": "利润分析",
+      "category": "finance",
+      "description": "收入、成本、利润与预算：利润分析。",
+      "example_questions": [
+        "帮我做利润分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "收入、成本、利润与预算"
+      ],
+      "recommended_data": [
+        "日期、收入、成本、利润、预算；注明币种与单位"
+      ],
+      "intent_keywords": [
+        "利润分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "finance-gross-margin",
+      "name": "毛利分析",
+      "category": "finance",
+      "description": "收入、成本、利润与预算：毛利分析。",
+      "example_questions": [
+        "帮我做毛利分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "收入、成本、利润与预算"
+      ],
+      "recommended_data": [
+        "日期、收入、成本、利润、预算；注明币种与单位"
+      ],
+      "intent_keywords": [
+        "毛利分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "finance-expense",
+      "name": "费用分析",
+      "category": "finance",
+      "description": "收入、成本、利润与预算：费用分析。",
+      "example_questions": [
+        "帮我做费用分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "收入、成本、利润与预算"
+      ],
+      "recommended_data": [
+        "日期、收入、成本、利润、预算；注明币种与单位"
+      ],
+      "intent_keywords": [
+        "费用分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "finance-cash-flow",
+      "name": "现金流分析",
+      "category": "finance",
+      "description": "收入、成本、利润与预算：现金流分析。",
+      "example_questions": [
+        "帮我做现金流分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "收入、成本、利润与预算"
+      ],
+      "recommended_data": [
+        "日期、收入、成本、利润、预算；注明币种与单位"
+      ],
+      "intent_keywords": [
+        "现金流分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "finance-budget",
+      "name": "预算执行分析",
+      "category": "finance",
+      "description": "收入、成本、利润与预算：预算执行分析。",
+      "example_questions": [
+        "帮我做预算执行分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "收入、成本、利润与预算"
+      ],
+      "recommended_data": [
+        "日期、收入、成本、利润、预算；注明币种与单位"
+      ],
+      "intent_keywords": [
+        "预算执行分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "finance-variance",
+      "name": "预算偏差分析",
+      "category": "finance",
+      "description": "收入、成本、利润与预算：预算偏差分析。",
+      "example_questions": [
+        "帮我做预算偏差分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "收入、成本、利润与预算"
+      ],
+      "recommended_data": [
+        "日期、收入、成本、利润、预算；注明币种与单位"
+      ],
+      "intent_keywords": [
+        "预算偏差分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "finance-profitability",
+      "name": "盈利能力分析",
+      "category": "finance",
+      "description": "收入、成本、利润与预算：盈利能力分析。",
+      "example_questions": [
+        "帮我做盈利能力分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "收入、成本、利润与预算"
+      ],
+      "recommended_data": [
+        "日期、收入、成本、利润、预算；注明币种与单位"
+      ],
+      "intent_keywords": [
+        "盈利能力分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "customer-overview",
+      "name": "用户综合分析",
+      "category": "customer",
+      "description": "用户、留存与生命周期：用户综合分析。",
+      "example_questions": [
+        "帮我做用户综合分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "用户、留存与生命周期"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "用户综合分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "customer-new",
+      "name": "新增用户分析",
+      "category": "customer",
+      "description": "用户、留存与生命周期：新增用户分析。",
+      "example_questions": [
+        "帮我做新增用户分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "用户、留存与生命周期"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "新增用户分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "customer-active",
+      "name": "活跃用户分析",
+      "category": "customer",
+      "description": "用户、留存与生命周期：活跃用户分析。",
+      "example_questions": [
+        "帮我做活跃用户分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "用户、留存与生命周期"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "活跃用户分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "customer-retention",
+      "name": "留存分析",
+      "category": "customer",
+      "description": "用户、留存与生命周期：留存分析。",
+      "example_questions": [
+        "帮我做留存分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "用户、留存与生命周期"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "留存分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "customer-churn",
+      "name": "流失分析",
+      "category": "customer",
+      "description": "用户、留存与生命周期：流失分析。",
+      "example_questions": [
+        "帮我做流失分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "用户、留存与生命周期"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "流失分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "customer-lifecycle",
+      "name": "用户生命周期分析",
+      "category": "customer",
+      "description": "用户、留存与生命周期：用户生命周期分析。",
+      "example_questions": [
+        "帮我做用户生命周期分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "用户、留存与生命周期"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "用户生命周期分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "customer-rfm",
+      "name": "RFM 分析",
+      "category": "customer",
+      "description": "用户、留存与生命周期：RFM 分析。",
+      "example_questions": [
+        "帮我做RFM 分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "用户、留存与生命周期"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "RFM 分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "customer-value",
+      "name": "用户价值分析",
+      "category": "customer",
+      "description": "用户、留存与生命周期：用户价值分析。",
+      "example_questions": [
+        "帮我做用户价值分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "用户、留存与生命周期"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "用户价值分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "customer-segmentation",
+      "name": "用户分群",
+      "category": "customer",
+      "description": "用户、留存与生命周期：用户分群。",
+      "example_questions": [
+        "帮我做用户分群，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "用户、留存与生命周期"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "用户分群"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "customer-cohort",
+      "name": "Cohort 分析",
+      "category": "customer",
+      "description": "用户、留存与生命周期：Cohort 分析。",
+      "example_questions": [
+        "帮我做Cohort 分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "用户、留存与生命周期"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "Cohort 分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "marketing-overview",
+      "name": "营销综合分析",
+      "category": "marketing",
+      "description": "投放、渠道与转化：营销综合分析。",
+      "example_questions": [
+        "帮我做营销综合分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "投放、渠道与转化"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "营销综合分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "marketing-channel",
+      "name": "渠道效果分析",
+      "category": "marketing",
+      "description": "投放、渠道与转化：渠道效果分析。",
+      "example_questions": [
+        "帮我做渠道效果分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "投放、渠道与转化"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "渠道效果分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "marketing-ads",
+      "name": "广告投放分析",
+      "category": "marketing",
+      "description": "投放、渠道与转化：广告投放分析。",
+      "example_questions": [
+        "帮我做广告投放分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "投放、渠道与转化"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "广告投放分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "marketing-campaign",
+      "name": "Campaign 分析",
+      "category": "marketing",
+      "description": "投放、渠道与转化：Campaign 分析。",
+      "example_questions": [
+        "帮我做Campaign 分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "投放、渠道与转化"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "Campaign 分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "marketing-roi",
+      "name": "ROI 分析",
+      "category": "marketing",
+      "description": "投放、渠道与转化：ROI 分析。",
+      "example_questions": [
+        "帮我做ROI 分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "投放、渠道与转化"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "ROI 分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "marketing-conversion",
+      "name": "转化分析",
+      "category": "marketing",
+      "description": "投放、渠道与转化：转化分析。",
+      "example_questions": [
+        "帮我做转化分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "投放、渠道与转化"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "转化分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "marketing-acquisition",
+      "name": "获客分析",
+      "category": "marketing",
+      "description": "投放、渠道与转化：获客分析。",
+      "example_questions": [
+        "帮我做获客分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "投放、渠道与转化"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "获客分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "marketing-funnel",
+      "name": "营销漏斗分析",
+      "category": "marketing",
+      "description": "投放、渠道与转化：营销漏斗分析。",
+      "example_questions": [
+        "帮我做营销漏斗分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "投放、渠道与转化"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "营销漏斗分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "ecommerce-overview",
+      "name": "电商经营分析",
+      "category": "ecommerce",
+      "description": "订单、商品与复购：电商经营分析。",
+      "example_questions": [
+        "帮我做电商经营分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "订单、商品与复购"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "电商经营分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "ecommerce-gmv",
+      "name": "GMV 分析",
+      "category": "ecommerce",
+      "description": "订单、商品与复购：GMV 分析。",
+      "example_questions": [
+        "帮我做GMV 分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "订单、商品与复购"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "GMV 分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "ecommerce-orders",
+      "name": "订单分析",
+      "category": "ecommerce",
+      "description": "订单、商品与复购：订单分析。",
+      "example_questions": [
+        "帮我做订单分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "订单、商品与复购"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "订单分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "ecommerce-products",
+      "name": "商品分析",
+      "category": "ecommerce",
+      "description": "订单、商品与复购：商品分析。",
+      "example_questions": [
+        "帮我做商品分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "订单、商品与复购"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "商品分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "ecommerce-store",
+      "name": "店铺分析",
+      "category": "ecommerce",
+      "description": "订单、商品与复购：店铺分析。",
+      "example_questions": [
+        "帮我做店铺分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "订单、商品与复购"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "店铺分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "ecommerce-purchase",
+      "name": "用户购买分析",
+      "category": "ecommerce",
+      "description": "订单、商品与复购：用户购买分析。",
+      "example_questions": [
+        "帮我做用户购买分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "订单、商品与复购"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "用户购买分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "ecommerce-funnel",
+      "name": "购物漏斗分析",
+      "category": "ecommerce",
+      "description": "订单、商品与复购：购物漏斗分析。",
+      "example_questions": [
+        "帮我做购物漏斗分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "订单、商品与复购"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "购物漏斗分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "ecommerce-repurchase",
+      "name": "复购分析",
+      "category": "ecommerce",
+      "description": "订单、商品与复购：复购分析。",
+      "example_questions": [
+        "帮我做复购分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "订单、商品与复购"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "复购分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "ecommerce-refund",
+      "name": "退款分析",
+      "category": "ecommerce",
+      "description": "订单、商品与复购：退款分析。",
+      "example_questions": [
+        "帮我做退款分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "订单、商品与复购"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "退款分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "ecommerce-promotion",
+      "name": "促销分析",
+      "category": "ecommerce",
+      "description": "订单、商品与复购：促销分析。",
+      "example_questions": [
+        "帮我做促销分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "订单、商品与复购"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "促销分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "product-usage",
+      "name": "产品使用分析",
+      "category": "product",
+      "description": "行为、功能与路径：产品使用分析。",
+      "example_questions": [
+        "帮我做产品使用分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "行为、功能与路径"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "产品使用分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "product-feature",
+      "name": "功能使用分析",
+      "category": "product",
+      "description": "行为、功能与路径：功能使用分析。",
+      "example_questions": [
+        "帮我做功能使用分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "行为、功能与路径"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "功能使用分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "product-behavior",
+      "name": "用户行为分析",
+      "category": "product",
+      "description": "行为、功能与路径：用户行为分析。",
+      "example_questions": [
+        "帮我做用户行为分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "行为、功能与路径"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "用户行为分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "product-funnel",
+      "name": "转化漏斗",
+      "category": "product",
+      "description": "行为、功能与路径：转化漏斗。",
+      "example_questions": [
+        "帮我做转化漏斗，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "行为、功能与路径"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "转化漏斗"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "product-path",
+      "name": "用户路径",
+      "category": "product",
+      "description": "行为、功能与路径：用户路径。",
+      "example_questions": [
+        "帮我做用户路径，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "行为、功能与路径"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "用户路径"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "product-retention",
+      "name": "留存",
+      "category": "product",
+      "description": "行为、功能与路径：留存。",
+      "example_questions": [
+        "帮我做留存，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "行为、功能与路径"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "留存"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "product-penetration",
+      "name": "功能渗透率",
+      "category": "product",
+      "description": "行为、功能与路径：功能渗透率。",
+      "example_questions": [
+        "帮我做功能渗透率，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "行为、功能与路径"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "功能渗透率"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "product-version",
+      "name": "版本分析",
+      "category": "product",
+      "description": "行为、功能与路径：版本分析。",
+      "example_questions": [
+        "帮我做版本分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "行为、功能与路径"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "版本分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "supply-overview",
+      "name": "供应链综合分析",
+      "category": "supply",
+      "description": "采购、供应商与交付：供应链综合分析。",
+      "example_questions": [
+        "帮我做供应链综合分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "采购、供应商与交付"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "供应链综合分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "supply-supplier",
+      "name": "供应商分析",
+      "category": "supply",
+      "description": "采购、供应商与交付：供应商分析。",
+      "example_questions": [
+        "帮我做供应商分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "采购、供应商与交付"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "供应商分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "supply-purchase",
+      "name": "采购分析",
+      "category": "supply",
+      "description": "采购、供应商与交付：采购分析。",
+      "example_questions": [
+        "帮我做采购分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "采购、供应商与交付"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "采购分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "supply-cost",
+      "name": "采购成本分析",
+      "category": "supply",
+      "description": "采购、供应商与交付：采购成本分析。",
+      "example_questions": [
+        "帮我做采购成本分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "采购、供应商与交付"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "采购成本分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "supply-cycle",
+      "name": "采购周期分析",
+      "category": "supply",
+      "description": "采购、供应商与交付：采购周期分析。",
+      "example_questions": [
+        "帮我做采购周期分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "采购、供应商与交付"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "采购周期分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "supply-risk",
+      "name": "供应风险分析",
+      "category": "supply",
+      "description": "采购、供应商与交付：供应风险分析。",
+      "example_questions": [
+        "帮我做供应风险分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "采购、供应商与交付"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "供应风险分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "supply-delivery",
+      "name": "交付分析",
+      "category": "supply",
+      "description": "采购、供应商与交付：交付分析。",
+      "example_questions": [
+        "帮我做交付分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "采购、供应商与交付"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "交付分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "inventory-overview",
+      "name": "库存综合分析",
+      "category": "inventory",
+      "description": "周转、结构与预警：库存综合分析。",
+      "example_questions": [
+        "帮我做库存综合分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "周转、结构与预警"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "库存综合分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "inventory-turnover",
+      "name": "库存周转分析",
+      "category": "inventory",
+      "description": "周转、结构与预警：库存周转分析。",
+      "example_questions": [
+        "帮我做库存周转分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "周转、结构与预警"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "库存周转分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "inventory-structure",
+      "name": "库存结构分析",
+      "category": "inventory",
+      "description": "周转、结构与预警：库存结构分析。",
+      "example_questions": [
+        "帮我做库存结构分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "周转、结构与预警"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "库存结构分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "inventory-alert",
+      "name": "库存预警",
+      "category": "inventory",
+      "description": "周转、结构与预警：库存预警。",
+      "example_questions": [
+        "帮我做库存预警，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "周转、结构与预警"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "库存预警"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "inventory-stockout",
+      "name": "缺货分析",
+      "category": "inventory",
+      "description": "周转、结构与预警：缺货分析。",
+      "example_questions": [
+        "帮我做缺货分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "周转、结构与预警"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "缺货分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "inventory-slow",
+      "name": "滞销分析",
+      "category": "inventory",
+      "description": "周转、结构与预警：滞销分析。",
+      "example_questions": [
+        "帮我做滞销分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "周转、结构与预警"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "滞销分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "inventory-abc",
+      "name": "ABC 分类",
+      "category": "inventory",
+      "description": "周转、结构与预警：ABC 分类。",
+      "example_questions": [
+        "帮我做ABC 分类，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "周转、结构与预警"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "ABC 分类"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "hr-structure",
+      "name": "人员结构分析",
+      "category": "hr",
+      "description": "人员结构与趋势：人员结构分析。",
+      "example_questions": [
+        "帮我做人员结构分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "人员结构与趋势"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "人员结构分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "仅统计结构与趋势，禁止自动招聘、解雇、升职、降薪或人员排名决策。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "hr-recruitment",
+      "name": "招聘分析",
+      "category": "hr",
+      "description": "人员结构与趋势：招聘分析。",
+      "example_questions": [
+        "帮我做招聘分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "人员结构与趋势"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "招聘分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "仅统计结构与趋势，禁止自动招聘、解雇、升职、降薪或人员排名决策。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "hr-departure",
+      "name": "离职分析",
+      "category": "hr",
+      "description": "人员结构与趋势：离职分析。",
+      "example_questions": [
+        "帮我做离职分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "人员结构与趋势"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "离职分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "仅统计结构与趋势，禁止自动招聘、解雇、升职、降薪或人员排名决策。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "hr-churn",
+      "name": "人员流失分析",
+      "category": "hr",
+      "description": "人员结构与趋势：人员流失分析。",
+      "example_questions": [
+        "帮我做人员流失分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "人员结构与趋势"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "人员流失分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "仅统计结构与趋势，禁止自动招聘、解雇、升职、降薪或人员排名决策。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "hr-salary",
+      "name": "薪资分析",
+      "category": "hr",
+      "description": "人员结构与趋势：薪资分析。",
+      "example_questions": [
+        "帮我做薪资分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "人员结构与趋势"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "薪资分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "仅统计结构与趋势，禁止自动招聘、解雇、升职、降薪或人员排名决策。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "hr-performance",
+      "name": "绩效分析",
+      "category": "hr",
+      "description": "人员结构与趋势：绩效分析。",
+      "example_questions": [
+        "帮我做绩效分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "人员结构与趋势"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "绩效分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "仅统计结构与趋势，禁止自动招聘、解雇、升职、降薪或人员排名决策。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "hr-department",
+      "name": "部门分析",
+      "category": "hr",
+      "description": "人员结构与趋势：部门分析。",
+      "example_questions": [
+        "帮我做部门分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "人员结构与趋势"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "部门分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "仅统计结构与趋势，禁止自动招聘、解雇、升职、降薪或人员排名决策。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "hr-efficiency",
+      "name": "人效分析",
+      "category": "hr",
+      "description": "人员结构与趋势：人效分析。",
+      "example_questions": [
+        "帮我做人效分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "人员结构与趋势"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "人效分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "仅统计结构与趋势，禁止自动招聘、解雇、升职、降薪或人员排名决策。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "service-overview",
+      "name": "客服综合分析",
+      "category": "service",
+      "description": "工单、响应与满意度：客服综合分析。",
+      "example_questions": [
+        "帮我做客服综合分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "工单、响应与满意度"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "客服综合分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "service-tickets",
+      "name": "工单分析",
+      "category": "service",
+      "description": "工单、响应与满意度：工单分析。",
+      "example_questions": [
+        "帮我做工单分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "工单、响应与满意度"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "工单分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "service-classification",
+      "name": "问题分类",
+      "category": "service",
+      "description": "工单、响应与满意度：问题分类。",
+      "example_questions": [
+        "帮我做问题分类，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "工单、响应与满意度"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "问题分类"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "service-complaints",
+      "name": "客户投诉分析",
+      "category": "service",
+      "description": "工单、响应与满意度：客户投诉分析。",
+      "example_questions": [
+        "帮我做客户投诉分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "工单、响应与满意度"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "客户投诉分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "service-satisfaction",
+      "name": "满意度分析",
+      "category": "service",
+      "description": "工单、响应与满意度：满意度分析。",
+      "example_questions": [
+        "帮我做满意度分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "工单、响应与满意度"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "满意度分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "service-response",
+      "name": "响应时间分析",
+      "category": "service",
+      "description": "工单、响应与满意度：响应时间分析。",
+      "example_questions": [
+        "帮我做响应时间分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "工单、响应与满意度"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "响应时间分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "service-efficiency",
+      "name": "客服效率分析",
+      "category": "service",
+      "description": "工单、响应与满意度：客服效率分析。",
+      "example_questions": [
+        "帮我做客服效率分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "工单、响应与满意度"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "客服效率分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "risk-anomaly",
+      "name": "异常检测",
+      "category": "risk",
+      "description": "异常信号与调查线索：异常检测。",
+      "example_questions": [
+        "帮我做异常检测，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "异常信号与调查线索"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "异常检测"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "输出风险信号和调查线索，不无依据断言欺诈或违法。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "risk-business",
+      "name": "业务风险分析",
+      "category": "risk",
+      "description": "异常信号与调查线索：业务风险分析。",
+      "example_questions": [
+        "帮我做业务风险分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "异常信号与调查线索"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "业务风险分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "输出风险信号和调查线索，不无依据断言欺诈或违法。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "risk-transaction",
+      "name": "交易异常分析",
+      "category": "risk",
+      "description": "异常信号与调查线索：交易异常分析。",
+      "example_questions": [
+        "帮我做交易异常分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "异常信号与调查线索"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "交易异常分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "输出风险信号和调查线索，不无依据断言欺诈或违法。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "risk-data",
+      "name": "数据异常分析",
+      "category": "risk",
+      "description": "异常信号与调查线索：数据异常分析。",
+      "example_questions": [
+        "帮我做数据异常分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "异常信号与调查线索"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "数据异常分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "输出风险信号和调查线索，不无依据断言欺诈或违法。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "risk-alert",
+      "name": "指标预警",
+      "category": "risk",
+      "description": "异常信号与调查线索：指标预警。",
+      "example_questions": [
+        "帮我做指标预警，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "异常信号与调查线索"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "指标预警"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "输出风险信号和调查线索，不无依据断言欺诈或违法。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "forecast-sales",
+      "name": "销量预测",
+      "category": "forecast",
+      "description": "时间序列与不确定性：销量预测。",
+      "example_questions": [
+        "帮我做销量预测，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "时间序列与不确定性"
+      ],
+      "recommended_data": [
+        "规则时间序列、目标字段；至少 12 个时间点"
+      ],
+      "intent_keywords": [
+        "销量预测"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "forecast-revenue",
+      "name": "销售额预测",
+      "category": "forecast",
+      "description": "时间序列与不确定性：销售额预测。",
+      "example_questions": [
+        "帮我做销售额预测，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "时间序列与不确定性"
+      ],
+      "recommended_data": [
+        "规则时间序列、目标字段；至少 12 个时间点"
+      ],
+      "intent_keywords": [
+        "销售额预测"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "forecast-orders",
+      "name": "订单预测",
+      "category": "forecast",
+      "description": "时间序列与不确定性：订单预测。",
+      "example_questions": [
+        "帮我做订单预测，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "时间序列与不确定性"
+      ],
+      "recommended_data": [
+        "规则时间序列、目标字段；至少 12 个时间点"
+      ],
+      "intent_keywords": [
+        "订单预测"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "forecast-users",
+      "name": "用户增长预测",
+      "category": "forecast",
+      "description": "时间序列与不确定性：用户增长预测。",
+      "example_questions": [
+        "帮我做用户增长预测，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "时间序列与不确定性"
+      ],
+      "recommended_data": [
+        "规则时间序列、目标字段；至少 12 个时间点"
+      ],
+      "intent_keywords": [
+        "用户增长预测"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "forecast-inventory",
+      "name": "库存需求预测",
+      "category": "forecast",
+      "description": "时间序列与不确定性：库存需求预测。",
+      "example_questions": [
+        "帮我做库存需求预测，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "时间序列与不确定性"
+      ],
+      "recommended_data": [
+        "规则时间序列、目标字段；至少 12 个时间点"
+      ],
+      "intent_keywords": [
+        "库存需求预测"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "forecast-trend",
+      "name": "趋势预测",
+      "category": "forecast",
+      "description": "时间序列与不确定性：趋势预测。",
+      "example_questions": [
+        "帮我做趋势预测，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "时间序列与不确定性"
+      ],
+      "recommended_data": [
+        "规则时间序列、目标字段；至少 12 个时间点"
+      ],
+      "intent_keywords": [
+        "趋势预测"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "forecast-time-series",
+      "name": "时间序列预测",
+      "category": "forecast",
+      "description": "时间序列与不确定性：时间序列预测。",
+      "example_questions": [
+        "帮我做时间序列预测，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "时间序列与不确定性"
+      ],
+      "recommended_data": [
+        "规则时间序列、目标字段；至少 12 个时间点"
+      ],
+      "intent_keywords": [
+        "时间序列预测"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "statistics-descriptive",
+      "name": "描述统计",
+      "category": "statistics",
+      "description": "统计关系与前提检验：描述统计。",
+      "example_questions": [
+        "计算数值字段的描述统计。"
+      ],
+      "recommended_for": [
+        "统计关系与前提检验"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "描述统计"
+      ],
+      "preferred_tools": [
+        "descriptive_statistics"
+      ],
+      "required_capabilities": [
+        "descriptive_statistics"
+      ],
+      "availability": "available",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "statistics-correlation",
+      "name": "相关性分析",
+      "category": "statistics",
+      "description": "统计关系与前提检验：相关性分析。",
+      "example_questions": [
+        "分析数值字段的相关关系，说明相关性不代表因果。"
+      ],
+      "recommended_for": [
+        "统计关系与前提检验"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "相关性分析"
+      ],
+      "preferred_tools": [
+        "correlation"
+      ],
+      "required_capabilities": [
+        "correlation"
+      ],
+      "availability": "available",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    },
+    {
+      "id": "statistics-regression",
+      "name": "回归分析",
+      "category": "statistics",
+      "description": "统计关系与前提检验：回归分析。",
+      "example_questions": [
+        "帮我做回归分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "统计关系与前提检验"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "回归分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "statistics-hypothesis",
+      "name": "假设检验",
+      "category": "statistics",
+      "description": "统计关系与前提检验：假设检验。",
+      "example_questions": [
+        "帮我做假设检验，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "统计关系与前提检验"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "假设检验"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "statistics-t-test",
+      "name": "T 检验",
+      "category": "statistics",
+      "description": "统计关系与前提检验：T 检验。",
+      "example_questions": [
+        "帮我做T 检验，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "统计关系与前提检验"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "T 检验"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "statistics-chi-square",
+      "name": "卡方检验",
+      "category": "statistics",
+      "description": "统计关系与前提检验：卡方检验。",
+      "example_questions": [
+        "帮我做卡方检验，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "统计关系与前提检验"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "卡方检验"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "statistics-anova",
+      "name": "ANOVA / 方差分析",
+      "category": "statistics",
+      "description": "统计关系与前提检验：ANOVA / 方差分析。",
+      "example_questions": [
+        "帮我做ANOVA / 方差分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "统计关系与前提检验"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "ANOVA / 方差分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "statistics-experiment",
+      "name": "实验数据分析",
+      "category": "statistics",
+      "description": "统计关系与前提检验：实验数据分析。",
+      "example_questions": [
+        "帮我做实验数据分析，并说明分析限制。"
+      ],
+      "recommended_for": [
+        "统计关系与前提检验"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "实验数据分析"
+      ],
+      "preferred_tools": [],
+      "required_capabilities": [],
+      "availability": "planned",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": []
+    },
+    {
+      "id": "custom-question",
+      "name": "自定义分析",
+      "category": "custom",
+      "description": "根据业务问题组织分析：自定义分析。",
+      "example_questions": [
+        "比较不同城市的业务表现。"
+      ],
+      "recommended_for": [
+        "根据业务问题组织分析"
+      ],
+      "recommended_data": [
+        "相关业务明细；明确时间、粒度、指标口径"
+      ],
+      "intent_keywords": [
+        "自定义分析"
+      ],
+      "preferred_tools": [
+        "group_by_analysis"
+      ],
+      "required_capabilities": [
+        "group_by_analysis"
+      ],
+      "availability": "limited",
+      "constraints": [
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+      ],
+      "analysis_steps": [
+        "核对数据结构与口径",
+        "分析与验证",
+        "解释发现和限制"
+      ],
+      "report_sections": [
+        "数据概览",
+        "关键发现",
+        "方法与限制"
+      ],
+      "output_artifacts": [
+        "table",
+        "chart"
+      ]
+    }
+  ]
+}

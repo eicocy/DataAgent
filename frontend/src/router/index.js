@@ -7,7 +7,9 @@ const router = createRouter({
   routes: [
     { path: '/login', name: 'login', component: () => import('../views/LoginView.vue'), meta: { public: true, title: '登录' } },
     { path: '/register', name: 'register', component: () => import('../views/RegisterView.vue'), meta: { public: true, title: '注册' } },
-    { path: '/', name: 'dashboard', component: () => import('../views/DashboardView.vue'), meta: { title: 'Dashboard' } },
+    { path: '/', name: 'workspace', component: () => import('../views/AnalysisWorkspaceView.vue'), meta: { title: '新分析' } },
+    { path: '/overview', name: 'dashboard', component: () => import('../views/DashboardView.vue'), meta: { title: '工作区概览' } },
+    { path: '/templates', name: 'templates', component: () => import('../views/TemplateCenterView.vue'), meta: { title: '分析模板' } },
     { path: '/datasets', name: 'datasets', component: () => import('../views/DatasetListView.vue'), meta: { title: '数据集' } },
     { path: '/datasets/upload', name: 'dataset-upload', component: () => import('../views/DatasetUploadView.vue'), meta: { title: '上传数据' } },
     { path: '/datasets/:datasetId', name: 'dataset-detail', component: () => import('../views/DatasetDetailView.vue'), meta: { title: '数据集详情' }, props: true },
@@ -30,7 +32,7 @@ router.beforeEach(async (to) => {
   if (!to.meta.public && auth.authStatus !== 'authenticated') {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
-  if (to.meta.public && auth.authStatus === 'authenticated') return { name: 'dashboard' }
+  if (to.meta.public && auth.authStatus === 'authenticated') return { name: 'workspace' }
   return true
 })
 

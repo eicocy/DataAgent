@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.routers import analysis, analysis_runs, charts, auth, datasets, history, sessions, system, reports
+from app.routers import workspace, profiles
 
 
 api_router = APIRouter(prefix="/api/v1")
@@ -13,3 +14,5 @@ api_router.include_router(charts.router)
 api_router.include_router(sessions.router)
 api_router.include_router(history.router)
 api_router.include_router(system.router)
+api_router.include_router(workspace.router)
+api_router.include_router(profiles.router)

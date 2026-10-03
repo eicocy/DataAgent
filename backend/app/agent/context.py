@@ -12,6 +12,7 @@ class ConversationContext(BaseModel):
     user_id: int
     active_dataset_id: int | None = None
     active_dataset_version_id: int | None = None
+    attached_dataset_ids: list[int] = Field(default_factory=list, max_length=10)
     current_goal: str | None = None
     current_intent: str | None = None
     previous_analysis: dict[str, Any] | None = None

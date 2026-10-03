@@ -15,6 +15,7 @@
 | 范围 | 权威来源 | 类型 | 复核日期 |
 |---|---|---|---|
 | 产品范围与用户场景 | `docs/superpowers/specs/2026-09-20-intelligent-data-analysis-assistant-design.md` | 已确认规格 | 2026-09-20 |
+| AI Workspace 升级范围 | `docs/UPGRADE_PLAN.md`、`docs/UPGRADE_PROGRESS.md` | 已批准计划与实际交付 | 2026-10-03 |
 | 数据与 Agent 安全 | `后端初始工程/04-Agent架构设计.md`、`08-SQL查询安全设计.md` | 架构/安全设计 | 交付时复核 |
 | 数据生命周期 | `数据库/05-数据生命周期设计.md` | 数据设计 | 交付时复核 |
 | 删除与权限 | `后端初始工程/09-认证与数据权限设计.md` | 权限设计 | 交付时复核 |
@@ -32,12 +33,14 @@
 | Capability | Canonical owner | Source of truth | Allowed variants | Verification |
 |---|---|---|---|---|
 | Table | `.data-table` | 本合同 + DESIGN.md | comfortable | HTML 语义与窄屏检查 |
-| Select/Listbox | 原型 native select；正式项目 Element Plus Select | 前端设计 | native / authored | 原型只接受系统弹层外观 |
+| Select/Listbox | 现有数据选择复用 Element Plus；Composer/工作表/模板筛选 native select | 前端设计 | native / authored | Composer 接受系统弹层外观，真实浏览器检查键盘与窄屏 |
 | Form | `.field` + 产品校验区 | 本合同 | auth / upload | 标签、错误和焦点检查 |
 | Scrollbar | `base.css` 全局基线 | DESIGN.md | stable gutter | 浏览器检查 |
 | Toast | `#toast-region` | 本合同 | success / warning / error | live region |
 | Dialog | `[data-dialog]` | 本合同 | confirm / info | Escape 与焦点恢复 |
 | CRUD | 页面与 API 映射 | 接口设计 | return / stay | 完整流程检查 |
+| Prompt Composer | `frontend/src/components/PromptComposer.vue` | 已批准升级计划 | landing / conversation | IME、附件、选项能力声明、重复发送 |
+| Upload Queue | `frontend/src/components/UploadQueue.vue` + Dataset Store | 上传 API | sequential | 分文件失败/重试/取消与解析恢复 |
 
 ## Component behavior
 

@@ -9,12 +9,17 @@ import { useDatasetStore } from '../stores/datasets'
 export default {
   name: 'DatasetUploadView',
   components: { AppShell, ArrowLeft, DocumentAdd, UploadFilled },
-  data() { return { selectedFile: null, sheetNames: [], selectedSheet: '', inspectingSheets: false, uploading: false, uploadPercent: 0, errorMessage: '', controller: null, dragging: false } },
+  data() { return { selectedFile: null, sheetNames: [], selectedSheet: '', inspectingSheets: false, uploading: false, uploadPercent: 0, errorMessage: '', controller: null, inspectionController: null, dragging: false } },
   computed: { ...mapState(useDatasetStore, ['uploadStatus']) },
-  beforeUnmount() { this.controller?.abort() },
+  beforeUnmount() { this.controller?.abort(); this.inspectionController?.abort(); this.inspectionController = null },
   methods: {
     ...mapActions(useDatasetStore, ['upload']),
     async chooseFile(file) {
+      if (this.uploading) return
+      this.inspectionController?.abort()
+      const controller = new AbortController()
+      this.inspectionController = controller
+      this.inspectingSheets = false
       this.errorMessage = ''
       if (!file) return
       if (!/\.(csv|tsv|json|parquet|xls|xlsx)$/i.test(file.name)) { this.errorMessage = '支持 CSV、TSV、JSON、XLS、XLSX 和 Parquet 文件'; return }
@@ -26,19 +31,21 @@ export default {
         this.inspectingSheets = true
         try {
           // 上传前先读取工作表名称，用户选择后再随原文件一同提交。
-          const result = await datasetApi.inspectSheets(file)
+          const result = await datasetApi.inspectSheets(file, { signal: controller.signal })
+          if (this.inspectionController !== controller || controller.signal.aborted) return
           this.sheetNames = result.sheets || []
           this.selectedSheet = result.default || this.sheetNames[0] || ''
         } catch (error) {
+          if (this.inspectionController !== controller || controller.signal.aborted) return
           this.errorMessage = error.message || '无法读取 Excel 工作表'
           this.selectedFile = null
-        } finally { this.inspectingSheets = false }
+        } finally { if (this.inspectionController === controller) this.inspectingSheets = false }
       }
     },
     handleInput(event) { this.chooseFile(event.target.files?.[0]); event.target.value = '' },
     handleDrop(event) { this.dragging = false; this.chooseFile(event.dataTransfer.files?.[0]) },
     async submit() {
-      if (!this.selectedFile || this.uploading) return
+      if (!this.selectedFile || this.uploading || this.inspectingSheets) return
       this.errorMessage = ''; this.uploading = true; this.uploadPercent = 0
       this.controller = new AbortController()
       try {

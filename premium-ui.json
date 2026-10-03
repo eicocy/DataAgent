@@ -1,6 +1,6 @@
 {
   "profile": "product-admin",
-  "sourceRoots": ["产品原型"],
+  "sourceRoots": ["frontend/src"],
   "locale": "zh-CN",
   "canonicalMap": "UX-CONTRACT.md",
   "requiredCapabilities": ["Select/Listbox", "Form", "Scrollbar", "Toast", "CRUD"],

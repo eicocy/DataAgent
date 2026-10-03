@@ -54,6 +54,8 @@ depends: current_user、AnalysisRecord、AnalysisArtifact
 
 ## Related
 
+backend/app/profiles/{schemas,catalog}.py、catalog.json；routers/{profiles,workspace}.py：版本化领域策略目录与真实能力声明；当前不参与 Planner 执行，不把模板作为固定 Workflow。sessions.py 管理授权附件；ConversationContext 显式保存 attached_dataset_ids。
+
 docs/tool-development.md；docs/analysis-capabilities.md；docs/phase2.md；backend/migrations/versions/0007_analysis_engine.py
 
 backend/app/routers/analysis.py；backend/app/routers/analysis_runs.py；backend/app/services/jobs.py；backend/app/services/artifacts.py；backend/app/task_runner.py；backend/tests/test_planner.py

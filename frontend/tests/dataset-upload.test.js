@@ -45,4 +45,17 @@ describe('dataset upload format selection', () => {
 
     expect(datasetApi.inspectSheets).not.toHaveBeenCalled()
   })
+  it('ignores an old workbook inspection after selecting a new file', async () => {
+    let finish
+    datasetApi.inspectSheets.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const wrapper = mountUpload()
+    const old = wrapper.vm.chooseFile(new File(['book'], 'old.xlsx'))
+    await wrapper.vm.chooseFile(new File(['a\n1'], 'new.csv'))
+    finish({ sheets: ['过期工作表'], default: '过期工作表' })
+    await old
+    expect(wrapper.vm.selectedFile.name).toBe('new.csv')
+    expect(wrapper.vm.sheetNames).toEqual([])
+    expect(wrapper.vm.inspectingSheets).toBe(false)
+    wrapper.unmount()
+  })
 })

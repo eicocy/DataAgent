@@ -3,6 +3,25 @@ import { describe, expect, it } from 'vitest'
 import { buildChartOption } from '../src/utils/chartOption'
 
 describe('ChartSpec adapter', () => {
+  it('accepts canonical points and renders area, box, heatmap and funnel', () => {
+    const points = [{ x: 'Jan', y: 12 }, { x: 'Feb', y: null }]
+    expect(buildChartOption({ chart_type: 'area', series: [{ name: 'Sales', points }] }).series[0].areaStyle).toEqual({})
+    expect(buildChartOption({ chart_type: 'box', series: [{ points: [{ x: 'A', values: [1, 2, 3, 4, 5] }] }] }).series[0].data).toEqual([[1, 2, 3, 4, 5]])
+    expect(buildChartOption({ type: 'heatmap', series: [{ data: [{ x: 'A', y: 'B', value: 0.8 }] }] }).series[0].data).toEqual([[0, 0, 0.8]])
+    expect(buildChartOption({ type: 'funnel', series: [{ data: [{ name: 'Visit', value: 50 }] }] }).series[0].type).toBe('funnel')
+  })
+  it('represents positive and negative waterfall changes on their true baselines', () => {
+    const option = buildChartOption({ type: 'waterfall', series: [{ data: [{ name: 'Start', value: 100 }, { name: 'Loss', value: -30 }, { name: 'Gain', value: 20 }] }] })
+    expect(option.series[0].data).toEqual([0, 70, 70])
+    expect(option.series[1].data.map(item => item.value)).toEqual([100, 30, 20])
+  })
+  it('preserves undefined correlation cells rather than substituting row indices', () => {
+    const option = buildChartOption({ chart_type: 'heatmap', series: [
+      { name: 'A', points: [{ x: 0, y: 0, values: [null] }, { x: 1, y: 0, values: [0] }] },
+      { name: 'B', points: [{ x: 0, y: 1, values: [null] }, { x: 1, y: 1, values: [null] }] },
+    ] })
+    expect(option.series[0].data).toEqual([[1, 0, 0]])
+  })
   it('converts the server bar result into numeric series with category labels', () => {
     const option = buildChartOption({
       type: 'bar',

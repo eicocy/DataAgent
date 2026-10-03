@@ -1,18 +1,20 @@
 <script>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts/core'
-import { BarChart, LineChart, PieChart, ScatterChart } from 'echarts/charts'
-import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
+import { BarChart, LineChart, PieChart, ScatterChart, BoxplotChart, HeatmapChart, FunnelChart, CustomChart } from 'echarts/charts'
+import { GridComponent, LegendComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { buildChartOption } from '../utils/chartOption'
 import { chartsApi } from '../api/charts'
 
-echarts.use([BarChart, LineChart, PieChart, ScatterChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
+echarts.use([BarChart, LineChart, PieChart, ScatterChart, BoxplotChart, HeatmapChart, FunnelChart, CustomChart, GridComponent, LegendComponent, TooltipComponent, VisualMapComponent, CanvasRenderer])
 
 export default {
   name: 'ChartView',
   props: { spec: { type: Object, required: true } },
-  data() { return { highResLoading: false, highResError: '', renderedFiles: [] } },
+  data() { return { highResLoading: false, highResError: '', renderedFiles: [], renderController: null } },
+  watch: { spec: { deep: true, handler() { this.renderController?.abort(); this.renderController = null; this.highResLoading = false; this.highResError = ''; this.renderedFiles = [] } } },
+  beforeUnmount() { this.renderController?.abort(); this.renderController = null },
   setup(props) {
     const element = ref(null)
     let chart = null
@@ -51,11 +53,14 @@ export default {
       if (!artifactId || this.highResLoading) return
       this.highResLoading = true
       this.highResError = ''
+      const controller = new AbortController()
+      this.renderController = controller
       try {
-        const response = await chartsApi.render(artifactId)
+        const response = await chartsApi.render(artifactId, {}, { signal: controller.signal })
+        if (this.renderController !== controller || controller.signal.aborted) return
         this.renderedFiles = response || []
-      } catch (error) { this.highResError = error.message || '高清图表生成失败' }
-      finally { this.highResLoading = false }
+      } catch (error) { if (this.renderController === controller && !controller.signal.aborted) this.highResError = error.message || '高清图表生成失败' }
+      finally { if (this.renderController === controller) this.highResLoading = false }
     },
   },
 }

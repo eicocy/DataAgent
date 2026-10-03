@@ -29,7 +29,7 @@ export default {
       this.submitting = true
       try {
         await this.register({ username: this.form.username.trim(), password: this.form.password })
-        this.$router.replace({ name: 'dashboard' })
+        this.$router.replace({ name: 'workspace' })
       } catch (error) {
         this.errorMessage = error.message || '注册失败，请稍后重试'
       } finally {
