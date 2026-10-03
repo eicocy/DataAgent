@@ -40,6 +40,7 @@
 | Dialog | `[data-dialog]` | 本合同 | confirm / info | Escape 与焦点恢复 |
 | CRUD | 页面与 API 映射 | 接口设计 | return / stay | 完整流程检查 |
 | Prompt Composer | `frontend/src/components/PromptComposer.vue` | 已批准升级计划 | landing / conversation | IME、附件、选项能力声明、重复发送 |
+| Button | Element Plus `ElButton`，Composer 复用同一组件 | DESIGN.md | primary / neutral / text | native-type、禁用、busy、键盘焦点与尺寸 |
 | Upload Queue | `frontend/src/components/UploadQueue.vue` + Dataset Store | 上传 API | sequential | 分文件失败/重试/取消与解析恢复 |
 
 ## Component behavior
@@ -68,6 +69,8 @@
 | 删除 | 删除 | Dialog 内忙碌 | 所属列表 | 已删除提示 | Dialog 内错误、重试 | 下一行或列表标题 |
 | 搜索 | 搜索框 | 表内加载 | 同路由查询参数 | 结果数量 | 清除/重试 | 搜索框或结果标题 |
 | 再次分析 | 再次分析 | 页面导航 | 工作台 | 带入原问题 | 返回详情 | 问题输入框 |
+
+历史详情按实际任务区分“数据分析”“报告生成”“报告导出”。报告操作标识仅供内部使用，页面展示用户可读标题和状态；未记录耗时时省略耗时。报告任务提供返回所属会话入口，不将内部操作字符串重新提交为分析问题，也不展示空的分析工具区。总结区域保留服务器真实结果，分别标为“分析结论”或报告操作结果。
 
 ## Navigation and responsive behavior
 

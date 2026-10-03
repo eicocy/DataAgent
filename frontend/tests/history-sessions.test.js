@@ -62,4 +62,37 @@ describe('sessions and analysis history', () => {
 
     expect(router.push).toHaveBeenCalledWith({ name: 'analysis', query: { datasetId: 3, question: '按地区汇总销售额', run: '1' } })
   })
+
+  it('presents a report task as a saved report and returns to its owning session', async () => {
+    historyApi.detail.mockResolvedValue({ id: 2, session_id: 8, intent_summary: 'REPORT_GENERATION',
+      question: 'REPORT_CREATE: 数据分析报告', dataset: { id: 3, original_name: 'sales.xlsx' },
+      tool_calls: [], status: 'succeeded', execution_time_ms: null, final_answer: '报告预览已生成。',
+      created_at: '2026-10-03T07:20:00Z', report: { operation: 'create', report: { title: '数据分析报告', version: 1 } } })
+    const router = { push: vi.fn() }
+    const wrapper = mount(HistoryDetailView, { props: { recordId: '2' }, global: { mocks: { $router: router }, stubs: commonStubs } })
+    await flushPromises()
+
+    expect(wrapper.get('h1').text()).toBe('数据分析报告')
+    expect(wrapper.text()).not.toContain('REPORT_CREATE')
+    expect(wrapper.text()).not.toContain('— ms')
+    expect(wrapper.text()).not.toContain('模型总结')
+    expect(wrapper.text()).not.toContain('没有成功的 Tool 调用')
+    expect(wrapper.get('.history-answer').text()).toContain('报告预览已生成。')
+    const returnButton = wrapper.findAll('button').find(button => button.text().includes('返回会话'))
+    await returnButton.trigger('click')
+    expect(router.push).toHaveBeenCalledWith({ name: 'analysis', params: { sessionId: 8 }, query: { datasetId: 3 } })
+    wrapper.unmount()
+  })
+
+  it('keeps a real analysis question intact and displays a measured zero duration', async () => {
+    historyApi.detail.mockResolvedValue({ id: 19, question: '按地区汇总销售额', dataset: { id: 3, original_name: 'sales.csv' },
+      tool_calls: [], status: 'succeeded', execution_time_ms: 0, final_answer: '华东销售额最高。', created_at: '2026-10-03T07:20:00Z' })
+    const wrapper = mount(HistoryDetailView, { props: { recordId: '19' }, global: { mocks: { $router: { push: vi.fn() } }, stubs: commonStubs } })
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('按地区汇总销售额')
+    expect(wrapper.get('.history-meta').text()).toContain('0 ms')
+    expect(wrapper.get('.history-answer').text()).toContain('分析结论')
+    expect(wrapper.get('.history-answer').text()).toContain('华东销售额最高。')
+    wrapper.unmount()
+  })
 })

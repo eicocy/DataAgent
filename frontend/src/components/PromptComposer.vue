@@ -1,6 +1,10 @@
 <script>
+import { ElButton, ElIcon } from 'element-plus'
+import { Plus, Top } from '@element-plus/icons-vue'
+
 export default {
   name: 'PromptComposer',
+  components: { ElButton, ElIcon, Plus, Top },
   props: {
     modelValue: { type: String, default: '' }, busy: Boolean, uploading: Boolean,
     catalog: { type: Object, default: () => ({ categories: [], items: [] }) },
@@ -49,13 +53,13 @@ export default {
     <textarea id="analysis-question" ref="question" class="resize-none" :value="modelValue" :disabled="busy" maxlength="2000" rows="3" placeholder="描述你的业务问题，或拖入数据文件…" @input="input" @keydown="handleEnter" @compositionstart="composing = true" @compositionend="composing = false"></textarea>
     <div class="prompt-toolbar">
       <input ref="fileInput" class="sr-only" type="file" multiple :accept="accept" aria-label="选择数据文件" :disabled="busy" @change="files" />
-      <button type="button" class="composer-file" :disabled="busy" @click="$refs.fileInput.click()">＋ 文件</button>
+      <el-button native-type="button" class="composer-file" :disabled="busy" @click="$refs.fileInput.click()"><el-icon><Plus /></el-icon><span>文件</span></el-button>
       <label class="composer-choice">分析方向<select v-model="category" :disabled="busy" aria-label="分析方向" @change="templateId = ''; $emit('option-change', { category })"><option value="">自动</option><option v-for="item in catalog.categories" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
       <label class="composer-choice">分析模板<select v-model="templateId" :disabled="busy" aria-label="分析模板" @change="chooseTemplate"><option value="">选择示例</option><option v-for="item in templates" :key="item.id" :value="item.id" :disabled="item.availability === 'planned'">{{ item.name }}{{ item.availability === 'planned' ? ' · 规划中' : item.availability === 'limited' ? ' · 通用能力' : '' }}</option></select></label>
       <label class="composer-choice">分析深度<select aria-label="分析深度" disabled title="当前执行标准分析，深度预算在后续阶段开放"><option>标准</option></select></label>
       <label class="composer-choice">报告类型<select aria-label="报告类型" disabled title="分析完成后可在工件面板生成报告"><option>手动生成</option></select></label>
       <label class="composer-choice model-choice">模型<select aria-label="模型" disabled><option>{{ capabilities.models?.[0]?.id || '服务端配置' }}</option></select></label>
-      <button type="submit" class="composer-send" :disabled="busy || uploading || !modelValue.trim()" :aria-busy="busy">{{ busy ? '处理中' : '发送问题' }} <span aria-hidden="true">↑</span></button>
+      <el-button native-type="submit" type="primary" class="composer-send" :disabled="busy || uploading || !modelValue.trim()" :loading="busy" :aria-busy="busy"><span>{{ busy ? '处理中' : '发送问题' }}</span><el-icon v-if="!busy"><Top /></el-icon></el-button>
     </div>
     <p v-if="selectedTemplate?.availability === 'limited'" class="composer-note">{{ selectedTemplate.constraints?.[1] }}</p>
     <p class="composer-note">Enter 发送 · Shift+Enter 换行 · 模板填入可修改示例；当前分析使用选中的一个数据集。</p>
@@ -67,15 +71,16 @@ export default {
 .prompt-composer:focus-within, .prompt-composer.is-dragging { border-color: var(--brand); }
 textarea { width: 100%; height: 112px; min-height: 96px; max-height: 280px; resize: none; border: 0; background: transparent; outline: none; color: var(--ink); font: inherit; line-height: 1.7; }
 textarea:disabled { opacity: .65; }
-.prompt-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.prompt-toolbar button, select { cursor: pointer; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); min-height: 32px; }
-.prompt-toolbar button { padding: 6px 12px; }
-.prompt-toolbar button:hover:not(:disabled) { background: var(--canvas); }
+.prompt-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.prompt-toolbar .el-button { height: 36px; margin-left: 0; padding: 0 14px; border-radius: var(--radius-sm); font-size: 12px; }
+.prompt-toolbar .el-button :deep(.el-icon) { font-size: 14px; }
+.composer-file :deep(.el-icon) { margin-right: 6px; }
+.composer-send :deep(.el-icon) { margin-left: 6px; }
+select { cursor: pointer; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); height: 36px; }
 .composer-choice { display: grid; gap: 3px; font-size: 10px; color: var(--muted); }
 select { max-width: 150px; font-size: 12px; padding: 3px 5px; }
-select:disabled, button:disabled { cursor: default; opacity: .55; }
-.prompt-toolbar .composer-send { margin-left: auto; background: var(--ink); color: var(--surface); min-width: 96px; }
-.prompt-toolbar .composer-send:hover:not(:disabled) { background: var(--brand); }
+select:disabled { cursor: default; opacity: .55; }
+.prompt-toolbar .composer-send { margin-left: auto; min-width: 110px; }
 .composer-note { color: var(--muted); font-size: 11px; margin: 10px 0 0; line-height: 1.6; }
 @media (max-width: 600px) { .model-choice { display: none; } .prompt-composer { padding: 12px; } select { max-width: 120px; } }
 </style>
