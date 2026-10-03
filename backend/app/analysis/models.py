@@ -239,7 +239,103 @@ class OverviewResult(StrictModel):
     columns: list[ColumnSpec]
 
 
-SimpleResult = TableResult | AggregationResult | StatisticsResult | CorrelationResult | DataQualityResult | CleaningResult | ChartResult | RecommendationResult | OverviewResult | LegacyResult | LegacyChartResult
+class ForecastMetrics(StrictModel):
+    mae: float=Field(ge=0)
+    rmse: float=Field(ge=0)
+    mape: float | None=Field(default=None, ge=0)
+    mape_coverage: float=Field(ge=0, le=1)
+    mape_explanation: str
+
+
+class ForecastFold(StrictModel):
+    fold_id: int=Field(ge=0, le=2)
+    train_start: str
+    train_end: str
+    test_start: str
+    test_end: str
+    train_size: int=Field(ge=3)
+    test_size: int=Field(ge=1, le=24)
+
+
+class ForecastFoldScore(StrictModel):
+    fold_id: int=Field(ge=0, le=2)
+    predictions: list[float]=Field(min_length=1, max_length=24)
+    metrics: ForecastMetrics
+
+
+class ForecastCandidate(StrictModel):
+    model: Literal['naive','moving_average','linear_trend','exponential_smoothing','arima']
+    status: Literal['succeeded','failed','skipped']
+    metrics: ForecastMetrics | None=None
+    folds: list[ForecastFoldScore]=Field(default_factory=list, max_length=3)
+    error_code: str | None=None
+    validation_error_code: str | None=None
+    final_fit_error_code: str | None=None
+    @model_validator(mode='after')
+    def consistency(self):
+        if self.status == 'succeeded' and (self.metrics is None or len(self.folds) != 3 or self.error_code is not None):
+            raise ValueError('successful candidate requires three fold scores')
+        if self.status != 'succeeded' and self.error_code is None:
+            raise ValueError('unsuccessful candidate requires a reason')
+        return self
+
+
+class ForecastPoint(StrictModel):
+    time: str
+    value: float
+    lower: float
+    upper: float
+    @model_validator(mode='after')
+    def bounds(self):
+        if not self.lower <= self.value <= self.upper:
+            raise ValueError('forecast interval must contain the point')
+        return self
+
+
+class ForecastUncertainty(StrictModel):
+    method: Literal['held_out_absolute_residual_quantile']='held_out_absolute_residual_quantile'
+    residual_quantile: float=Field(gt=0, lt=1)
+    residual_count: int=Field(ge=3)
+    calibrated: Literal[False]=False
+    limitations: str
+
+
+class ForecastResult(StrictModel):
+    kind: Literal['forecast']='forecast'
+    dataset_id: int
+    dataset_version: int | None
+    source_ref: str
+    time_column: str
+    target_column: str
+    aggregation: Literal['sum','mean','median','min','max']
+    granularity: Literal['day','week','month','quarter','year']
+    frequency: str
+    history_start: str
+    history_end: str
+    observation_count: int=Field(ge=12, le=1000)
+    input_row_count: int=Field(ge=12)
+    horizon: int=Field(ge=1, le=24)
+    selected_model: str
+    metrics: ForecastMetrics
+    folds: list[ForecastFold]=Field(min_length=3, max_length=3)
+    baseline: ForecastCandidate
+    candidates: list[ForecastCandidate]=Field(min_length=5, max_length=5)
+    points: list[ForecastPoint]=Field(min_length=1, max_length=24)
+    uncertainty: ForecastUncertainty
+    limitations: list[str]
+    @model_validator(mode='after')
+    def consistency(self):
+        selected=[c for c in self.candidates if c.model == self.selected_model and c.status == 'succeeded']
+        if len(selected)!=1 or selected[0].metrics != self.metrics or len(self.points)!=self.horizon:
+            raise ValueError('forecast selection or horizon disagrees')
+        if self.baseline.model != 'naive' or self.baseline != self.candidates[0]:
+            raise ValueError('forecast must retain its naive baseline')
+        if len({c.model for c in self.candidates}) != 5 or [f.fold_id for f in self.folds] != [0,1,2]:
+            raise ValueError('forecast candidates or folds incomplete')
+        return self
+
+
+SimpleResult = TableResult | AggregationResult | StatisticsResult | CorrelationResult | DataQualityResult | CleaningResult | ChartResult | RecommendationResult | OverviewResult | LegacyResult | LegacyChartResult | ForecastResult
 
 
 class EDASection(StrictModel):

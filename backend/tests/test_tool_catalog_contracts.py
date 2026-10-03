@@ -7,6 +7,7 @@ from app.analysis.models import Permission
 from app.analysis.errors import ToolError
 
 PARAMETERS={
+    'forecast':{'time_column':'time','target_column':'x','horizon':1,'granularity':'month','aggregation':'sum'},
     'dataset_overview':{},'column_summary':{'columns':['x']},
     'select_columns':{'columns':['x']},'filter_rows':{'filters':[{'column':'x','operator':'gt','value':0}]},
     'sort_rows':{'sort':[{'column':'x'}]},'sample_rows':{'limit':2},
@@ -33,6 +34,8 @@ PARAMETERS={
 def test_each_available_tool_has_real_typed_output_and_preserves_input(name):
     registry=build_registry()
     frame=pd.DataFrame({'label':['A','A','B','B'],'x':[1.,2.,3.,4.],'y':[2.,4.,6.,8.],'time':[1,2,3,4],'weight':[1.,1.,2.,2.],'day':['2026-01-01']*4})
+    if name=='forecast':
+        frame=pd.DataFrame({'time':pd.date_range('2020-01-01',periods=12,freq='MS'),'x':range(1,13)})
     original=frame.copy(deep=True)
     output=registry.calculate(name,DatasetContext.from_frame(frame),PARAMETERS[name],frozenset({Permission.READ_DATA,Permission.TRANSFORM_DATA}))
     output.data.model_dump_json()

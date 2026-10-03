@@ -33,6 +33,10 @@ def build_registry(include_legacy=False):
         register(name,ToolCategory.STATISTICS,StatisticsInput,StatisticsResult,partial(stats.statistics,operation=name))
     register('correlation',ToolCategory.STATISTICS,StatisticsInput,CorrelationResult,stats.correlation)
     register('covariance',ToolCategory.STATISTICS,StatisticsInput,StatisticsResult,partial(stats.correlation,covariance=True))
+    from app.analysis.inputs import ForecastInput
+    from app.analysis.models import ForecastResult
+    from app.analysis.forecast_tools import forecast
+    register('forecast',ToolCategory.TIME_SERIES,ForecastInput,ForecastResult,forecast,timeout_seconds=30)
     from app.analysis.models import DataQualityResult,CleaningResult,Permission
     from app.analysis.inputs import QualityInput,CleaningInput
     from app.analysis.quality_tools import quality

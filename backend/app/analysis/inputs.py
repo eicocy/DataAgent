@@ -89,6 +89,14 @@ class StatisticsInput(StrictModel):
     min_samples: int=Field(default=3, ge=2)
 
 
+class ForecastInput(StrictModel):
+    time_column: str=Field(min_length=1)
+    target_column: str=Field(min_length=1)
+    horizon: int=Field(ge=1, le=24, strict=True)
+    granularity: Literal['day','week','month','quarter','year']
+    aggregation: Literal['sum','mean','median','min','max']
+
+
 class QualityInput(DataInput):
     method: Literal['iqr','zscore']='iqr'
     threshold: float | None=Field(default=None, gt=0)
