@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
+import tempfile
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, Request, Form
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -74,18 +75,66 @@ def _json_value(value):
     return value
 
 
+@router.post("/inspect-sheets")
+def inspect_workbook_sheets(file: UploadFile = File(...), user: User = Depends(current_user)):
+    suffix = Path(_safe_original_name(file.filename)).suffix.lower()
+    if suffix not in {".xls", ".xlsx"}:
+        raise _error(415, "WORKSHEET_SELECTION_UNAVAILABLE", "仅 Excel 文件支持工作表选择")
+    content = file.file.read(settings.max_upload_bytes + 1)
+    if len(content) > settings.max_upload_bytes:
+        raise _error(413, "DATASET_FILE_TOO_LARGE", "文件超过 20 MB 限制")
+    if not content:
+        raise _error(400, "DATASET_EMPTY", "请选择非空文件")
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
+            temporary.write(content)
+            path = Path(temporary.name)
+        if suffix == ".xlsx":
+            from openpyxl import load_workbook
+            from app.services.datasets import MAX_COMPRESSION_RATIO, MAX_XLSX_UNCOMPRESSED_BYTES
+            import zipfile
+            with zipfile.ZipFile(path) as archive:
+                infos = archive.infolist()
+                expanded = sum(item.file_size for item in infos)
+                compressed = max(1, sum(item.compress_size for item in infos))
+                if expanded > MAX_XLSX_UNCOMPRESSED_BYTES or expanded / compressed > MAX_COMPRESSION_RATIO:
+                    raise _error(413, "DATASET_ARCHIVE_TOO_LARGE", "Excel 文件解压后过大，无法安全解析")
+                if any(item.filename.lower().endswith("vbaproject.bin") for item in infos):
+                    raise _error(415, "DATASET_MACRO_UNSUPPORTED", "不支持包含宏的 Excel 文件")
+            workbook = load_workbook(path, read_only=True, data_only=True, keep_links=False)
+            sheets = [sheet.title for sheet in workbook.worksheets
+                      if sum(any(value is not None for value in row)
+                             for row in sheet.iter_rows(min_row=1, max_row=min(sheet.max_row or 1, 3), values_only=True)) >= 2]
+            workbook.close()
+        else:
+            import pandas as pd
+            sheets = pd.ExcelFile(path, engine="xlrd").sheet_names
+        if not sheets:
+            raise _error(400, "DATASET_EMPTY", "Excel 文件中没有非空工作表")
+        return {"code": 200, "message": "success", "data": {"sheets": sheets, "default": sheets[0]}}
+    except HTTPException:
+        raise
+    except Exception:
+        raise _error(400, "DATASET_PARSE_FAILED", "无法读取 Excel 工作表") from None
+    finally:
+        if path:
+            path.unlink(missing_ok=True)
+
+
 @router.post("/upload", status_code=202)
 def upload_dataset(
     request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    sheet_name: str | None = Form(default=None, max_length=128),
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ):
     original_name = _safe_original_name(file.filename)
     extension = Path(original_name).suffix.lower().lstrip(".")
-    if extension not in {"csv", "xlsx"}:
-        raise _error(415, "DATASET_TYPE_NOT_SUPPORTED", "仅支持 CSV 和 XLSX 文件")
+    if extension not in {"csv", "tsv", "json", "xlsx", "xls", "parquet"}:
+        raise _error(415, "DATASET_TYPE_NOT_SUPPORTED", "支持 CSV、TSV、JSON、XLS、XLSX 和 Parquet 文件")
 
     upload_dir = Path(settings.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -102,10 +151,17 @@ def upload_dataset(
                 output.write(chunk)
         if file_size == 0:
             raise _error(400, "DATASET_EMPTY", "请选择非空文件")
-        if extension == "xlsx":
+        if extension in {"xlsx", "parquet"}:
             with temporary_path.open("rb") as source:
-                if source.read(4) != b"PK\x03\x04":
+                signature = source.read(4)
+                if extension == "xlsx" and signature != b"PK\x03\x04":
                     raise _error(400, "DATASET_PARSE_FAILED", "XLSX 文件签名不正确")
+                if extension == "parquet" and signature != b"PAR1":
+                    raise _error(400, "DATASET_PARSE_FAILED", "Parquet 文件签名不正确")
+        if extension == "xls":
+            with temporary_path.open("rb") as source:
+                if source.read(8) != bytes.fromhex("D0CF11E0A1B11AE1"):
+                    raise _error(400, "DATASET_PARSE_FAILED", "XLS 文件签名不正确")
         os.replace(temporary_path, final_path)
         now = datetime.now(UTC)
         dataset = Dataset(
@@ -115,6 +171,7 @@ def upload_dataset(
             file_type=extension,
             file_size=file_size,
             status="parsing",
+            parse_options_json={"sheet_name": sheet_name} if sheet_name else None,
             created_at=now,
             updated_at=now,
         )
@@ -257,7 +314,12 @@ def delete_dataset(dataset_id: int, user: User = Depends(current_user), db: Sess
     stored_name = dataset.stored_name
     from app.models import DatasetVersion
     projections=[{'table':version.projection_table,'schema':version.projection_schema} for version in db.scalars(select(DatasetVersion).where(DatasetVersion.dataset_id==dataset_id))]
-    cleanup = CleanupTask(payload_json={"dataset_id": dataset_id, "stored_name": stored_name, "projection_schema": dataset.projection_schema, "artifacts": list(db.scalars(select(AnalysisArtifact.stored_name).where(AnalysisArtifact.dataset_id == dataset_id)))}, status="pending", created_at=datetime.now(UTC))
+    cleanup = CleanupTask(payload_json={"dataset_id": dataset_id, "stored_name": stored_name,
+        "projection_schema": dataset.projection_schema,
+        "artifacts": list(db.scalars(select(AnalysisArtifact.stored_name).where(AnalysisArtifact.dataset_id == dataset_id))),
+        "artifact_storage_keys": list(db.scalars(select(AnalysisArtifact.storage_key).where(
+            AnalysisArtifact.dataset_id == dataset_id, AnalysisArtifact.storage_key.is_not(None))))},
+        status="pending", created_at=datetime.now(UTC))
     db.add(cleanup)
     cleanup.payload_json=dict(cleanup.payload_json,projections=projections)
     db.delete(dataset)

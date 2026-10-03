@@ -32,12 +32,16 @@ def perform_cleanup(db, task, business_bind, projection_bind):
             if inspect(bind).has_table(name): Table(name,MetaData(),autoload_with=bind).drop(bind)
         if payload.get("stored_name"):
             name = payload["stored_name"]
-            if not re.fullmatch(r"[a-f0-9]{32}\.(csv|xlsx)", name):
+            if not re.fullmatch(r"[a-f0-9]{32}\.(csv|tsv|json|parquet|xls|xlsx)", name):
                 raise ValueError("Invalid server upload name")
             (Path(get_settings().upload_dir).resolve() / name).unlink(missing_ok=True)
         store = ArtifactStore(db)
         for name in payload.get("artifacts", []):
             store._path(name).unlink(missing_ok=True)
+        from app.artifacts.storage import LocalArtifactStorage
+        file_store = LocalArtifactStorage(get_settings().artifact_dir)
+        for storage_key in payload.get("artifact_storage_keys", []):
+            file_store.delete(storage_key)
         task.status, task.error_code = "succeeded", None
     except Exception:
         task.attempts += 1
@@ -58,7 +62,11 @@ def run_maintenance(factory):
         for artifact in db.scalars(select(AnalysisArtifact).where(AnalysisArtifact.expires_at < datetime.now(UTC).replace(tzinfo=None), AnalysisArtifact.purged_at.is_(None)).limit(100)):
             from app.services.artifacts import ArtifactStore
             try:
-                ArtifactStore(db, store_settings)._path(artifact.stored_name).unlink(missing_ok=True)
+                if artifact.storage_key:
+                    from app.artifacts.storage import LocalArtifactStorage
+                    LocalArtifactStorage(store_settings.artifact_dir).delete(artifact.storage_key)
+                else:
+                    ArtifactStore(db, store_settings)._path(artifact.stored_name).unlink(missing_ok=True)
                 artifact.purged_at = datetime.now(UTC).replace(tzinfo=None)
             except OSError:
                 pass
@@ -116,6 +124,20 @@ def terminate_job(factory, job_id, code="TASK_INTERRUPTED"):
                 execution.error_json={'code':code,'message':'工具任务中断或超时','details':{},'recoverable':False,'suggestion':'显式重试分析'}
             for task in db.scalars(select(CleanupTask).where(CleanupTask.status=='reserved')):
                 if task.payload_json.get('analysis_record_id')==job.resource_id:task.status='pending'
+        elif job.kind == "report":
+            record = db.get(AnalysisRecord, job.resource_id)
+            if record and record.status in {"pending", "running"}:
+                record.status = "cancelled" if cancelled else "failed"
+                record.error_code = code
+                record.error_message = "任务已取消" if cancelled else "报告任务中断或超时，请重新提交"
+                record.final_answer, record.completed_at = record.error_message, now
+                record.report_json = {"version": "2.0", "operation": (job.task_payload_json or {}).get("operation"), "status": record.status}
+                message = db.get(AnalysisMessage, record.assistant_message_id) if record.assistant_message_id else None
+                if message:
+                    message.status, message.content = record.status, record.error_message
+                from app.services.analysis import append_event
+                append_event(db, record, "analysis_cancelled" if cancelled else "analysis_failed",
+                             {"status": record.status, "error_code": code})
         elif job.kind == "parse":
             dataset = db.get(Dataset, job.resource_id)
             if dataset and dataset.status in {"uploading", "parsing"}:
@@ -144,7 +166,7 @@ def recover_legacy_records(factory):
     """Terminate old synchronous in-flight rows which have no durable queue owner."""
     with factory() as db:
         now = datetime.now(UTC).replace(tzinfo=None)
-        has_analysis_job = exists(select(BackgroundJob.id).where(BackgroundJob.kind == "analysis", BackgroundJob.resource_id == AnalysisRecord.id))
+        has_analysis_job = exists(select(BackgroundJob.id).where(BackgroundJob.kind.in_(("analysis", "report")), BackgroundJob.resource_id == AnalysisRecord.id))
         records = db.scalars(select(AnalysisRecord).where(AnalysisRecord.status.in_(("pending", "running")), ~has_analysis_job)).all()
         for record in records:
             record.status = "partial" if record.tool_result_json else "failed"
@@ -202,7 +224,7 @@ class TaskSupervisor:
         env["UPLOAD_DIR"], env["ARTIFACT_DIR"] = str(Path(self.settings.upload_dir).resolve()), str(Path(self.settings.artifact_dir).resolve())
         with self.factory() as db:
             job = db.get(BackgroundJob, job_id)
-            budget = self.settings.parse_timeout_seconds if job.kind == "parse" else self.settings.analysis_timeout_seconds
+            budget = self.settings.parse_timeout_seconds if job.kind == "parse" else self.settings.report_timeout_seconds if job.kind == "report" else self.settings.analysis_timeout_seconds
         deadline = time.monotonic() + budget
         self.process = subprocess.Popen([sys.executable, "-m", "app.task_runner", "--job-id", str(job_id), "--lease", token, "--parent-pid", str(os.getpid())], cwd=str(Path(__file__).resolve().parents[2]), env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         timed_out = False

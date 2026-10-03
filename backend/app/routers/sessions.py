@@ -1,15 +1,30 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import current_user
-from app.models import AnalysisMessage, AnalysisRecord, AnalysisSession, Dataset, User, AnalysisArtifact, CleanupTask
+from app.models import AnalysisMessage, AnalysisRecord, AnalysisSession, Dataset, User, AnalysisArtifact, AnalysisReport, AnalysisReportVersion, CleanupTask
 
 
 router = APIRouter(prefix="/analysis/sessions", tags=["analysis sessions"])
+
+
+class SessionPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    is_pinned: bool | None = None
+
+    @model_validator(mode="after")
+    def require_update(self):
+        if self.title is None and self.is_pinned is None:
+            raise ValueError("At least one session field is required")
+        if self.title is not None and not self.title.strip():
+            raise ValueError("Session title cannot be blank")
+        return self
 
 
 def _session_or_error(db: Session, session_id: int, user_id: int) -> AnalysisSession:
@@ -30,6 +45,7 @@ def _record_evidence(record: AnalysisRecord | None) -> dict | None:
         "question": record.question,
         "session_id": record.session_id,
         "dataset_id": record.dataset_id,
+        "dataset_version_id": record.dataset_version_id,
         "status": record.status,
         "tool_calls": record.tool_calls_json or [],
         "tool_result": record.tool_result_json,
@@ -72,9 +88,9 @@ def list_analysis_sessions(
         query = query.where(condition)
         count_query = count_query.outerjoin(Dataset, Dataset.id == AnalysisSession.dataset_id).where(condition)
     total = db.scalar(count_query) or 0
-    rows = db.execute(query.order_by(AnalysisSession.updated_at.desc(), AnalysisSession.id.desc()).offset((page - 1) * page_size).limit(page_size)).all()
+    rows = db.execute(query.order_by(AnalysisSession.is_pinned.desc(), AnalysisSession.updated_at.desc(), AnalysisSession.id.desc()).offset((page - 1) * page_size).limit(page_size)).all()
     return {"code": 200, "message": "success", "data": {"items": [
-        {"id": session.id, "dataset_id": session.dataset_id, "dataset_name": dataset_name, "title": session.title, "status": session.status, "message_count": count, "last_question": question, "created_at": session.created_at.isoformat(), "updated_at": session.updated_at.isoformat()}
+        {"id": session.id, "dataset_id": session.dataset_id, "dataset_name": dataset_name, "title": session.title, "status": session.status, "is_pinned": session.is_pinned, "message_count": count, "last_question": question, "created_at": session.created_at.isoformat(), "updated_at": session.updated_at.isoformat()}
         for session, dataset_name, count, question in rows
     ], "page": page, "page_size": page_size, "total": total, "pages": (total + page_size - 1) // page_size}}
 
@@ -118,12 +134,29 @@ def get_analysis_session(
         "analysis_record": _record_evidence(by_message.get(message.id)),
     } for message in messages]
     return {"code": 200, "message": "success", "data": {
-        "session": {"id": session.id, "dataset_id": session.dataset_id, "title": session.title, "status": session.status, "created_at": session.created_at.isoformat(), "updated_at": session.updated_at.isoformat()},
+        "session": {"id": session.id, "dataset_id": session.dataset_id, "title": session.title, "status": session.status, "is_pinned": session.is_pinned, "created_at": session.created_at.isoformat(), "updated_at": session.updated_at.isoformat()},
         "dataset": {"id": dataset.id, "original_name": dataset.original_name, "row_count": dataset.row_count, "column_count": dataset.column_count, "file_type": dataset.file_type} if dataset else None,
         "messages": output_messages,
         "message_count": total_messages,
         "next_cursor": messages[0].id if has_more and messages else None,
     }}
+
+
+@router.patch("/{session_id}")
+def update_analysis_session(session_id: int, payload: SessionPatch,
+                            user: User = Depends(current_user), db: Session = Depends(get_db)):
+    session = _session_or_error(db, session_id, user.id)
+    if payload.title is not None:
+        session.title = payload.title.strip()
+    if payload.is_pinned is not None:
+        session.is_pinned = payload.is_pinned
+    session.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(session)
+    return {"code": 200, "message": "success", "data": {
+        "id": session.id, "dataset_id": session.dataset_id, "title": session.title,
+        "status": session.status, "is_pinned": session.is_pinned,
+        "created_at": session.created_at.isoformat(), "updated_at": session.updated_at.isoformat()}}
 
 
 @router.delete("/{session_id}")
@@ -133,9 +166,18 @@ def delete_analysis_session(session_id: int, user: User = Depends(current_user),
     pending = db.scalar(select(func.count()).select_from(AnalysisRecord).where(AnalysisRecord.session_id == session.id, AnalysisRecord.status.in_(("pending", "running")))) or 0
     if pending:
         raise HTTPException(status_code=409, detail={"code": "SESSION_BUSY", "message": "分析仍在处理中，请稍后删除", "data": None})
-    files = list(db.scalars(select(AnalysisArtifact.stored_name).where(AnalysisArtifact.record_id.in_(select(AnalysisRecord.id).where(AnalysisRecord.session_id == session.id)))))
-    if files:
-        db.add(CleanupTask(payload_json={"artifacts": files}, status="pending", created_at=datetime.now(UTC)))
+    session_report_ids = select(AnalysisReportVersion.id).join(AnalysisReport, AnalysisReport.id == AnalysisReportVersion.report_id).where(AnalysisReport.session_id == session.id)
+    stored_artifacts = db.scalars(select(AnalysisArtifact.stored_name).where(
+        AnalysisArtifact.record_id.in_(select(AnalysisRecord.id).where(AnalysisRecord.session_id == session.id)))).all()
+    stored_artifacts += db.scalars(select(AnalysisArtifact.stored_name).where(
+        AnalysisArtifact.report_version_id.in_(session_report_ids))).all()
+    file_keys = db.scalars(select(AnalysisArtifact.storage_key).where(
+        or_(AnalysisArtifact.report_version_id.in_(session_report_ids),
+            AnalysisArtifact.record_id.in_(select(AnalysisRecord.id).where(AnalysisRecord.session_id == session.id))),
+        AnalysisArtifact.storage_key.is_not(None))).all()
+    if stored_artifacts or file_keys:
+        db.add(CleanupTask(payload_json={"artifacts": stored_artifacts,
+            "artifact_storage_keys": file_keys}, status="pending", created_at=datetime.now(UTC)))
     db.query(AnalysisRecord).filter(AnalysisRecord.session_id == session.id).delete(synchronize_session=False)
     db.query(AnalysisMessage).filter(AnalysisMessage.session_id == session.id).delete(synchronize_session=False)
     deleted_id = session.id

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import json
 import logging
 import math
 import re
@@ -52,12 +53,12 @@ def safe_column_names(headers: list[Any]) -> list[str]:
     return names
 
 
-def _read_csv(path: Path) -> pd.DataFrame:
+def _read_csv(path: Path, delimiter: str = ",", source_format: str = "csv") -> pd.DataFrame:
     last_error: Exception | None = None
     for encoding in ("utf-8-sig", "utf-8"):
         try:
             with path.open("r", encoding=encoding, newline="") as handle:
-                header = next(csv.reader(handle), None)
+                header = next(csv.reader(handle, delimiter=delimiter), None)
             if not header:
                 raise DatasetParseError("DATASET_EMPTY", "文件为空或缺少表头")
             safe_column_names(header)
@@ -65,7 +66,7 @@ def _read_csv(path: Path) -> pd.DataFrame:
                 raise DatasetParseError("DATASET_TOO_MANY_COLUMNS", f"文件超过 {get_settings().max_dataset_columns} 列限制")
             chunks = []
             count = 0
-            with pd.read_csv(path, encoding=encoding, dtype='string', chunksize=5000) as reader:
+            with pd.read_csv(path, encoding=encoding, dtype='string', chunksize=5000, sep=delimiter) as reader:
                 for chunk in reader:
                     count += len(chunk)
                     if count > get_settings().max_dataset_rows:
@@ -74,7 +75,8 @@ def _read_csv(path: Path) -> pd.DataFrame:
                     if sum(int(part.memory_usage(deep=True).sum()) for part in chunks) > get_settings().dataframe_max_bytes:
                         raise DatasetParseError("DATASET_MEMORY_LIMIT", "文件超过解析内存预算")
             frame = pd.concat(chunks, ignore_index=True) if chunks else pd.DataFrame(columns=header)
-            frame.attrs['transformations'] = [{'operation': 'csv_read', 'encoding': encoding}, {'operation': 'numeric_inference', 'columns': []}]
+            frame.attrs['source_format'] = source_format
+            frame.attrs['transformations'] = [{'operation': f'{source_format}_read', 'encoding': encoding}, {'operation': 'numeric_inference', 'columns': []}]
             for name in frame.columns:
                 values = frame[name].dropna()
                 if not values.empty and not values.str.match(r'^0\d+').any():
@@ -94,7 +96,40 @@ def _read_csv(path: Path) -> pd.DataFrame:
     raise DatasetParseError("DATASET_ENCODING_UNSUPPORTED", "CSV 编码无法识别，请另存为 UTF-8 后重试") from last_error
 
 
-def _read_xlsx(path: Path) -> pd.DataFrame:
+def _read_json(path: Path) -> pd.DataFrame:
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+        try:
+            payload = json.loads(text)
+        except ValueError:
+            payload = [json.loads(line) for line in text.splitlines() if line.strip()]
+        if isinstance(payload, dict):
+            raise DatasetParseError("DATASET_JSON_RECORDS_REQUIRED", "JSON 须为对象数组或 JSON Lines 记录")
+        if not isinstance(payload, list) or not payload or any(not isinstance(item, dict) for item in payload):
+            raise DatasetParseError("DATASET_JSON_RECORDS_REQUIRED", "JSON 须为非空扁平对象数组或 JSON Lines")
+        if any(any(isinstance(value, (dict, list)) for value in row.values()) for row in payload):
+            raise DatasetParseError("DATASET_NESTED_JSON_UNSUPPORTED", "暂不支持包含嵌套对象或数组的 JSON 字段")
+        if len(payload) > get_settings().max_dataset_rows:
+            raise DatasetParseError("DATASET_TOO_MANY_ROWS", f"文件超过 {get_settings().max_dataset_rows} 行限制")
+        headers = list(dict.fromkeys(key for row in payload for key in row))
+        if not headers:
+            raise DatasetParseError("DATASET_EMPTY", "JSON 记录没有可用字段")
+        if len(headers) > get_settings().max_dataset_columns:
+            raise DatasetParseError("DATASET_TOO_MANY_COLUMNS", f"文件超过 {get_settings().max_dataset_columns} 列限制")
+        safe_column_names(headers)
+        frame = pd.DataFrame(payload, columns=headers).convert_dtypes()
+        if int(frame.memory_usage(deep=True).sum()) > get_settings().dataframe_max_bytes:
+            raise DatasetParseError("DATASET_MEMORY_LIMIT", "文件超过解析内存预算")
+        frame.attrs["source_format"] = "json"
+        frame.attrs["transformations"] = [{"operation": "json_records_read"}]
+        return frame
+    except DatasetParseError:
+        raise
+    except (UnicodeError, ValueError, OSError) as exc:
+        raise DatasetParseError("DATASET_PARSE_FAILED", "JSON 文件格式不正确") from exc
+
+
+def _read_xlsx(path: Path, selected_sheet: str | None = None) -> pd.DataFrame:
     try:
         with zipfile.ZipFile(path) as archive:
             infos = archive.infolist()
@@ -111,6 +146,8 @@ def _read_xlsx(path: Path) -> pd.DataFrame:
     try:
         workbook = load_workbook(path, read_only=True, data_only=True, keep_links=False)
         for sheet in workbook.worksheets:
+            if selected_sheet is not None and sheet.title != selected_sheet:
+                continue
             if sheet.max_column and sheet.max_column > get_settings().max_dataset_columns:
                 raise DatasetParseError("DATASET_TOO_MANY_COLUMNS", f"文件超过 {get_settings().max_dataset_columns} 列限制")
             rows: list[tuple[Any, ...]] = []
@@ -145,8 +182,12 @@ def _read_xlsx(path: Path) -> pd.DataFrame:
                     if formula_book is not None:
                         formula_book.close()
                 if frame.empty:
-                    raise DatasetParseError("DATASET_EMPTY", "工作表只有表头，没有数据行")
+                    if selected_sheet is not None:
+                        raise DatasetParseError("DATASET_EMPTY", "工作表只有表头，没有数据行")
+                    continue
                 return frame
+        if selected_sheet is not None:
+            raise DatasetParseError("DATASET_SHEET_NOT_FOUND", "所选工作表不存在或没有数据")
         raise DatasetParseError("DATASET_EMPTY", "Excel 文件中没有非空工作表")
     except DatasetParseError:
         raise
@@ -157,8 +198,82 @@ def _read_xlsx(path: Path) -> pd.DataFrame:
             workbook.close()
 
 
-def parse_file(path: Path, file_type: str) -> pd.DataFrame:
-    frame = _read_csv(path) if file_type == "csv" else _read_xlsx(path)
+def _read_xls(path: Path, selected_sheet: str | None = None) -> pd.DataFrame:
+    try:
+        workbook = pd.ExcelFile(path, engine="xlrd")
+        names = [selected_sheet] if selected_sheet else workbook.sheet_names
+        for name in names:
+            if name not in workbook.sheet_names:
+                continue
+            frame = pd.read_excel(workbook, sheet_name=name, engine="xlrd", dtype=object)
+            if frame.empty:
+                if selected_sheet:
+                    raise DatasetParseError("DATASET_EMPTY", "工作表只有表头，没有数据行")
+                continue
+            if len(frame) > get_settings().max_dataset_rows:
+                raise DatasetParseError("DATASET_TOO_MANY_ROWS", f"文件超过 {get_settings().max_dataset_rows} 行限制")
+            if int(frame.memory_usage(deep=True).sum()) > get_settings().dataframe_max_bytes:
+                raise DatasetParseError("DATASET_MEMORY_LIMIT", "文件超过解析内存预算")
+            frame.attrs["source_format"] = "xls"
+            frame.attrs["transformations"] = [{"operation": "worksheet_selection", "sheet": name}]
+            workbook.close()
+            return frame
+        workbook.close()
+        if selected_sheet:
+            raise DatasetParseError("DATASET_SHEET_NOT_FOUND", "所选工作表不存在或没有数据")
+        raise DatasetParseError("DATASET_EMPTY", "Excel 文件中没有非空工作表")
+    except DatasetParseError:
+        raise
+    except Exception as exc:
+        raise DatasetParseError("DATASET_PARSE_FAILED", "Excel 工作表无法读取") from exc
+
+
+def _read_parquet(path: Path) -> pd.DataFrame:
+    try:
+        import pyarrow.parquet as parquet
+
+        source = parquet.ParquetFile(path)
+        metadata = source.metadata
+        if metadata.num_rows > get_settings().max_dataset_rows:
+            raise DatasetParseError("DATASET_TOO_MANY_ROWS", f"文件超过 {get_settings().max_dataset_rows} 行限制")
+        if metadata.num_columns > get_settings().max_dataset_columns:
+            raise DatasetParseError("DATASET_TOO_MANY_COLUMNS", f"文件超过 {get_settings().max_dataset_columns} 列限制")
+        frames = []
+        memory = 0
+        for batch in source.iter_batches(batch_size=5000):
+            frame = batch.to_pandas()
+            if any(any(isinstance(value, (dict, list, tuple)) for value in frame[column].dropna().head(100))
+                   for column in frame.columns):
+                raise DatasetParseError("DATASET_NESTED_PARQUET_UNSUPPORTED", "暂不支持包含嵌套字段的 Parquet 文件")
+            memory += int(frame.memory_usage(deep=True).sum())
+            if memory > get_settings().dataframe_max_bytes:
+                raise DatasetParseError("DATASET_MEMORY_LIMIT", "文件超过解析内存预算")
+            frames.append(frame)
+        if not frames:
+            raise DatasetParseError("DATASET_EMPTY", "Parquet 文件没有数据行")
+        frame = pd.concat(frames, ignore_index=True)
+        frame.attrs["source_format"] = "parquet"
+        frame.attrs["transformations"] = [{"operation": "parquet_read", "row_groups": metadata.num_row_groups}]
+        return frame
+    except DatasetParseError:
+        raise
+    except Exception as exc:
+        raise DatasetParseError("DATASET_PARSE_FAILED", "Parquet 文件无法读取") from exc
+
+
+def parse_file(path: Path, file_type: str, sheet_name: str | None = None) -> pd.DataFrame:
+    readers = {
+        "csv": lambda: _read_csv(path),
+        "tsv": lambda: _read_csv(path, delimiter="\t", source_format="tsv"),
+        "json": lambda: _read_json(path),
+        "xlsx": lambda: _read_xlsx(path, sheet_name),
+        "xls": lambda: _read_xls(path, sheet_name),
+        "parquet": lambda: _read_parquet(path),
+    }
+    reader = readers.get(file_type.lower())
+    if reader is None:
+        raise DatasetParseError("DATASET_TYPE_NOT_SUPPORTED", "此文件格式暂不支持")
+    frame = reader()
     if len(frame) > get_settings().max_dataset_rows:
         raise DatasetParseError("DATASET_TOO_MANY_ROWS", f"文件超过 {get_settings().max_dataset_rows} 行限制")
     if len(frame.columns) > get_settings().max_dataset_columns:
@@ -167,6 +282,7 @@ def parse_file(path: Path, file_type: str) -> pd.DataFrame:
         raise DatasetParseError('DATASET_MEMORY_LIMIT', '文件超过解析内存预算')
     original_names = list(frame.columns)
     frame.attrs["original_columns"] = [str(name) for name in original_names]
+    frame.attrs.setdefault("source_format", file_type.lower())
     frame.columns = safe_column_names(original_names)
     frame.attrs.setdefault('transformations', []).append({'operation': 'normalize_columns', 'mapping': [{'original': str(original), 'normalized': str(normalized)} for original, normalized in zip(original_names, frame.columns)]})
     before_types = {str(name): str(frame[name].dtype) for name in frame.columns}
@@ -314,7 +430,8 @@ def process_dataset(
             upload_dir = get_settings().upload_dir
         path = Path(upload_dir) / dataset.stored_name
         try:
-            frame = parse_file(path, dataset.file_type)
+            frame = parse_file(path, dataset.file_type,
+                               sheet_name=(dataset.parse_options_json or {}).get("sheet_name"))
             if lease_guard and not lease_guard(db, False):
                 db.rollback()
                 return

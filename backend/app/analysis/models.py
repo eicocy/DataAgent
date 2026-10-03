@@ -212,7 +212,7 @@ class ChartOptions(StrictModel):
 class ChartResult(StrictModel):
     kind: Literal['chart']='chart'
     version: Literal['2.0']='2.0'
-    chart_type: Literal['line','bar','scatter','histogram','boxplot','heatmap','pie','donut']
+    chart_type: Literal['line','bar','scatter','histogram','boxplot','box','heatmap','pie','donut','area','waterfall','funnel']
     title: str=Field(default='Analysis', max_length=100)
     x: str | None=None
     y: list[str]=Field(default_factory=list)
@@ -221,7 +221,7 @@ class ChartResult(StrictModel):
 
 
 class ChartRecommendation(StrictModel):
-    chart_type: Literal['line','bar','scatter','histogram','boxplot','heatmap','pie','donut']
+    chart_type: Literal['line','bar','scatter','histogram','boxplot','box','heatmap','pie','donut','area','waterfall','funnel']
     columns: list[str]
     reason: str
 

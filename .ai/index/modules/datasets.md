@@ -13,9 +13,9 @@ symbols: router
 depends: Dataset、DatasetColumn、DatasetService、认证依赖
 
 backend/app/services/datasets.py
-role: 文件解析、类型恢复、质量警告、投影与数据加载
+role: 文件解析、类型恢复、质量警告、投影与数据加载；上传支持 CSV/TSV、JSON/JSONL、XLS/XLSX 工作表和 Parquet
 symbols: DatasetService、parse_file、safe_column_names、profile_frame、process_dataset、projection_table
-depends: Pandas、openpyxl、SQLAlchemy、models、database
+depends: Pandas、openpyxl、xlrd、pyarrow、SQLAlchemy、models、database
 
 ## Flow
 
@@ -25,6 +25,6 @@ depends: Pandas、openpyxl、SQLAlchemy、models、database
 
 ## Related
 
-backend/app/tools/pandas_tools.py；backend/app/models.py；frontend/src/views/DatasetDetailView.vue；backend/tests/test_dataset_service.py
+backend/app/tools/pandas_tools.py；backend/app/models.py；frontend/src/views/{DatasetDetailView,DatasetUploadView}.vue；backend/tests/test_dataset_service.py、test_dataset_formats.py
 
 backend/scripts/migrate_projections.py：旧投影反射复制、计数核对与定位切换，默认干运行。

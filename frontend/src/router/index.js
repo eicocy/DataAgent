@@ -13,6 +13,7 @@ const router = createRouter({
     { path: '/datasets/:datasetId', name: 'dataset-detail', component: () => import('../views/DatasetDetailView.vue'), meta: { title: '数据集详情' }, props: true },
     { path: '/analysis/:sessionId?', name: 'analysis', component: () => import('../views/AnalysisWorkspaceView.vue'), meta: { title: '智能分析' } },
     { path: '/sessions', name: 'sessions', component: () => import('../views/SessionsView.vue'), meta: { title: '分析会话' } },
+    { path: '/files', name: 'files', component: () => import('../views/ArtifactsView.vue'), meta: { title: '文件与工件' } },
     { path: '/history', name: 'history', component: () => import('../views/HistoryView.vue'), meta: { title: '分析历史' } },
     { path: '/history/:recordId', name: 'history-detail', component: () => import('../views/HistoryDetailView.vue'), props: true, meta: { title: '分析记录详情' } },
     { path: '/:pathMatch(.*)*', redirect: '/' },

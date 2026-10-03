@@ -4,6 +4,7 @@ import { ChatLineRound, DataAnalysis, Refresh, Promotion } from '@element-plus/i
 import AppShell from '../components/AppShell.vue'
 import AgentSteps from '../components/AgentSteps.vue'
 import AnalysisResult from '../components/AnalysisResult.vue'
+import ReportWorkbench from '../components/ReportWorkbench.vue'
 import { mapState } from 'pinia'
 import { useAnalysisStore } from '../stores/analysis'
 import { analysisApi } from '../api/analysis'
@@ -11,7 +12,7 @@ import { datasetApi } from '../api/datasets'
 
 export default {
   name: 'AnalysisWorkspaceView',
-  components: { AppShell, AgentSteps, AnalysisResult, ChatLineRound, DataAnalysis, Refresh, Promotion },
+  components: { AppShell, AgentSteps, AnalysisResult, ReportWorkbench, ChatLineRound, DataAnalysis, Refresh, Promotion },
   data() {
     return {
       dataset: null,
@@ -20,6 +21,11 @@ export default {
       choosingDataset: false,
       datasetSearchToken: 0,
       cancelRequested: false,
+      reportDialogVisible: false,
+      artifactPanelOpen: true,
+      artifactPanelMaximized: false,
+      artifactPanelWidth: 560,
+      resizePointer: null,
       sessionId: null,
       messages: [],
       messageCursor: null,
@@ -34,7 +40,9 @@ export default {
   },
   computed: {
     ...mapState(useAnalysisStore, { activeTrace: 'trace', activeResult: 'result' }),
+    analysisLayoutStyle() { return { '--artifact-panel-width': `${this.artifactPanelWidth}px` } },
     latestEvidence() { return [...this.messages].reverse().find((message) => message.evidence)?.evidence || null },
+    canCreateReport() { return Boolean(this.sessionId && this.latestEvidence?.record_id && this.latestEvidence?.dataset_id && this.latestEvidence?.dataset_version_id && ['succeeded', 'partial'].includes(this.latestEvidence.status)) },
     runningLabel() {
       if (this.cancelRequested) return '正在取消任务…'
       if (!this.activeResult?.agent_response?.intent) return '正在理解问题…'
@@ -51,9 +59,44 @@ export default {
       if (value && Number(value) !== this.sessionId) this.initializeWorkspace()
     },
   },
-  created() { this.initializeWorkspace() },
-  beforeUnmount() { this.controller?.abort() },
+  created() { this.restorePanelPreference(); this.initializeWorkspace() },
+  beforeUnmount() { this.controller?.abort(); this.endPanelResize() },
   methods: {
+    restorePanelPreference() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('datalens:artifact-panel') || '{}')
+        if (typeof saved.open === 'boolean') this.artifactPanelOpen = saved.open
+        if (Number.isFinite(saved.width)) this.artifactPanelWidth = Math.max(420, Math.min(720, saved.width))
+      } catch { /* 浏览器禁用本地存储时使用默认布局 */ }
+    },
+    savePanelPreference() {
+      try { localStorage.setItem('datalens:artifact-panel', JSON.stringify({ open: this.artifactPanelOpen, width: this.artifactPanelWidth })) }
+      catch { /* 布局偏好不可持久化时仍可在本次工作区使用 */ }
+    },
+    toggleArtifactPanel() {
+      this.artifactPanelOpen = !this.artifactPanelOpen
+      this.artifactPanelMaximized = false
+      this.savePanelPreference()
+    },
+    toggleArtifactPanelSize() {
+      this.artifactPanelMaximized = !this.artifactPanelMaximized
+    },
+    startPanelResize(event) {
+      if (this.artifactPanelMaximized) return
+      this.resizePointer = { id: event.pointerId, x: event.clientX, width: this.artifactPanelWidth }
+      event.currentTarget.setPointerCapture(event.pointerId)
+      event.preventDefault()
+    },
+    movePanelResize(event) {
+      if (!this.resizePointer || event.pointerId !== this.resizePointer.id) return
+      const delta = this.resizePointer.x - event.clientX
+      this.artifactPanelWidth = Math.max(420, Math.min(720, this.resizePointer.width + delta))
+    },
+    endPanelResize() {
+      if (!this.resizePointer) return
+      this.resizePointer = null
+      this.savePanelPreference()
+    },
     async initializeWorkspace() {
       // 路由切换只停止客户端轮询，后台任务仍可在原会话恢复。
       this.controller?.abort()
@@ -155,6 +198,8 @@ export default {
       const record = message.analysis_record
       const evidence = record ? {
         record_id: record.id,
+        dataset_id: record.dataset_id,
+        dataset_version_id: record.dataset_version_id,
         report: record.report,
         status: record.status,
         answer: record.final_answer,
@@ -268,9 +313,9 @@ export default {
 
     <div v-if="errorMessage" class="inline-error" role="alert"><span>{{ errorMessage }}</span><el-button text type="primary" @click="initializeWorkspace"><el-icon><Refresh /></el-icon>重试</el-button></div>
     <section v-if="initializing" class="panel analysis-loading" aria-live="polite"><span class="large-loader"></span><h2>正在准备分析工作区</h2></section>
-    <section v-else class="analysis-layout">
+    <section v-else class="analysis-layout" :class="{ 'panel-hidden': !artifactPanelOpen, 'panel-maximized': artifactPanelMaximized }" :style="analysisLayoutStyle">
       <div class="panel conversation-panel">
-        <header class="conversation-header"><div class="conversation-title"><span class="analysis-mark"><el-icon><DataAnalysis /></el-icon></span><div><h2>分析对话</h2><p>基于服务器端计算结果回答</p></div></div><el-tag v-if="sessionId" effect="plain" round>会话 #{{ sessionId }}</el-tag></header>
+        <header class="conversation-header"><div class="conversation-title"><span class="analysis-mark"><el-icon><DataAnalysis /></el-icon></span><div><h2>分析对话</h2><p>基于服务器端计算结果回答</p></div></div><div class="conversation-header-actions"><el-tag v-if="sessionId" effect="plain" round>会话 #{{ sessionId }}</el-tag><el-button v-if="!artifactPanelOpen" text @click="toggleArtifactPanel">打开工件面板</el-button></div></header>
         <div class="analysis-dataset-picker"><label for="analysis-dataset">当前数据集</label><el-select id="analysis-dataset" v-model="selectedDatasetId" filterable remote :remote-method="searchDatasets" placeholder="选择数据集（聊天可留空）" :disabled="loading" @change="chooseDataset"><el-option v-for="option in datasetChoices" :key="option.id" :label="option.original_name" :value="option.id" /></el-select></div>
 
         <div class="conversation-stream" aria-live="polite" aria-relevant="additions text">
@@ -299,13 +344,16 @@ export default {
         </form>
       </div>
 
-      <aside class="panel evidence-panel" aria-label="分析执行证据">
-        <div class="evidence-panel-heading"><span class="evidence-dot"></span><div><h2>执行证据</h2><p>模型选择的工具与真实结果</p></div></div>
+      <button v-if="artifactPanelOpen" type="button" class="artifact-panel-backdrop" aria-label="关闭工件面板" @click="toggleArtifactPanel"></button>
+      <aside v-if="artifactPanelOpen" class="panel evidence-panel artifact-panel" aria-label="工件与分析证据">
+        <button v-if="!artifactPanelMaximized" class="artifact-panel-resizer" type="button" role="separator" aria-label="调整工件面板宽度" aria-orientation="vertical" :aria-valuenow="artifactPanelWidth" aria-valuemin="420" aria-valuemax="720" @pointerdown="startPanelResize" @pointermove="movePanelResize" @pointerup="endPanelResize" @pointercancel="endPanelResize"><span></span></button>
+        <div class="evidence-panel-heading"><span class="evidence-dot"></span><div><h2>工件与证据</h2><p>图表、结果表和工具轨迹</p></div><el-button v-if="canCreateReport" size="small" plain @click="reportDialogVisible = true">生成报告</el-button><el-button text aria-label="最大化工件面板" @click="toggleArtifactPanelSize">{{ artifactPanelMaximized ? '还原' : '展开' }}</el-button><el-button text aria-label="关闭工件面板" @click="toggleArtifactPanel">关闭</el-button></div>
         <p v-if="loading && activeResult?.progress?.total" class="caption">已完成 {{ activeResult.progress.completed }} / {{ activeResult.progress.total }} 步</p>
         <AgentSteps :trace="activeTrace" :calls="loading ? [] : latestEvidence?.tool_calls || []" />
         <AnalysisResult v-if="loading && activeResult" :evidence="activeResult" />
         <AnalysisResult v-else-if="latestEvidence" :evidence="latestEvidence" />
       </aside>
     </section>
+    <ReportWorkbench v-model="reportDialogVisible" :session-id="sessionId" :source="latestEvidence" />
   </AppShell>
 </template>

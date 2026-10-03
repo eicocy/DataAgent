@@ -1,13 +1,13 @@
 # DataLens Agent
 
-**v1.0.0**：单实例数据分析 Agent。发布说明见 [v1.0.0](docs/releases/v1.0.0.md)，完整真实环境验收见 [Phase 3 验收](docs/phase3-acceptance.md)。
+**当前开发版本 v2.0.0（Phase 4）**：工作台布局、报告版本与高清图表开发中。进展和验收边界见 [Phase 4 开发记录](docs/phase4-implementation.md)。v1.0.0 发布说明及验收见 [v1.0.0](docs/releases/v1.0.0.md) 和 [Phase 3 验收](docs/phase3-acceptance.md)。
 
 中文数据分析工作台：上传 CSV/XLSX，使用自然语言提出问题，核对受控工具的真实计算结果、执行步骤、数据质量说明和 ECharts 图表。模型生成计划和解释，白名单工具执行计算；面向单机小规模部署。
 
 ## 项目组成
 
 - backend/：FastAPI、SQLAlchemy、Alembic、Pandas、SQLGlot 和 LangChain 模型适配层。
-- frontend/：Vue 3、Pinia、Element Plus、ECharts；任务轮询、会话回看及 PNG 导出。
+- frontend/：Vue 3、Pinia、Element Plus、ECharts；任务轮询、会话管理、报告预览及图表导出。
 - compose.yaml：MySQL 8、独立迁移、单 worker 后端、Nginx 前端。
 - .ai/index/：真实项目导航；docs/：架构、安全、演示与设计取舍。
 - 产品原型/ 与中文设计目录是历史设计材料，不代表已运行能力。

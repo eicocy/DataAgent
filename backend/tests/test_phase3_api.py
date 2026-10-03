@@ -14,6 +14,19 @@ def upload(client, name):
     return response.json()['data']['id']
 
 
+def test_session_can_be_renamed_and_pinned(analysis_context):
+    client, sessions, _ = analysis_context
+    session_id = client.post('/api/v1/analysis/sessions', json={}).json()['data']['id']
+
+    updated = client.patch(f'/api/v1/analysis/sessions/{session_id}',
+                           json={'title': '销售追问', 'is_pinned': True})
+
+    assert updated.status_code == 200
+    assert updated.json()['data']['title'] == '销售追问'
+    assert updated.json()['data']['is_pinned'] is True
+    assert client.get('/api/v1/analysis/sessions').json()['data']['items'][0]['is_pinned'] is True
+
+
 def test_session_and_general_chat_run_can_start_without_dataset(analysis_context):
     client, sessions, _ = analysis_context
     created = client.post('/api/v1/analysis/sessions', json={})

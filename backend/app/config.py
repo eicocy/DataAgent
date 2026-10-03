@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     pandas_timeout_seconds: int = 10
     analysis_timeout_seconds: int = 180
     parse_timeout_seconds: int = 120
+    report_timeout_seconds: int = 300
     dataframe_max_bytes: int = 256 * 1024 * 1024
     artifact_max_bytes: int = 64 * 1024 * 1024
     artifact_task_max_bytes: int = 128 * 1024 * 1024
@@ -66,7 +67,7 @@ class Settings(BaseSettings):
             raise ValueError("Production SECRET_KEY cannot be a template value")
         if self.app_env == "production" and any(value in self.database_url for value in ("change-me", "example-password")):
             raise ValueError("Production database credentials must be configured")
-        for name in ("max_plan_steps", "max_tool_attempts", "max_model_calls", "max_retries_per_step", "max_replans", "max_plan_retries", "analysis_timeout_seconds", "parse_timeout_seconds", "dataframe_max_bytes", "artifact_max_bytes", "artifact_task_max_bytes", "max_pending_jobs", "max_dataset_rows", "max_dataset_columns", "max_upload_bytes"):
+        for name in ("max_plan_steps", "max_tool_attempts", "max_model_calls", "max_retries_per_step", "max_replans", "max_plan_retries", "analysis_timeout_seconds", "parse_timeout_seconds", "report_timeout_seconds", "dataframe_max_bytes", "artifact_max_bytes", "artifact_task_max_bytes", "max_pending_jobs", "max_dataset_rows", "max_dataset_columns", "max_upload_bytes"):
             if getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be positive")
         for name in ('tool_preview_rows','tool_max_rows','tool_max_columns','tool_max_cells','tool_correlation_columns'):

@@ -51,6 +51,9 @@ def main():
         elif job.kind=='tool':
             from app.services.tool_execution import ToolExecutionService
             ToolExecutionService(db,engine,projection_engine,readonly_bind=readonly_engine).execute(job.resource_id,job.id,args.lease)
+        elif job.kind == "report":
+            from app.reports.service import execute_report_task
+            execute_report_task(db, job.resource_id, job.id, args.lease)
         elif job.kind == "parse":
             resource_id = job.resource_id
             def parse_lease(db, lock):

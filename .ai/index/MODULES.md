@@ -1,5 +1,7 @@
 # Modules
 
+Phase 4 v2.0.0 additions: see `docs/phase4-implementation.md` for session workspace, expanded data formats, chart rendering, report versions/export, artifact preview/download, and acceptance status.
+
 ## datasets
 path: backend/app/services/datasets.py；backend/app/routers/datasets.py
 role: 上传、解析、类型/质量画像、投影与授权加载

@@ -109,7 +109,7 @@ class CleaningInput(QualityInput):
 
 
 class ChartInput(DataInput):
-    chart_type: Literal['line','bar','scatter','histogram','boxplot','heatmap','pie','donut']
+    chart_type: Literal['line','bar','scatter','histogram','boxplot','box','heatmap','pie','donut','area','waterfall','funnel']
     x: str | None=None
     y: list[str]=Field(min_length=1, max_length=50)
     group_by: str | None=None

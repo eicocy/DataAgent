@@ -56,11 +56,11 @@ export const useDatasetStore = defineStore('datasets', {
     async loadDataset(id, config = {}) { this.currentDataset = await datasetApi.detail(id, config); return this.currentDataset },
     async loadColumns(id, config = {}) { this.columns = await datasetApi.columns(id, config); return this.columns },
     async loadPreview(id, params = {}, config = {}) { this.preview = await datasetApi.preview(id, params, config); return this.preview },
-    async upload(file, { signal, onUploadProgress } = {}) {
+    async upload(file, { signal, onUploadProgress, sheetName } = {}) {
       this.uploadStatus = 'uploading'
       this.error = null
       try {
-        const accepted = await datasetApi.upload(file, { signal, onUploadProgress })
+        const accepted = await datasetApi.upload(file, sheetName, { signal, onUploadProgress })
         this.currentDataset = accepted
         this.uploadStatus = 'parsing'
         const deadline = Date.now() + 120000

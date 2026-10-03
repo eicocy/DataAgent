@@ -5,12 +5,14 @@ import { BarChart, LineChart, PieChart, ScatterChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { buildChartOption } from '../utils/chartOption'
+import { chartsApi } from '../api/charts'
 
 echarts.use([BarChart, LineChart, PieChart, ScatterChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
 export default {
   name: 'ChartView',
   props: { spec: { type: Object, required: true } },
+  data() { return { highResLoading: false, highResError: '', renderedFiles: [] } },
   setup(props) {
     const element = ref(null)
     let chart = null
@@ -43,7 +45,24 @@ export default {
     }
     return { element, exportImage }
   },
+  methods: {
+    async generateHighResolution() {
+      const artifactId = this.spec.artifact_id
+      if (!artifactId || this.highResLoading) return
+      this.highResLoading = true
+      this.highResError = ''
+      try {
+        const response = await chartsApi.render(artifactId)
+        this.renderedFiles = response || []
+      } catch (error) { this.highResError = error.message || '高清图表生成失败' }
+      finally { this.highResLoading = false }
+    },
+  },
 }
 </script>
 
-<template><section><div ref="element" class="chart-canvas" role="img" :aria-label="spec.title || '分析图表'"></div><el-button size="small" plain @click="exportImage">导出 PNG</el-button><p v-if="spec.source_ref || spec.source_tool_call_id" class="caption">结果来源：{{ spec.source_ref || spec.source_tool_call_id }}</p></section></template>
+<template><section class="chart-result"><div ref="element" class="chart-canvas" role="img" :aria-label="spec.title || '分析图表'"></div><div class="chart-actions"><el-button size="small" plain @click="exportImage">快速导出</el-button><el-button v-if="spec.artifact_id" size="small" type="primary" plain :loading="highResLoading" @click="generateHighResolution">生成高清图表（300 DPI）</el-button></div><p v-if="highResError" class="inline-error" role="alert">{{ highResError }}</p><div v-if="renderedFiles.length" class="chart-downloads" role="status"><a v-for="file in renderedFiles" :key="file.artifact_id" :href="file.download_url" :download="file.file_name">下载 {{ file.file_name }}</a></div><p v-if="spec.source_ref || spec.source_tool_call_id" class="caption">结果来源：{{ spec.source_ref || spec.source_tool_call_id }}</p></section></template>
+<style scoped>
+.chart-actions, .chart-downloads { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.chart-downloads a { color: var(--brand, #245fe8); font-size: 13px; }
+</style>

@@ -75,7 +75,7 @@ class ChartMetric(StrictArgs):
 
 class ChartArgs(StrictArgs):
     source_tool_call_id: str = ''
-    type: Literal["bar", "line", "pie", "scatter", "histogram"]
+    type: Literal["bar", "line", "pie", "scatter", "histogram", "boxplot", "area", "waterfall", "funnel", "donut"]
     dimension: str
     metrics: list[ChartMetric] = Field(min_length=1, max_length=4)
     title: str = Field(min_length=1, max_length=100)

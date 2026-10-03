@@ -166,7 +166,7 @@ def status(record_id: int, user: User = Depends(current_user), db: Session = Dep
                          'key': fact.get('key')})
     completed = sum(item.get('status') == 'COMPLETED' for item in steps)
     active = next((item.get('step_id') for item in steps if item.get('status') == 'RUNNING'), None)
-    job = db.scalar(select(BackgroundJob).where(BackgroundJob.kind == 'analysis', BackgroundJob.resource_id == record.id))
+    job = db.scalar(select(BackgroundJob).where(BackgroundJob.kind.in_(['analysis', 'report']), BackgroundJob.resource_id == record.id))
     intent_event = db.scalar(select(AnalysisEvent).where(AnalysisEvent.record_id == record.id,
         AnalysisEvent.event_type == 'intent_resolved').order_by(AnalysisEvent.id.desc()).limit(1))
     clarification = None
@@ -227,7 +227,7 @@ def cancel(record_id: int, user: User = Depends(current_user), db: Session = Dep
     record = owned_record(db, record_id, user.id)
     if record.status in {'succeeded', 'partial', 'failed', 'cancelled', 'waiting'}:
         return {'code': 200, 'message': 'success', 'data': {'record_id': record.id, 'status': record.status}}
-    job = db.scalar(select(BackgroundJob).where(BackgroundJob.kind == 'analysis', BackgroundJob.resource_id == record.id).with_for_update())
+    job = db.scalar(select(BackgroundJob).where(BackgroundJob.kind.in_(['analysis', 'report']), BackgroundJob.resource_id == record.id).with_for_update())
     if not job:
         raise domain_error(409, 'TASK_NOT_FOUND', '任务状态不可用')
     if job.status == 'pending':
@@ -236,10 +236,14 @@ def cancel(record_id: int, user: User = Depends(current_user), db: Session = Dep
         job.completed_at = record.completed_at = now
         record.error_code = job.error_code = 'TASK_CANCELLED'
         record.error_message = '任务已取消'
-        message = AnalysisMessage(session_id=record.session_id, role='assistant', content='任务已取消', status='cancelled', created_at=now)
-        db.add(message)
-        db.flush()
-        record.assistant_message_id = message.id
+        message = db.get(AnalysisMessage, record.assistant_message_id) if record.assistant_message_id else None
+        if message:
+            message.status, message.content = 'cancelled', '任务已取消'
+        else:
+            message = AnalysisMessage(session_id=record.session_id, role='assistant', content='任务已取消', status='cancelled', created_at=now)
+            db.add(message)
+            db.flush()
+            record.assistant_message_id = message.id
         append_event(db, record, 'analysis_cancelled', {'status': 'cancelled'})
     else:
         job.cancel_requested = True

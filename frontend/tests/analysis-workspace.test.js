@@ -31,6 +31,7 @@ describe('analysis workspace', () => {
         mocks: { $route: route, $router: { push: vi.fn(), replace: vi.fn() } },
         stubs: {
           AppShell: { template: '<main><slot /></main>' },
+          ReportWorkbench: true,
           ChartView: { template: '<div class="chart-view-stub"></div>' },
           ElButton: { template: '<button><slot /></button>' },
           ElTag: { template: '<span><slot /></span>' },

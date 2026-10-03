@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, Float, CheckConstraint
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, Float, CheckConstraint, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -42,6 +42,7 @@ class Dataset(Base):
     current_version_id: Mapped[int | None] = mapped_column(ForeignKey("dataset_versions.id", ondelete="SET NULL", name="fk_dataset_current_version", use_alter=True), nullable=True)
     parse_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     quality_warnings_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    parse_options_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -76,6 +77,7 @@ class AnalysisSession(Base):
     title: Mapped[str] = mapped_column(String(200), default="新分析")
     status: Mapped[str] = mapped_column(String(20), default="active")
     context_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -141,12 +143,20 @@ class BackgroundJob(Base):
     active_stage: Mapped[str | None] = mapped_column(String(30), nullable=True)
     stage_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    task_payload_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime)
 
 
 class AnalysisArtifact(Base):
     __tablename__ = "analysis_artifacts"
-    __table_args__ = (CheckConstraint('(record_id IS NOT NULL AND tool_execution_id IS NULL) OR (record_id IS NULL AND tool_execution_id IS NOT NULL)',name='ck_artifact_owner'),)
+    __table_args__ = (
+        CheckConstraint(
+            '(record_id IS NOT NULL AND tool_execution_id IS NULL AND report_version_id IS NULL) OR '
+            '(record_id IS NULL AND tool_execution_id IS NOT NULL AND report_version_id IS NULL) OR '
+            '(record_id IS NULL AND tool_execution_id IS NULL AND report_version_id IS NOT NULL)',
+            name='ck_artifact_owner'),
+        UniqueConstraint('storage_key', name='uq_artifact_storage_key'),
+    )
     id: Mapped[int] = id_column()
     record_id: Mapped[int | None] = mapped_column(ForeignKey("analysis_records.id", ondelete="CASCADE"), index=True, nullable=True)
     tool_execution_id: Mapped[int | None] = mapped_column(ForeignKey("tool_execution_records.id", ondelete="CASCADE"), nullable=True, index=True)
@@ -161,6 +171,43 @@ class AnalysisArtifact(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     purged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    storage_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default='READY', nullable=False)
+    metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    report_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey('analysis_report_versions.id', ondelete='CASCADE'), index=True, nullable=True)
+
+
+class AnalysisReport(Base):
+    __tablename__ = 'analysis_reports'
+    __table_args__ = (Index('ix_analysis_reports_owner_updated', 'user_id', 'updated_at'),)
+
+    id: Mapped[int] = id_column()
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'))
+    session_id: Mapped[int] = mapped_column(ForeignKey('analysis_sessions.id', ondelete='CASCADE'))
+    dataset_id: Mapped[int | None] = mapped_column(ForeignKey('datasets.id', ondelete='CASCADE'), nullable=True)
+    dataset_version_id: Mapped[int | None] = mapped_column(ForeignKey('dataset_versions.id', ondelete='SET NULL'), nullable=True)
+    title: Mapped[str] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(20), default='READY')
+    latest_version_number: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AnalysisReportVersion(Base):
+    __tablename__ = 'analysis_report_versions'
+    __table_args__ = (UniqueConstraint('report_id', 'version_number', name='uq_report_version'),)
+
+    id: Mapped[int] = id_column()
+    report_id: Mapped[int] = mapped_column(ForeignKey('analysis_reports.id', ondelete='CASCADE'), index=True)
+    version_number: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20), default='READY')
+    spec_json: Mapped[dict] = mapped_column(JSON)
+    document_json: Mapped[dict] = mapped_column(JSON)
+    source_records_json: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class CleanupTask(Base):
