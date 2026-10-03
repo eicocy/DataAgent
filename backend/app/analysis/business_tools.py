@@ -101,6 +101,7 @@ def kpi_analysis(context, params):
         metrics['gross_profit']=value(gross)
         metrics['gross_margin']=ratio(gross,sums['revenue'])
         if 'operating_expense' in sums:
+            meta['limitations'].append('This simplified operating profit is revenue minus cost minus operating expense; it does not claim compliance with a formal financial reporting standard or represent net profit.')
             net=difference(gross,sums['operating_expense'])
             metrics['operating_profit']=value(net)
             metrics['operating_margin']=ratio(net,sums['revenue'])

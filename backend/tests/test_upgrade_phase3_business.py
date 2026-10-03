@@ -198,6 +198,7 @@ def test_operating_profit_formula_does_not_claim_net_profit():
     data=run('kpi_analysis',{'r':['10'],'c':['4'],'e':['2']},metrics={'revenue':'r','cost':'c','operating_expense':'e'},currency='USD',unit='dollar')
     assert data.metrics['operating_profit'].value=='4'
     assert data.metrics['operating_margin'].value=='0.4'
+    assert any('simplified operating profit' in item for item in data.limitations)
     assert 'net_profit' not in data.metrics and 'net_margin' not in data.metrics
 
 
