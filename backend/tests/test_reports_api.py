@@ -1,5 +1,7 @@
 from datetime import UTC, datetime
+from io import BytesIO
 
+from openpyxl import load_workbook
 from sqlalchemy import select
 
 from test_analysis_api import analysis_context, make_session
@@ -8,6 +10,7 @@ from app.reports.service import execute_report_task
 from app.routers import analysis
 from app.security import create_access_token, hash_password
 from app.services.analysis_agent import AgentOutcome
+from app.services.artifacts import ArtifactStore
 
 
 def run_report_task(sessions, record_id):
@@ -41,16 +44,24 @@ def test_report_is_versioned_exported_and_downloaded_with_owner_checks(analysis_
         "dataset_id": dataset_id, "question": "按地区汇总销售额", "request_id": "report-source-1"})
     assert run.status_code == 200
     record_id = run.json()["data"]["record_id"]
+    monkeypatch.setattr("app.config.get_settings", lambda: type("Settings", (), {
+        "artifact_dir": str(tmp_path / "artifacts"), "artifact_retention_days": 7})())
     with sessions() as db:
         record = db.get(AnalysisRecord, record_id)
         version = db.scalar(select(DatasetVersion).where(DatasetVersion.dataset_id == dataset_id))
         user = db.scalar(select(User).where(User.username == "alice"))
+        full_result = {"columns": ["region", "sales_sum"], "rows": [
+            {"region": "East", "sales_sum": 12}, {"region": "West", "sales_sum": 8}],
+            "row_count": 2, "total": 2}
+        stored_result = ArtifactStore(db).write(record, "complete_result", full_result)
+        record.tool_result_json = full_result
+        record.plan_json = {"version": "2.0", "steps": [{"step_id": "complete_result",
+            "tool_name": "group_by_analysis", "status": "COMPLETED",
+            "result_ref": f"artifact:{stored_result['artifact_id']}"}]}
+        db.commit()
         report_spec = {"title": "销售分析报告", "report_type": "sales", "dataset_id": dataset_id,
                        "dataset_version_id": version.id}
         user_id = user.id
-
-    monkeypatch.setattr("app.config.get_settings", lambda: type("Settings", (), {
-        "artifact_dir": str(tmp_path / "artifacts"), "artifact_retention_days": 7})())
     cancelled_task = client.post("/api/v1/reports", json={"session_id": session_id,
         "source_record_ids": [record_id], "spec": {**report_spec, "title": "取消的报告"}})
     assert cancelled_task.status_code == 202
@@ -94,6 +105,19 @@ def test_report_is_versioned_exported_and_downloaded_with_owner_checks(analysis_
     ranged = client.get(f"/api/v1/artifacts/{artifact_id}/download", headers={"Range": "bytes=0-4"})
     assert ranged.status_code == 206
     assert ranged.content == b"%PDF-"
+
+    xlsx_task = client.post(f"/api/v1/reports/{report['id']}/versions/1/exports/xlsx")
+    assert xlsx_task.status_code == 202
+    run_report_task(sessions, xlsx_task.json()["data"]["record_id"])
+    xlsx_run = client.get(xlsx_task.json()["data"]["status_url"])
+    xlsx_artifact_id = xlsx_run.json()["data"]["report"]["artifacts"][0]["artifact_id"]
+    xlsx_download = client.get(f"/api/v1/artifacts/{xlsx_artifact_id}/download")
+    workbook = load_workbook(BytesIO(xlsx_download.content), read_only=True, data_only=True)
+    assert workbook["Raw Data"].max_row == 3
+    data_row = list(workbook["Raw Data"].values)[1]
+    assert data_row[:2] == ("East", 12)
+    assert data_row[-1] == record_id
+    workbook.close()
 
     client.post("/api/v1/auth/logout")
     with sessions() as db:

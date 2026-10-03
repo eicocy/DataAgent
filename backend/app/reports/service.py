@@ -14,7 +14,7 @@ from app.models import (AnalysisArtifact, AnalysisEvent, AnalysisMessage, Analys
                         AnalysisReport, AnalysisReportVersion, AnalysisSession, BackgroundJob,
                         Dataset, DatasetVersion)
 from app.reports.builder import ReportBuilder
-from app.reports.exporters import ExportOptions, exporter_registry
+from app.reports.exporters import MAX_EXPORT_ROWS, ExportOptions, exporter_registry
 from app.reports.schemas import ReportSpec
 
 
@@ -141,6 +141,7 @@ def export_report_version(db: Session, report: AnalysisReport, version: Analysis
             pass
     document = ReportDocument.model_validate(version.document_json)
     chart_files: dict[int, bytes] = {}
+    raw_data: list[dict] = []
     if document.artifacts and version.source_records_json:
         source_rows = db.scalars(select(AnalysisArtifact).where(
             AnalysisArtifact.user_id == report.user_id,
@@ -162,7 +163,53 @@ def export_report_version(db: Session, report: AnalysisReport, version: Analysis
         }
         if expected_chart_ids - chart_ids:
             raise ValueError("REPORT_CHART_SOURCE_EXPIRED")
-    files = exporter_registry().export(format, document, ExportOptions(chart_files=chart_files))
+    if format == "xlsx":
+        records = db.scalars(select(AnalysisRecord).where(
+            AnalysisRecord.id.in_(version.source_records_json),
+            AnalysisRecord.user_id == report.user_id,
+            AnalysisRecord.session_id == report.session_id,
+            AnalysisRecord.dataset_id == report.dataset_id,
+            AnalysisRecord.dataset_version_id == report.dataset_version_id,
+            AnalysisRecord.status.in_(["succeeded", "partial"]),
+        )).all()
+        for source in records:
+            artifact_id = None
+            for step in reversed((source.plan_json or {}).get("steps", [])):
+                if step.get("status") != "COMPLETED" or step.get("tool_name") in {
+                    "get_dataset_info", "preview_data", "generate_chart",
+                }:
+                    continue
+                result_ref = step.get("result_ref") or ""
+                if result_ref.startswith("artifact:") and result_ref.split(":", 1)[1].isdigit():
+                    artifact_id = int(result_ref.split(":", 1)[1])
+                    break
+            if artifact_id is None:
+                artifact_id = (source.tool_result_json or {}).get("artifact_id")
+            if type(artifact_id) is not int:
+                continue
+            artifact = db.scalar(select(AnalysisArtifact).where(
+                AnalysisArtifact.id == artifact_id,
+                AnalysisArtifact.record_id == source.id,
+                AnalysisArtifact.user_id == report.user_id,
+                AnalysisArtifact.dataset_id == report.dataset_id,
+                AnalysisArtifact.kind == "table",
+            ))
+            if artifact is None:
+                raise ValueError("REPORT_SOURCE_ARTIFACT_NOT_FOUND")
+            try:
+                payload = ArtifactStore(db).read(artifact)
+            except LookupError:
+                raise ValueError("REPORT_SOURCE_ARTIFACT_EXPIRED") from None
+            columns = payload.get("schema", {}).get("columns", [])
+            for row in payload.get("rows", []):
+                if isinstance(row, dict):
+                    raw_data.append({**row, "source_record_id": source.id})
+                elif isinstance(row, (list, tuple)) and len(row) == len(columns):
+                    raw_data.append({**dict(zip(columns, row)), "source_record_id": source.id})
+                if len(raw_data) > MAX_EXPORT_ROWS:
+                    raise ValueError("RAW_DATA_EXPORT_LIMIT_EXCEEDED")
+    files = exporter_registry().export(format, document, ExportOptions(
+        chart_files=chart_files, include_raw_data=bool(raw_data), raw_data=raw_data))
     rows: list[AnalysisArtifact] = []
     used = db.scalar(select(func.coalesce(func.sum(AnalysisArtifact.size_bytes), 0)).where(
         AnalysisArtifact.report_version_id == version.id, AnalysisArtifact.status == "READY")) or 0
