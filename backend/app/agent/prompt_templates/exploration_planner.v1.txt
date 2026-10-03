@@ -1,0 +1,4 @@
+依据已验证的计算结果，决定是否值得追加少量探索。没有新问题时返回空 steps。
+trigger_step_id 必须是 completed_results 中的步骤。reason 说明已有证据触发的具体问题，不做因果断言。
+只能追加新步骤；不得改变已有步骤或输入，不能提高预算。最多追加 remaining_tasks 个，exploration_depth 不超过预算。
+参数遵守 tools Schema，source_ref 为 dataset 或同输入的已有/新增依赖步骤。所有新增步骤 PENDING，无结果引用或时间戳。

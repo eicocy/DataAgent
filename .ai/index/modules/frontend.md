@@ -17,7 +17,9 @@ depends: ECharts 6、Element Plus；文件预览使用浏览器 PDF/HTML 能力
 
 ## Flow
 
-默认 / 为 AnalysisWorkspace 空会话；/overview 保留旧概览，/templates 提供只读模板示例。PromptComposer / UploadQueue 复用 Dataset Store/API；仅发送或上传时建立 Session；附件绑定保存服务器 context_json，当前分析仍单数据集。能力选项由 api/workspace.js 控制，未实现选项禁用。
+默认 / 为 AnalysisWorkspace 空会话；/overview 保留旧概览，/templates 提供模板示例。PromptComposer / UploadQueue 复用 Dataset Store/API；仅发送或上传时建立 Session；附件绑定保存服务器 context_json，已绑定附件可选为额外分析输入。能力选项由 api/workspace.js 控制，未实现选项禁用。
+
+SemanticMappingEditor.vue：按会话/数据集隔离请求、候选核对与版本化修正；analysis store 保存完整公开请求选项用于幂等重试和刷新；AgentSteps 显示 V3 依赖/输入/探索关系。模板、深度、模型选择均受服务端能力约束，不开放 Join 或自动报告。
 
 工作台 -> POST analysis/runs -> 轮询状态/Trace -> 表格/图表/报告 -> 历史；报告生成/导出经后台任务队列；文件库读取授权工件；401 -> expireSession -> 登录
 

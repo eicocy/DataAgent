@@ -18,6 +18,13 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
 agent = DeepSeekAgent()
 
 
+class RunInput(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    alias: str = Field(pattern=r'^[a-zA-Z][a-zA-Z0-9_-]{0,31}$')
+    dataset_id: int = Field(gt=0)
+    dataset_version_id: int | None = Field(default=None, gt=0)
+
+
 class AnalysisChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -25,6 +32,11 @@ class AnalysisChatRequest(BaseModel):
     dataset_id: int | None = Field(default=None, gt=0)
     question: str = Field(max_length=2000)
     request_id: str = Field(min_length=1, max_length=64)
+    inputs: list[RunInput] = Field(default_factory=list, max_length=10)
+    profile_ids: list[str] = Field(default_factory=list, max_length=3)
+    depth: str | None = Field(default=None, pattern=r'^(FAST|STANDARD|DEEP)$')
+    category: str | None = Field(default=None, max_length=50)
+    model_id: str | None = Field(default=None, max_length=100)
 
     @field_validator("question")
     @classmethod

@@ -8,16 +8,19 @@ from app.models import AnalysisSession, Dataset, User
 from app.agent.context import ConversationContext
 
 
-def test_capabilities_are_authenticated_and_do_not_enable_future_options(analysis_context):
+def test_capabilities_enable_phase2_and_keep_future_tools_closed(analysis_context):
     client, _, _ = analysis_context
     manifest = client.get('/api/v1/workspace/capabilities')
     assert manifest.status_code == 200
     data = manifest.json()['data']
     assert 'csv' in data['file_formats']
     assert data['max_files'] == 10
-    assert data['profile_execution'] is False
-    assert data['multi_dataset_execution'] is False
-    assert data['depth_selection'] is False
+    assert data['profile_execution'] is True
+    assert data['multi_dataset_execution'] is True
+    assert data['depth_selection'] is True
+    assert data['depths'] == ['FAST', 'STANDARD', 'DEEP']
+    assert data['cross_dataset_join'] is False
+    assert data['automatic_reports'] is False
     assert not data['sandbox_available']
     assert TestClient(app).get('/api/v1/workspace/capabilities').status_code == 401
 

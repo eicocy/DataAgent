@@ -7,12 +7,72 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import current_user
-from app.models import AnalysisMessage, AnalysisRecord, AnalysisSession, Dataset, User, AnalysisArtifact, AnalysisReport, AnalysisReportVersion, CleanupTask
+from app.models import AnalysisMessage, AnalysisRecord, AnalysisSession, Dataset, DatasetColumn, User, AnalysisArtifact, AnalysisReport, AnalysisReportVersion, CleanupTask
 from app.agent.context import ConversationContext
 from app.routers.datasets import _owned_dataset
 
 
 router = APIRouter(prefix="/analysis/sessions", tags=["analysis sessions"])
+
+
+from app.semantic.mappings import SemanticMapping, merge_mappings
+
+
+class SemanticPatch(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    mappings: list[SemanticMapping] = Field(min_length=1, max_length=200)
+
+
+@router.patch('/{session_id}/semantic-mappings')
+def update_semantics(session_id: int, request: SemanticPatch, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from app.models import DatasetVersion
+    _session_or_error(db, session_id, user.id)
+    session = db.scalar(select(AnalysisSession).where(AnalysisSession.id == session_id)
+        .with_for_update().execution_options(populate_existing=True))
+    if session is None or session.user_id != user.id:
+        raise HTTPException(404, detail={'code': 'ANALYSIS_SESSION_NOT_FOUND', 'message': '分析会话不存在'})
+    context = ConversationContext.model_validate(session.context_json or {'conversation_id': session.id, 'user_id': user.id})
+    allowed_ids = set(context.attached_dataset_ids) | {session.dataset_id}
+    entries = []
+    for item in request.mappings:
+        version = db.get(DatasetVersion, item.dataset_version_id)
+        dataset = db.get(Dataset, version.dataset_id) if version else None
+        if not dataset or dataset.user_id != user.id or dataset.id not in allowed_ids:
+            raise HTTPException(403, detail={'code': 'SEMANTIC_VERSION_FORBIDDEN', 'message': '只能修正会话中已授权的数据版本'})
+        if item.column not in {c['name'] for c in version.schema_json['columns']}:
+            raise HTTPException(422, detail={'code': 'COLUMN_NOT_FOUND', 'message': '语义字段不在该版本中'})
+        entries.append(item.model_copy(update={'source': 'user', 'confidence': 1.0, 'reason': '用户明确修正'}).model_dump())
+    changed = {(m['dataset_version_id'], m['column']) for m in entries}
+    context.semantic_mappings = [m for m in context.semantic_mappings if (m['dataset_version_id'], m['column']) not in changed] + entries
+    if len(context.semantic_mappings) > 2000:
+        raise HTTPException(422, detail={'code': 'SEMANTIC_LIMIT', 'message': '语义映射达到会话上限'})
+    context.semantic_version += 1
+    session.context_json = context.model_dump(mode='json')
+    db.commit()
+    return {'code': 200, 'message': 'success', 'data': {'version': context.semantic_version, 'mappings': entries}}
+
+
+@router.get('/{session_id}/semantic-mappings')
+def get_semantics(session_id: int, dataset_id: int | None = Query(default=None, gt=0), user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from app.services.datasets import DatasetService
+    from app.semantic.detectors import detect_semantics
+    session = _session_or_error(db, session_id, user.id)
+    context = ConversationContext.model_validate(session.context_json or {'conversation_id': session.id, 'user_id': user.id})
+    did = dataset_id or session.dataset_id
+    if did is None:
+        return {'code': 200, 'message': 'success', 'data': {'version': context.semantic_version, 'mappings': []}}
+    if did not in set(context.attached_dataset_ids) | {session.dataset_id}:
+        raise HTTPException(403, detail={'code': 'DATASET_FORBIDDEN', 'message': '数据集未绑定此会话'})
+    dataset = _owned_dataset(db, did, user.id)
+    from app.database import projection_engine
+    from app.services.analysis import select_projection_bind
+    service = DatasetService(db, select_projection_bind(dataset, db.get_bind(), projection_engine))
+    version = service.get_version(dataset)
+    columns = db.scalars(select(DatasetColumn).where(DatasetColumn.dataset_id == did)).all()
+    frame = service.load_frame(dataset, columns, version.id)
+    candidates = detect_semantics(frame, version.id, {c['name']: c.get('original_name', c['name']) for c in version.schema_json['columns']})
+    mappings = merge_mappings(candidates, context.semantic_mappings, version.id)
+    return {'code': 200, 'message': 'success', 'data': {'version': context.semantic_version, 'dataset_version_id': version.id, 'mappings': [m.model_dump() for m in mappings]}}
 
 
 class SessionPatch(BaseModel):
@@ -47,6 +107,7 @@ def _record_evidence(record: AnalysisRecord | None) -> dict | None:
     return {
         "id": record.id,
         "request_id": record.request_id,
+        "request_options": (record.request_config_json or {}).get('public'),
         "question": record.question,
         "session_id": record.session_id,
         "dataset_id": record.dataset_id,

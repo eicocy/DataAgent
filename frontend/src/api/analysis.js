@@ -11,5 +11,7 @@ export const analysisApi = {
   session(id, params = {}, config = {}) { return client.get(`/analysis/sessions/${id}`, { params, ...config }) },
   removeSession(id) { return client.delete(`/analysis/sessions/${id}`) },
   updateSession(id, payload, config = {}) { return client.patch(`/analysis/sessions/${id}`, payload, config) },
+  semantics(id, datasetId, config = {}) { return client.get(`/analysis/sessions/${id}/semantic-mappings`, { params: { dataset_id: datasetId }, ...config }) },
+  updateSemantics(id, payload, config = {}) { return client.patch(`/analysis/sessions/${id}/semantic-mappings`, payload, config) },
   chat(payload, config = {}) { return client.post('/analysis/chat', payload, { timeout: 120000, ...config }) },
 }

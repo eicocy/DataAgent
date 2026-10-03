@@ -225,6 +225,11 @@ class TaskSupervisor:
         with self.factory() as db:
             job = db.get(BackgroundJob, job_id)
             budget = self.settings.parse_timeout_seconds if job.kind == "parse" else self.settings.report_timeout_seconds if job.kind == "report" else self.settings.analysis_timeout_seconds
+            if job.kind == 'analysis':
+                record = db.get(AnalysisRecord, job.resource_id)
+                if record and record.request_config_json and record.request_config_json.get('inputs'):
+                    from app.agent.budget import LIMITS
+                    budget = LIMITS[record.request_config_json['depth']][3]
         deadline = time.monotonic() + budget
         self.process = subprocess.Popen([sys.executable, "-m", "app.task_runner", "--job-id", str(job_id), "--lease", token, "--parent-pid", str(os.getpid())], cwd=str(Path(__file__).resolve().parents[2]), env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         timed_out = False

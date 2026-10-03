@@ -351,6 +351,9 @@ class WorkflowExecutor:
                 active_plan = replacement
             except Exception:
                 break
+        return self._finish(required, question)
+
+    def _finish(self, required, question):
         incomplete = sorted(required - self.results.keys())
         valid_compute = any(step.step_id in self.results and step.tool_name not in {"get_dataset_info", "preview_data", "generate_chart"} for step in self.final_plan.steps)
         answer = None

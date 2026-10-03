@@ -3,9 +3,13 @@ import { analysisApi } from '../api/analysis'
 
 const storageKey = 'datalens:analysis'
 const terminal = ['succeeded', 'partial', 'failed', 'waiting', 'cancelled']
+function runtimeOptions(value) {
+  // 只保留公开选项；请求重放必须携带原来的完整配置。
+  return Object.fromEntries(['depth', 'category', 'model_id', 'profile_ids', 'inputs'].filter(key => value?.[key] != null).map(key => [key, JSON.parse(JSON.stringify(value[key]))]))
+}
 function minimalPending(value) {
   if (!value || !Number.isInteger(Number(value.session_id)) || (value.dataset_id != null && !Number.isInteger(Number(value.dataset_id))) || typeof value.question !== 'string' || typeof value.request_id !== 'string') return null
-  return { session_id: Number(value.session_id), dataset_id: value.dataset_id == null ? null : Number(value.dataset_id), question: value.question, request_id: value.request_id, record_id: value.record_id ?? null }
+  return { session_id: Number(value.session_id), dataset_id: value.dataset_id == null ? null : Number(value.dataset_id), question: value.question, request_id: value.request_id, record_id: value.record_id ?? null, ...runtimeOptions(value) }
 }
 function storedSessions() {
   try {
@@ -37,7 +41,7 @@ export const useAnalysisStore = defineStore('analysis', {
       const active = [...messages].reverse().find((message) => ['pending', 'running'].includes(message.analysis_record?.status))
       if (active) {
         const record = active.analysis_record
-        this.pending = minimalPending({ session_id: sessionId, dataset_id: datasetId, question: record.question || active.content, record_id: record.id, request_id: record.request_id })
+        this.pending = minimalPending({ session_id: sessionId, dataset_id: datasetId, question: record.question || active.content, record_id: record.id, request_id: record.request_id, ...runtimeOptions(record.request_options) })
         if (this.pending) this.persist()
       }
       return this.pending
@@ -46,7 +50,7 @@ export const useAnalysisStore = defineStore('analysis', {
       // 不确定的网络错误复用同一幂等键；明确再次分析才创建新的键。
       this.pendingBySession = { ...storedSessions(), ...this.pendingBySession }
       if (!replay || !this.pending) {
-        this.pending = { session_id: payload.session_id, dataset_id: payload.dataset_id, question: payload.question, request_id: crypto.randomUUID(), record_id: null }
+        this.pending = { session_id: payload.session_id, dataset_id: payload.dataset_id, question: payload.question, request_id: crypto.randomUUID(), record_id: null, ...runtimeOptions(payload) }
         this.result = null; this.trace = null
       }
       const pending = this.pending
@@ -124,7 +128,7 @@ export const useAnalysisStore = defineStore('analysis', {
           finished = true; cleanup()
           this.poll(signal).then(resolve, reject)
         }
-        for (const name of ['analysis_queued', 'intent_resolved', 'plan_created', 'plan_updated', 'step_started', 'step_completed', 'step_failed', 'stage_changed', 'response_ready', 'clarification_required', 'analysis_failed', 'analysis_cancelled']) {
+        for (const name of ['analysis_queued', 'intent_resolved', 'profile_selected', 'exploration_created', 'plan_created', 'plan_updated', 'step_started', 'step_completed', 'step_failed', 'stage_changed', 'response_ready', 'clarification_required', 'analysis_failed', 'analysis_cancelled']) {
           stream.addEventListener(name, refresh)
         }
         stream.onerror = fallback

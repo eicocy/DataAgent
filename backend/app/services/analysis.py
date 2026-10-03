@@ -27,13 +27,14 @@ def domain_error(status, code, message, data=None):
 
 
 def submit_analysis(db, user_id, request, allow_switch=False):
+    from app.services.run_configuration import public_config, snapshot_config
     settings = get_settings()
     with resource_lock:
         # Row locks make submission/delete serialize at the database resource boundary.
         db.scalar(select(User).where(User.id == user_id).with_for_update())
         existing = db.scalar(select(AnalysisRecord).where(AnalysisRecord.user_id == user_id, AnalysisRecord.request_id == request.request_id))
         if existing:
-            if existing.session_id != request.session_id or existing.question != request.question or (request.dataset_id is not None and existing.dataset_id != request.dataset_id):
+            if existing.session_id != request.session_id or existing.question != request.question or (request.dataset_id is not None and existing.dataset_id != request.dataset_id) or (existing.request_config_json or {}).get('public', public_config(type('Legacy', (), {})())) != public_config(request):
                 raise domain_error(409, "ANALYSIS_REQUEST_ID_CONFLICT", "request_id 已用于另一请求")
             return existing, False
         if not request.question.strip():
@@ -56,6 +57,10 @@ def submit_analysis(db, user_id, request, allow_switch=False):
         version = db.get(DatasetVersion, dataset.current_version_id) if dataset and dataset.current_version_id else None
         if dataset and dataset.current_version_id and (version is None or version.dataset_id != dataset.id):
             raise domain_error(409, 'DATASET_VERSION_UNAVAILABLE', '数据版本不可用')
+        requested_inputs = getattr(request, 'inputs', [])
+        if requested_inputs and dataset and requested_inputs[0].dataset_id == dataset.id and requested_inputs[0].dataset_version_id:
+            version = DatasetService(db).get_version(dataset, requested_inputs[0].dataset_version_id)
+        configuration = snapshot_config(db, user_id, session, request, dataset, version)
         if db.scalar(select(AnalysisRecord.id).where(AnalysisRecord.session_id == session.id, AnalysisRecord.status.in_(ACTIVE)).limit(1)):
             raise domain_error(409, "ANALYSIS_SESSION_BUSY", "此会话已有分析任务")
         count = db.scalar(select(func.count()).select_from(AnalysisRecord).where(AnalysisRecord.user_id == user_id, AnalysisRecord.status.in_(ACTIVE))) or 0
@@ -78,6 +83,7 @@ def submit_analysis(db, user_id, request, allow_switch=False):
                                 dataset_version_id=version.id if version else None, schema_version='1.1',
                                 version_binding='snapshot' if version else 'legacy_unversioned')
         db.add(record)
+        record.request_config_json = configuration
         db.flush()
         db.add(BackgroundJob(kind="analysis", resource_id=record.id, dataset_id=dataset.id if dataset else None, user_id=user_id, status="pending", created_at=now))
         append_event(db, record, 'analysis_queued', {'status': 'pending'})
@@ -86,7 +92,7 @@ def submit_analysis(db, user_id, request, allow_switch=False):
         except IntegrityError:
             db.rollback()
             existing = db.scalar(select(AnalysisRecord).where(AnalysisRecord.user_id == user_id, AnalysisRecord.request_id == request.request_id))
-            if existing and existing.session_id == request.session_id and existing.question == request.question and (request.dataset_id is None or existing.dataset_id == request.dataset_id):
+            if existing and existing.session_id == request.session_id and existing.question == request.question and (request.dataset_id is None or existing.dataset_id == request.dataset_id) and (existing.request_config_json or {}).get('public', public_config(type('Legacy', (), {})())) == public_config(request):
                 return existing, False
             raise domain_error(409, "ANALYSIS_REQUEST_ID_CONFLICT", "重复提交发生冲突") from None
         return record, True
@@ -169,8 +175,10 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
             request_id='agent-'+uuid.uuid5(uuid.NAMESPACE_OID,f'{record.id}:{payload["call_id"]}').hex
             execution=db.scalar(select(ToolExecutionRecord).where(ToolExecutionRecord.user_id==record.user_id,ToolExecutionRecord.request_id==request_id))
             if execution is None:
+                alias = payload.get('input_alias') or next((s.get('input_alias', 'primary') for s in (record.plan_json or {}).get('steps', []) if s['step_id'] == payload.get('step_id')), 'primary')
+                binding = next((i for i in (record.request_config_json or {}).get('inputs', []) if i['alias'] == alias), {})
                 tool_version=registry.get(payload['tool_name']).metadata.version if registry.exists(payload['tool_name']) else 'legacy'
-                execution=ToolExecutionRecord(user_id=record.user_id,dataset_id=record.dataset_id,dataset_version_id=record.dataset_version_id,analysis_record_id=record.id,tool_name=payload['tool_name'],tool_version=tool_version,request_id=request_id,parameters_json={},permissions_json=[p.value for p in tools.permissions],status=payload['status'],created_at=datetime.now(UTC),started_at=datetime.now(UTC) if payload['status']=='running' else None)
+                execution=ToolExecutionRecord(user_id=record.user_id,dataset_id=binding.get('dataset_id', record.dataset_id),dataset_version_id=binding.get('dataset_version_id', record.dataset_version_id),analysis_record_id=record.id,tool_name=payload['tool_name'],tool_version=tool_version,request_id=request_id,parameters_json={},permissions_json=[p.value for p in tools.permissions],status=payload['status'],created_at=datetime.now(UTC),started_at=datetime.now(UTC) if payload['status']=='running' else None)
                 db.add(execution)
             execution.status=payload['status'];execution.duration_ms=payload.get('duration_ms',0)
             if payload.get('reused') and payload.get('artifact_id'):
@@ -202,11 +210,13 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
             artifact_name=uuid.uuid4().hex+'.json'
             cleanup=CleanupTask(payload_json={'artifacts':[artifact_name],'analysis_record_id':record.id},status='reserved',created_at=datetime.now(UTC))
             db.add(cleanup);db.commit();check_lease()
-            result = store.write(record, payload["step_id"], payload["data"], payload["frame"], "chart" if payload["tool_name"] == "generate_chart" else "table",stored_name=artifact_name)
+            from types import SimpleNamespace
+            artifact_owner = SimpleNamespace(id=record.id, user_id=record.user_id, dataset_id=active_execution.dataset_id if active_execution else record.dataset_id)
+            result = store.write(artifact_owner, payload["step_id"], payload["data"], payload["frame"], "chart" if payload["tool_name"] == "generate_chart" else "table",stored_name=artifact_name)
             check_lease()
             cleanup.status='succeeded'
             if active_execution:
-                active_execution.result_json={'artifact_ref':result['artifact_id'],'dataset_version':record.dataset_version_id,'source_ref':payload['step_id'],'data':clip_context(payload['data'],max_rows=100)}
+                active_execution.result_json={'artifact_ref':result['artifact_id'],'dataset_version':active_execution.dataset_version_id,'source_ref':payload['step_id'],'data':clip_context(payload['data'],max_rows=100)}
             if payload["tool_name"] != "generate_chart":
                 record.tool_result_json = clip_context(payload["data"], max_rows=100)
             else:
@@ -223,7 +233,7 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
             if payload['stage'] != 'idle':
                 append_event(db, record, 'stage_changed', {'stage': payload['stage']})
         elif kind in {'plan_validated', 'step_ready', 'result_validated', 'retry', 'replan',
-                      'plan_completed', 'interpretation_started', 'interpretation_rejected', 'interpretation_retry'}:
+                      'plan_completed', 'interpretation_started', 'interpretation_rejected', 'interpretation_retry', 'profile_selected', 'exploration_created'}:
             append_event(db, record, kind, payload)
         db.commit()
 
@@ -245,8 +255,18 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
                     continue
                 if version:
                     candidates.append(DatasetCandidate(id=item.id, name=item.original_name, version_id=version.id))
-            prepared = agent.prepare(record.question, context, candidates, record.dataset_id, event)
+            if record.request_config_json and record.request_config_json.get('inputs'):
+                from app.agent.budget import RuntimeBudget
+                runtime_budget = RuntimeBudget.for_depth(record.request_config_json['depth'])
+                prepared = agent.prepare(record.question, context, candidates, record.dataset_id, event, runtime_budget=runtime_budget)
+            else:
+                prepared = agent.prepare(record.question, context, candidates, record.dataset_id, event)
             _, decision, resolution = prepared
+            if record.request_config_json and record.request_config_json.get('inputs') and decision.requires_dataset:
+                pinned = record.request_config_json['inputs'][0]
+                if resolution.dataset_id not in {i['dataset_id'] for i in record.request_config_json['inputs']}:
+                    resolution.needs_clarification = True
+                resolution.dataset_id, resolution.dataset_version_id = pinned['dataset_id'], pinned['dataset_version_id']
             if decision.requires_dataset and not decision.dataset_reference and record.version_binding == 'snapshot':
                 try:
                     if record.dataset_version_id is None:
@@ -331,7 +351,13 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
             tools.columns=columns;tools.schema={column.name:column for column in columns}
         if tools:
             tools.model_metadata = service.model_metadata(dataset, columns, record.dataset_version_id)
+            if record.request_config_json and record.request_config_json.get('inputs'):
+                from app.services.input_workspace import load_workspace
+                from copy import deepcopy
+                tools = load_workspace(db, record.user_id, deepcopy(record.request_config_json), tools, business_bind, projection_bind, readonly_bind, event, check_lease)
             outcome = agent.analyze(record.question, tools)
+            if getattr(tools, 'configuration', None):
+                record.request_config_json = tools.configuration
             if prepared and prepared[1].intent == 'DATA_CLEANING':
                 notice = '当前聊天入口只能进行数据质量分析并提供建议，不能执行清洗或发布新版本。'
                 outcome.answer = (outcome.answer + '\n' if outcome.answer else '') + notice
@@ -404,6 +430,8 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
         context = ConversationContext.model_validate(session.context_json or {
             'conversation_id': session.id, 'user_id': record.user_id})
         context.current_goal = (record.plan_json or {}).get('goal')
+        if record.request_config_json:
+            context.selected_profiles = (record.plan_json or {}).get('profiles', context.selected_profiles)
         if record.plan_json and record.status in {'succeeded', 'partial'}:
             context.previous_plan = clip_context(record.plan_json, max_chars=8000)
             context.previous_analysis = {'record_id': record.id, 'dataset_id': record.dataset_id,

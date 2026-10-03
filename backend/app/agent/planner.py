@@ -38,6 +38,68 @@ def validate_plan_arguments(plan):
 
 
 class Planner:
+    def plan_v3(self, question, metadata_by_input, context, *, task_id, intent, config, permissions, correction=None, prior_plan=None):
+        from app.agent.schemas import AnalysisPlanV3
+        from app.agent.budget import RuntimeBudget, BudgetExceeded
+        from app.agent.task_graph import validate_graph, deduplicate_steps
+        from app.analysis.catalog import build_registry
+        registry = build_registry(include_legacy=True)
+        wanted = {'dataset_overview', 'column_summary', 'missing_value_analysis', 'duplicate_analysis', 'descriptive_statistics', 'generate_chart', 'aggregate', 'groupby_aggregate', 'filter_rows', 'chart_recommendations'}
+        for profile in config['profiles']:
+            wanted.update(profile['preferred_tools'])
+        if intent == 'DATA_CLEANING':
+            from app.agent.tool_policy import CLEANING_TOOLS
+            wanted.intersection_update(CLEANING_TOOLS)
+        manifests = [t for t in registry.get_llm_tool_manifest(permissions) if t['name'] in wanted]
+        # Share identical parameter schemas instead of repeating full definitions.
+        import json
+        schemas, names, tools = {}, {}, []
+        for tool in manifests:
+            signature = json.dumps(tool['parameters'], sort_keys=True)
+            if signature not in names:
+                names[signature] = f'params_{len(names)}'
+                schemas[names[signature]] = tool['parameters']
+            tools.append(dict(tool, parameters={'$ref': f"#/tool_parameter_schemas/{names[signature]}"}))
+        budget = getattr(self.adapter, 'budget', None) or RuntimeBudget.for_depth(config['depth'])
+        payload = {'question': question[:2000], 'task_id': task_id, 'intent': intent, 'inputs': config['inputs'],
+            'datasets': metadata_by_input, 'dataset': metadata_by_input.get(config['inputs'][0]['alias'], {}),
+            'profiles': config['profiles'], 'semantics': config['semantic_snapshot'], 'semantic_version': config['semantic_version'],
+            'depth': config['depth'], 'budget': budget.snapshot(), 'tools': tools, 'tool_parameter_schemas': schemas}
+        payload.update(filters=context.active_filters[:20], metrics=context.active_metrics[:20], dimensions=context.active_dimensions[:20],
+            time_range=context.active_time_range, previous_plan=context.previous_plan, summary=context.messages_summary[:2000])
+        columns = {alias: {c['name']: c['data_type'] for c in meta.get('columns', [])} for alias, meta in metadata_by_input.items()}
+        if correction:
+            payload['correction'] = correction
+        for attempt in range(2):
+            try:
+                raw = self.adapter.generate_structured('workspace_planner', payload, AnalysisPlanV3)
+                plan = AnalysisPlanV3.model_validate(raw)
+                if plan.task_id != task_id or plan.intent != intent or [i.model_dump() for i in plan.inputs] != config['inputs']:
+                    raise ValueError('PLAN_TASK_INPUT_MISMATCH')
+                if len(plan.steps) > budget.max_tasks:
+                    raise ValueError('PLAN_STEP_LIMIT')
+                trusted_steps = {s.step_id: s for s in prior_plan.steps} if prior_plan else {}
+                for step in plan.steps:
+                    if step.exploration_parent or step.exploration_depth:
+                        previous = trusted_steps.get(step.step_id)
+                        if (previous is None or
+                            (step.exploration_parent, step.exploration_depth) != (previous.exploration_parent, previous.exploration_depth)):
+                            raise ValueError('INITIAL_EXPLORATION_INVALID')
+                plan.profiles = config['profiles']
+                plan.semantic_snapshot = config['semantic_snapshot']
+                plan.semantic_version = config['semantic_version']
+                plan.depth, plan.budget = config['depth'], budget.snapshot()
+                validate_graph(plan, columns, permissions, budget.max_tasks)
+                plan.steps, aliases = deduplicate_steps(plan.steps, {i.alias: i.dataset_version_id for i in plan.inputs}, plan.semantic_version)
+                plan.expected_outputs = list(dict.fromkeys(aliases.get(k, k) for k in plan.expected_outputs))
+                return validate_graph(plan, columns, permissions, budget.max_tasks)
+            except BudgetExceeded:
+                raise
+            except ValueError as exc:
+                payload['correction'] = {'code': str(exc)[:100], 'instruction': '只修正计划结构、工具参数和授权输入，不输出分析事实'}
+                if attempt:
+                    raise ValueError('PLAN_INVALID') from exc
+
     def __init__(self, adapter):
         self.adapter = adapter
 

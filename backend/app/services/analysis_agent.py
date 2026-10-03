@@ -41,12 +41,18 @@ class DeepSeekAgent:
         self.settings = settings or get_settings()
         self.provider_factory = provider_factory
 
-    def prepare(self, question, context, candidates, requested_id=None, emit=None):
+    def prepare(self, question, context, candidates, requested_id=None, emit=None, runtime_budget=None):
         from app.agent.providers import build_provider
         from app.agent.intent import IntentRouter
         from app.agent.context import DatasetResolver
         try:
-            provider = self.provider_factory(emit) if self.provider_factory else build_provider(self.settings, emit)
+            settings = self.settings.model_copy(update={'analysis_timeout_seconds': runtime_budget.seconds, 'max_model_calls': runtime_budget.max_calls}) if runtime_budget else self.settings
+            provider = self.provider_factory(emit) if self.provider_factory else build_provider(settings, emit)
+            if runtime_budget:
+                from app.agent.budget import BudgetProvider
+                if hasattr(provider, 'adapter'):
+                    provider.adapter.model = provider.adapter.model.model_copy(update={'max_tokens': runtime_budget.output_tokens})
+                provider = BudgetProvider(provider, runtime_budget)
         except ValueError as exc:
             if str(exc) == 'MODEL_UNAVAILABLE':
                 raise ModelUnavailable() from exc
@@ -88,6 +94,8 @@ class DeepSeekAgent:
                           model=self.settings.deepseek_model, temperature=0, timeout=self.settings.llm_timeout_seconds, max_retries=1)
 
     def analyze(self, question, tools):
+        if getattr(tools, 'configuration', None):
+            return self._analyze_workspace(question, tools)
         emit = getattr(tools, "on_event", None)
         prepared = getattr(tools, 'prepared', None)
         adapter = prepared[0] if prepared else ModelAdapter(self._model(), self.settings, emit)
@@ -117,6 +125,44 @@ class DeepSeekAgent:
                             report.charts[-1] if report.charts else None, report.status,
                             "SUMMARY_UNAVAILABLE" if not report.answer else None,
                             report.model_dump(), adapter.usage, plan.model_dump())
+
+    def _analyze_workspace(self, question, tools):
+        from app.agent.template_router import AnalysisTemplateRouter
+        from app.agent.graph_executor import GraphExecutor
+        from app.agent.budget import BudgetExceeded
+        config = tools.configuration
+        provider, decision, _ = tools.prepared
+        event = tools.on_event
+        selected_ids = config['public']['profile_ids']
+        if not selected_ids and (decision.follow_up or decision.intent == 'FOLLOW_UP_ANALYSIS') and tools.conversation_state.previous_analysis:
+            selected_ids = [p['id'] for p in tools.conversation_state.selected_profiles if p.get('source') == 'system']
+        route = AnalysisTemplateRouter(config['catalog']).route(question, selected_ids, config['semantic_snapshot'], config['public']['category'])
+        event('profile_selected', route.model_dump())
+        if route.needs_clarification:
+            answer = '请补充或确认分析需求：' + ('；'.join(route.missing_requirements) or '请选择分析模板或说明想分析的指标。')
+            return AgentOutcome([], {}, answer, None, 'waiting', report={'version': '1.0', 'status': 'waiting', 'answer': answer,
+                'warnings': route.missing_requirements, 'tables': [], 'charts': [], 'evidence_refs': [], 'incomplete_steps': []}, usage=provider.usage)
+        config['profiles'] = [p for key in route.profile_ids for p in config['catalog'] if p['id'] == key]
+        if route.profile_ids == ['custom-question']:
+            from app.profiles.schemas import AnalysisProfile
+            dynamic = dict(config['profiles'][0], id=f'custom-session-{tools.record_id}', source='session',
+                name='当前问题的自定义分析', description=question[:500], prompt_context=question[:2000])
+            config['profiles'] = [AnalysisProfile.model_validate(dynamic).model_dump()]
+        try:
+            plan = Planner(provider).plan_v3(question, tools.metadata_by_input, tools.conversation_state,
+                task_id=str(tools.record_id), intent=decision.intent, config=config, permissions=tools.permissions)
+        except BudgetExceeded:
+            return AgentOutcome([], {}, '分析规划已达到本次预算，请缩小问题范围或选择更高分析深度。', None, 'waiting', usage=provider.usage)
+        except ValueError as exc:
+            raise AnalysisFailure('PLAN_INVALID', '模型未能生成有效分析计划，请调整问题重试', True) from exc
+        event('plan', plan.model_dump())
+        event('plan_validated', {'plan_id': plan.plan_id, 'steps': len(plan.steps)})
+        settings = self.settings.model_copy(update={'max_tool_attempts': provider.budget.max_tasks * (self.settings.max_retries_per_step + 1), 'analysis_timeout_seconds': provider.budget.seconds})
+        runner = GraphExecutor(tools, settings, provider, event, provider.budget)
+        report = runner.execute(plan, question)
+        computed = [s for s in runner.final_plan.steps if s.step_id in runner.results and s.tool_name not in {'generate_chart', 'get_dataset_info', 'preview_data'}]
+        return AgentOutcome(runner.calls, runner.results[computed[-1].step_id] if computed else {}, report.answer,
+            report.charts[-1] if report.charts else None, report.status, report=report.model_dump(), usage=provider.usage, plan=runner.final_plan.model_dump())
 
 
 _clip_result = clip_context

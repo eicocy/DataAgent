@@ -38,4 +38,5 @@ def register_legacy(registry):
                 'time_group_analysis':ToolCategory.TIME_SERIES,'growth_analysis':ToolCategory.TIME_SERIES,'generate_chart':ToolCategory.VISUALIZATION,'sql_query':ToolCategory.SQL}
     for name,description,schema in TOOL_SCHEMAS:
         permissions=frozenset({Permission.READ_DATA,Permission.READ_DATABASE}) if name=='sql_query' else frozenset({Permission.READ_DATA})
-        registry.register(FunctionTool(ToolMetadata(name,description,categories[name],(categories[name].value,name),permissions=permissions,exposes_rows=name in {'preview_data','filter_data','sort_data','sql_query'}),schema,LegacyChartResult if name=='generate_chart' else LegacyResult,LegacyAdapter(name).execute))
+        # Existing compatibility computations already capture a full frame.
+        registry.register(FunctionTool(ToolMetadata(name,description,categories[name],(categories[name].value,name),permissions=permissions,provides_frame=name not in {'get_dataset_info','generate_chart'},exposes_rows=name in {'preview_data','filter_data','sort_data','sql_query'}),schema,LegacyChartResult if name=='generate_chart' else LegacyResult,LegacyAdapter(name).execute))

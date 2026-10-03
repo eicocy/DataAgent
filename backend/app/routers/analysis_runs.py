@@ -27,6 +27,7 @@ class RunSubmission(BaseModel):
 
 
 class RunData(BaseModel):
+    request_options: dict | None = None
     record_id: int
     session_id: int
     message_id: int
@@ -130,6 +131,7 @@ def submit(request: AnalysisChatRequest, response: Response, user: User = Depend
 def status(record_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     record = owned_record(db, record_id, user.id)
     data = _response(record)["data"]
+    data['request_options'] = (record.request_config_json or {}).get('public')
     data.update(report=record.report_json, error_code=record.error_code, error_message=record.error_message, usage=record.usage_json)
     plan = record.plan_json or {}
     steps = plan.get('steps', [])
@@ -156,9 +158,11 @@ def status(record_id: int, user: User = Depends(current_user), db: Session = Dep
         step_id = fact.get('step_id')
         if step_id not in artifact_by_step:
             continue
+        alias = next((s.get('input_alias') for s in steps if s['step_id'] == step_id), None)
+        binding = next((i for i in (record.request_config_json or {}).get('inputs', []) if i['alias'] == alias), {})
         evidence.append({'evidence_id': f'{record.id}:{step_id}:{fact.get("key")}',
                          'source_type': 'tool_artifact',
-                         'dataset_id': record.dataset_id, 'dataset_version_id': record.dataset_version_id,
+                         'dataset_id': binding.get('dataset_id', record.dataset_id), 'dataset_version_id': binding.get('dataset_version_id', record.dataset_version_id),
                          'step_id': step_id, 'tool_name': tool_by_step.get(step_id),
                          'artifact_id': artifact_by_step[step_id],
                          'result_ref': f'artifact:{artifact_by_step[step_id]}',

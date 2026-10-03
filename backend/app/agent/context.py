@@ -25,6 +25,9 @@ class ConversationContext(BaseModel):
     last_chart_spec: dict[str, Any] | None = None
     user_preferences: dict[str, Any] = Field(default_factory=dict)
     messages_summary: str = ""
+    semantic_mappings: list[dict[str, Any]] = Field(default_factory=list, max_length=2000)
+    semantic_version: int = 0
+    selected_profiles: list[dict[str, Any]] = Field(default_factory=list, max_length=3)
 
     def with_dataset(self, dataset_id: int, version_id: int) -> ConversationContext:
         if (dataset_id, version_id) == (self.active_dataset_id, self.active_dataset_version_id):

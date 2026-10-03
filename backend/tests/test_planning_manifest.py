@@ -51,7 +51,8 @@ def test_cleaning_manifest_matches_validator_policy_even_after_a_chart_plan():
         previous_plan={'steps': [{'tool_name': 'aggregate_data'}, {'tool_name': 'generate_chart'}]})
     payload = ContextBuilder().build('检查数据质量', context, {'columns': []}, manifests)
     assert {tool['name'] for tool in payload['tools']} == {
-        'get_dataset_info', 'preview_data', 'missing_value_analysis', 'duplicate_analysis',
+        'get_dataset_info', 'preview_data', 'dataset_overview', 'column_summary',
+        'missing_value_analysis', 'duplicate_analysis',
         'constant_column_analysis', 'cardinality_analysis', 'invalid_numeric_analysis',
         'invalid_datetime_analysis', 'infinite_value_analysis', 'outlier_analysis'}
 

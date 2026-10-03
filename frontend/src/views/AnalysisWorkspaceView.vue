@@ -7,6 +7,7 @@ import AnalysisResult from '../components/AnalysisResult.vue'
 import ReportWorkbench from '../components/ReportWorkbench.vue'
 import PromptComposer from '../components/PromptComposer.vue'
 import UploadQueue from '../components/UploadQueue.vue'
+import SemanticMappingEditor from '../components/SemanticMappingEditor.vue'
 import { workspaceApi } from '../api/workspace'
 import { mapState } from 'pinia'
 import { useAnalysisStore } from '../stores/analysis'
@@ -15,7 +16,7 @@ import { datasetApi } from '../api/datasets'
 
 export default {
   name: 'AnalysisWorkspaceView',
-  components: { AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, ChatLineRound, DataAnalysis, Refresh, Promotion },
+  components: { AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, SemanticMappingEditor, ChatLineRound, DataAnalysis, Refresh, Promotion },
   data() {
     return {
       dataset: null,
@@ -23,6 +24,7 @@ export default {
       selectedDatasetId: null,
       choosingDataset: false,
       datasetSearchToken: 0,
+      datasetSelectionToken: 0,
       cancelRequested: false,
       reportDialogVisible: false,
       artifactPanelOpen: false,
@@ -47,6 +49,8 @@ export default {
       capabilities: {},
       catalog: { categories: [], items: [] },
       capabilityError: '',
+      runOptions: { depth: 'STANDARD', category: '', profile_ids: [], model_id: null },
+      additionalInputIds: [],
     }
   },
   computed: {
@@ -124,6 +128,8 @@ export default {
       this.sessionId = null
       this.sessionCreation = null
       this.attachedDatasets = []
+      this.additionalInputIds = []
+      this.runOptions = { depth: 'STANDARD', category: '', profile_ids: [], model_id: null }
       this.attachmentBindings = 0
       this.attachmentChain = Promise.resolve()
       this.olderLoading = false
@@ -150,6 +156,11 @@ export default {
           const attachments = await Promise.all((history.session?.attached_dataset_ids || []).map(id => datasetApi.detail(id, { signal: controller.signal })))
           if (!this.isCurrent(controller)) return
           this.attachedDatasets = attachments
+          const previousOptions = [...history.messages].reverse().find(message => message.analysis_record?.request_options)?.analysis_record.request_options
+          if (previousOptions) {
+            this.runOptions = { ...this.runOptions, ...previousOptions }
+            this.additionalInputIds = (previousOptions.inputs || []).map(item => item.dataset_id).filter(id => id !== dataset?.id && attachments.some(item => item.id === id))
+          }
           // 澄清候选以持久任务详情为准，刷新后恢复最近的待补充响应。
           const latest = this.messages.at(-1)
           if (latest?.role === 'assistant' && latest.evidence?.status === 'waiting') {
@@ -227,8 +238,10 @@ export default {
         this.attachedDatasets = next
         if (!this.datasetChoices.some(item => item.id === dataset.id)) this.datasetChoices.push(dataset)
         if (!this.dataset) { this.dataset = dataset; this.selectedDatasetId = dataset.id }
+        return true
       } catch (error) {
         if (this.isCurrent(controller)) this.errorMessage = `文件已上传，但会话绑定失败：${error.message}。可在数据集列表选择后继续分析。`
+        return false
       }
     },
     removeAttachment(id) {
@@ -265,7 +278,11 @@ export default {
       this.messages.push(userMessage)
       try {
         const store = useAnalysisStore()
-        await store.submit({ session_id: this.sessionId, dataset_id: this.dataset?.id ?? null, question }, false, { signal: controller.signal })
+        const options = this.capabilities.profile_execution && this.dataset ? {
+          ...this.runOptions, category: this.runOptions.category || null,
+          inputs: [this.dataset.id, ...this.additionalInputIds.filter(id => id !== this.dataset.id && this.attachedDatasets.some(item => item.id === id))].map((id, index) => ({ alias: index === 0 ? 'primary' : `input_${id}`, dataset_id: id })),
+        } : {}
+        await store.submit({ session_id: this.sessionId, dataset_id: this.dataset?.id ?? null, question, ...options }, false, { signal: controller.signal })
         if (!this.isCurrent(controller)) return
         const result = await store.watchRun(controller.signal)
         if (!result || !this.isCurrent(controller)) return
@@ -287,6 +304,7 @@ export default {
         record_id: record.id,
         dataset_id: record.dataset_id,
         dataset_version_id: record.dataset_version_id,
+        plan: record.plan,
         report: record.report,
         status: record.status,
         answer: record.final_answer,
@@ -340,19 +358,26 @@ export default {
       }
     },
     async chooseDataset(id) {
+      const selection = ++this.datasetSelectionToken
       if (!id) { this.dataset = null; this.selectedDatasetId = null; return }
       const controller = this.controller
       this.choosingDataset = true
       try {
         const dataset = await datasetApi.detail(id, { signal: controller.signal })
-        if (!this.isCurrent(controller)) return
+        if (!this.isCurrent(controller) || selection !== this.datasetSelectionToken) return
+        // 先保存授权会话绑定，再让字段编辑器读取新数据集。
+        if (this.sessionId && this.capabilities.profile_execution && !this.attachedDatasets.some(item => item.id === dataset.id)) {
+          const bound = await this.attachDataset(dataset)
+          if (!bound) { this.selectedDatasetId = this.dataset?.id ?? null; return }
+        }
+        if (!this.isCurrent(controller) || selection !== this.datasetSelectionToken) return
         this.dataset = dataset
         this.selectedDatasetId = dataset.id
         if (!this.datasetChoices.some((item) => item.id === dataset.id)) this.datasetChoices.push(dataset)
         this.$router.replace({ query: { ...this.$route.query, datasetId: String(dataset.id) } })
       } catch (error) {
-        if (this.isCurrent(controller)) this.errorMessage = error.message || '数据集加载失败'
-      } finally { if (this.isCurrent(controller)) this.choosingDataset = false }
+        if (this.isCurrent(controller) && selection === this.datasetSelectionToken) { this.errorMessage = error.message || '数据集加载失败'; this.selectedDatasetId = this.dataset?.id ?? null }
+      } finally { if (this.isCurrent(controller) && selection === this.datasetSelectionToken) this.choosingDataset = false }
     },
     async cancelTask() {
       if (!this.loading || this.cancelRequested) return
@@ -424,10 +449,12 @@ export default {
           <div v-if="loading" class="agent-pending" role="status"><span class="status-pulse"></span>{{ runningLabel }}<el-button text type="danger" :disabled="cancelRequested" @click="cancelTask">取消任务</el-button></div>
         </div>
 
-        <PromptComposer v-model="question" :busy="loading || choosingDataset" :uploading="uploadBusy || attachmentBindings > 0" :catalog="catalog" :capabilities="capabilities" @submit="submitQuestion" @upload="$refs.uploadQueue.addFiles($event)" @templates="$router.push('/templates')">
+        <PromptComposer v-model="question" :busy="loading || choosingDataset" :uploading="uploadBusy || attachmentBindings > 0" :catalog="catalog" :capabilities="capabilities" :options="runOptions" @option-change="runOptions = { ...runOptions, ...$event }" @submit="submitQuestion" @upload="$refs.uploadQueue.addFiles($event)" @templates="$router.push('/templates')">
           <UploadQueue ref="uploadQueue" :formats="capabilities.file_formats" :attached-ids="attachedDatasets.map(item => item.id)" :max-files="capabilities.max_files || 10" :max-bytes="capabilities.max_upload_bytes || 20971520" @busy="uploadBusy = $event" @started="startUpload" @ready="attachDataset" @removed="removeAttachment" />
           <div v-if="attachedDatasets.length" class="session-attachments" aria-label="会话数据附件"><span v-for="item in attachedDatasets" :key="item.id"><button type="button" :disabled="loading" @click="chooseDataset(item.id)">{{ item.original_name }}{{ dataset?.id === item.id ? ' · 当前' : '' }}</button><button type="button" :disabled="loading || attachmentBindings > 0" :aria-label="`移除附件 ${item.original_name}`" @click="removeAttachment(item.id)">×</button></span></div>
         </PromptComposer>
+        <fieldset v-if="capabilities.multi_dataset_execution && dataset && attachedDatasets.some(item => item.id !== dataset.id)" class="analysis-inputs"><legend>同时分析其他附件</legend><label v-for="item in attachedDatasets.filter(item => item.id !== dataset.id)" :key="item.id"><input v-model="additionalInputIds" type="checkbox" :value="item.id" :disabled="loading || choosingDataset" />{{ item.original_name }}</label><p class="caption">每个附件分别分析；跨表关联计算将在后续阶段开放。</p></fieldset>
+        <SemanticMappingEditor v-if="capabilities.profile_execution && sessionId && dataset" :session-id="Number(sessionId)" :dataset-id="dataset.id" :busy="loading || choosingDataset" />
         <div v-if="isLanding" class="workspace-suggestions"><button type="button" @click="question = '帮我分析一下这个表'">探索这份数据</button><button type="button" @click="question = '检查缺失值、重复数据和异常值'">检查数据质量</button><button type="button" @click="question = '按地区汇总销售额，并生成柱状图'">比较业务表现</button><button type="button" @click="$router.push('/templates')">浏览分析模板 ↗</button></div>
         <p v-if="!dataset && isLanding" class="workspace-help">可先聊天，分析前请选择数据集或上传文件。</p>
       </div>
@@ -437,7 +464,7 @@ export default {
         <div v-if="!artifactPanelMaximized" class="artifact-panel-resizer" tabindex="0" role="separator" aria-label="调整工件面板宽度" aria-orientation="vertical" :aria-valuenow="artifactPanelWidth" aria-valuemin="420" aria-valuemax="720" @keydown.left.prevent="artifactPanelWidth = Math.min(720, artifactPanelWidth + 20); savePanelPreference()" @keydown.right.prevent="artifactPanelWidth = Math.max(420, artifactPanelWidth - 20); savePanelPreference()" @pointerdown="startPanelResize" @pointermove="movePanelResize" @pointerup="endPanelResize" @pointercancel="endPanelResize"><span></span></div>
         <div class="evidence-panel-heading"><span class="evidence-dot"></span><div><h2>工件与证据</h2><p>图表、结果表和工具轨迹</p></div><el-button v-if="canCreateReport" size="small" plain @click="reportDialogVisible = true">生成报告</el-button><el-button text aria-label="最大化工件面板" @click="toggleArtifactPanelSize">{{ artifactPanelMaximized ? '还原' : '展开' }}</el-button><el-button text aria-label="关闭工件面板" @click="toggleArtifactPanel">关闭</el-button></div>
         <p v-if="loading && activeResult?.progress?.total" class="caption">已完成 {{ activeResult.progress.completed }} / {{ activeResult.progress.total }} 步</p>
-        <AgentSteps :trace="activeTrace" :calls="loading ? [] : latestEvidence?.tool_calls || []" />
+        <AgentSteps :trace="activeTrace || (latestEvidence?.plan ? { plan: latestEvidence.plan, steps: latestEvidence.tool_calls } : null)" :calls="loading ? [] : latestEvidence?.tool_calls || []" />
         <AnalysisResult v-if="loading && activeResult" :evidence="activeResult" />
         <AnalysisResult v-else-if="latestEvidence" :evidence="latestEvidence" />
       </aside>
@@ -464,6 +491,8 @@ export default {
 .session-attachments { margin-bottom: 8px; }
 .workspace-help { color: var(--muted); text-align: center; font-size: 12px; }
 .capability-warning { font-size: 12px; color: var(--muted); }
+.analysis-inputs { border: 1px solid var(--line); border-radius: var(--radius-sm); margin: 12px 0; font-size: 12px; color: var(--muted); }
+.analysis-inputs label { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; }
 .capability-warning button { border: 0; background: none; color: var(--brand); cursor: pointer; }
 @media (max-width: 700px) { .workspace-landing { margin-top: 10px; } .workspace-landing .conversation-empty { min-height: 135px; } }
 </style>

@@ -11,7 +11,7 @@ class PlanValidator:
         self.max_steps = max_steps
 
     def validate(self, plan: AnalysisPlan, *, dataset_id: int, dataset_version_id: int,
-                 columns: dict[str, str], permissions: frozenset[Permission]) -> AnalysisPlan:
+                 columns: dict[str, str], permissions: frozenset[Permission], columns_by_input=None) -> AnalysisPlan:
         if plan.dataset_id != dataset_id or plan.dataset_version_id != dataset_version_id:
             raise ValueError("PLAN_DATASET_MISMATCH")
         if not 1 <= len(plan.steps) <= self.max_steps:
@@ -21,6 +21,7 @@ class PlanValidator:
         if len(steps) != len(plan.steps):
             raise ValueError("DUPLICATE_STEP")
         for step in plan.steps:
+            step_columns = columns_by_input[step.input_alias] if columns_by_input is not None else columns
             if step.tool_name not in registry:
                 raise ValueError("TOOL_NOT_ALLOWED")
             if plan.intent == 'DATA_CLEANING' and step.tool_name not in CLEANING_TOOLS:
@@ -37,19 +38,19 @@ class PlanValidator:
                 raise ValueError("TOOL_ARGUMENTS_INVALID") from exc
             if step.source_ref == "dataset" and step.tool_name != "sql_query":
                 for field in self._referenced_fields(step.arguments):
-                    if field not in columns:
+                    if field not in step_columns:
                         raise ValueError("COLUMN_NOT_FOUND")
                 if step.tool_name in {"time_group_analysis", "growth_analysis"}:
-                    if columns.get(step.arguments.get("date_column")) not in {"datetime", "date", "timestamp", "string"}:
+                    if step_columns.get(step.arguments.get("date_column")) not in {"datetime", "date", "timestamp", "string"}:
                         raise ValueError("COLUMN_TYPE_MISMATCH")
-                    if columns.get(step.arguments.get("value_column")) not in {"integer", "decimal", "float", "numeric", "number"}:
+                    if step_columns.get(step.arguments.get("value_column")) not in {"integer", "decimal", "float", "numeric", "number"}:
                         raise ValueError("COLUMN_TYPE_MISMATCH")
                 numeric = {'integer', 'decimal', 'float', 'numeric', 'number'}
                 for metric in step.arguments.get('metrics', []):
                     if not isinstance(metric, dict):
                         continue
                     operation = metric.get('aggregation') or metric.get('operation')
-                    if operation in {'sum', 'avg', 'mean', 'median', 'std', 'var'} and columns.get(metric.get('column')) not in numeric:
+                    if operation in {'sum', 'avg', 'mean', 'median', 'std', 'var'} and step_columns.get(metric.get('column')) not in numeric:
                         raise ValueError('COLUMN_TYPE_MISMATCH')
         visited, active = set(), set()
         def walk(key):

@@ -37,9 +37,46 @@ Pre-flight: Composer 上传复用 Dataset API/Store；附件存 Session JSON，�
 - 未连接运行 MySQL，未执行线上迁移、Docker 部署或付费模型；现有七天工件策略本阶段沿用，Phase 4 再迁移。
 - 浏览器默认系统 Select 弹层；新 Composer 不定制其系统外观。
 
-## Phase 2—5
+## Phase 2 — 2026-10-04
 
-待依次实施，范围、文件、验收与风险见计划。
+- 状态：已完成本阶段实现与验收，停止在 Phase 2，不进入 Phase 3。
+- 用户已验收 Phase 1，并明确授权仅执行 Phase 2，完成后停止。基线 `7f1e0a5` / `V2.0.1`。
+- Ruling: 继续使用现有 `codex/ai-native-workspace` 检出 — 用户已在此检出本地调试并要求继续升级，另建检出会脱离当前运行配置 — 保留本地 `backend/app/config.py` 和 `plan/`，不读取/展示凭据，不推进其他 Phase。
+- 2.1 基础契约：版本化 Profile、保守语义候选/用户覆盖、Template Router、Plan 3.0、公共步骤去重、模型预算，已完成首批 RED→GREEN。
+- 2.2 提交与恢复：所有输入固定授权版本、完整配置幂等、Session 语义修正 API、跨输入证据归属，已实现并通过针对性回归。
+- 2.3 执行：沿用规范工具与结果校验；独立输入适配器；最多两个明确声明安全的只读计算并行；数据库与工件写入集中在主线程；DEEP 有界探索，已实现并通过针对性回归。
+- 2.4 前端：沿用 Composer / Store / AgentSteps，开放深度与实际模型、增加多输入和字段语义修正，组件 RED→GREEN；不开放 Join、预测、自动报告或沙箱。
+- 自检修复：语义 PATCH 锁定并刷新 Session，保留其他请求的映射；并行可靠性失败标为不可重试，独立节点继续。两项均观察到 RED→GREEN。
+- 最终全后端回归：隔离临时 SQLite、文件目录和模型 Key 空值，516 passed / 5 skipped / 16 warnings，43.87 秒。跳过四项原有专用 MySQL 集成和一项未配置专库的新增 MySQL 迁移；警告均为已有 Alembic path_separator 提示。
+- 额外真实 MySQL 验证：新建随机前缀 `datalens_test_phase2_` 隔离库，从 0009 升级至 0010；历史 Plan/Session/记录保留，Profile 两次初始化仍为 105。1 passed / 2 warnings，4.35 秒；完成后仅删除本次创建的测试库，此隔离测试未操作本地业务库。
+- 最终前端 15 文件 / 56 测试通过；生产构建通过；3 个模拟 API 浏览器流程通过。新增流程覆盖模板/深度、多输入、字段修正、计划依赖及刷新；390px 关闭证据抽屉后输入/修正操作可用，等待导航动画结束再截图，桌面与窄屏图已检查。
+- UI strict 审计 0 errors / 0 warnings，Git whitespace 检查通过；新增 `docs/phase2-workspace.md` 并同步索引与 UX 契约。
+- 最终审查：第一次 Astra 调用立即因账号用量限制失败，没有产生审查；改用当前可用 Sol 完成同一次只读独立审查，不并行重复审查。无 Critical、五项 Important、无 Minor；五项全部进入一次修复，以下复现均 RED→GREEN，并运行最终全套回归。
+- Final: fixed 完整数据根步骤误用筛选来源 — `test_dedup_never_reuses_filtered_source_for_a_dataset_root`；只登记真正无依赖的数据根，探索节点不去重。
+- Final: fixed 去重丢失必需标记 — `test_dedup_preserves_required_completion_for_optional_first_duplicate`；保留 required 并取最高 priority。
+- Final: fixed 重新规划无法保留探索来源 — `test_replanning_preserves_trusted_exploration_and_rejects_forged_provenance`；只允许服务器原计划已批准的来源，不接受模型伪造。
+- Final: fixed 新 expected_outputs 未参与完成判定 — `test_replacement_expected_outputs_are_required_for_completion`；失败交付必须保持部分完成。
+- Final: fixed 选择未绑定数据集后字段编辑器 403 — 前端 `binds a selected owned dataset` 回归；先串行保存授权附件，绑定失败保留原选择；后端所有权校验保留。
+- 本阶段针对性后端测试现为 33 项；三种深度均验证了部分完成和真实计算+事实绑定的成功路径。历史 v1/v2 回归继续通过。
+- 本地增量迁移：先保存 MySQL SQL 备份及旧表内容校验摘要，再执行 0009→0010。原有 15 张业务表逐表校验不变，两条历史分析记录保留。备份在忽略目录 `.superpowers/sdd/phase2/local-before-0010.sql`，不加入 Git。
+- 本地服务：后端 8000、前端 3000 已重新启动；带本地测试会话令牌的实际代理 GET 验证 Profile 105、语义映射和 Phase 2 能力均返回 200。只读验收令牌未打印或持久化；未改用户凭据。浏览器打开本地项目登录页，正常登录由用户完成。
+- 审查未判断的范围：用户本地配置/凭据保持原状；真实模型、业务库迁移和部署由单独验收记录说明，不把源代码审查当作运行证明。未进行正式部署、提交或新发行。
+- 真实模型验收发现并修复：DATA_CLEANING 白名单遗漏规范只读 `dataset_overview` / `column_summary`，导致质量检查计划失败并消耗重试预算。新增复现测试 RED→GREEN；同步过滤 Planner 工具列表和旧契约测试，清洗写入仍禁用，不增加预算。
+- 真实 DeepSeek 小样本验收：临时 SQLite 和独立文件目录，两行模拟 CSV，固定版本提交 FAST / general-quality；Plan 3.0、四项检查全部完成，事实绑定总结成功；15.5 秒、3 次模型调用、11,009 Token。数据为 2 行 / 2 列，缺失与重复均为 0，结论与计算一致。未使用用户上传文件；该样例不能代表所有模型输出和业务数据均已验收。
+- 最终服务刷新：后端加载最新修改，8000 健康检查及前端 3000 均返回 200。验收证据保存在忽略目录 `.superpowers/sdd/phase2/`。本阶段未提交、打标签、推送或正式部署。
+
+## Phase 3—5
+
+尚未实施。本轮完成 Phase 2 后停止。
+
+## V2.0.2 — Phase 2 发行收口
+
+- 用户指定已完成 Phase 2 为 V2.0.2，并授权提交、依次推送 V2.0.0 / V2.0.1 / V2.0.2，随后明确要求合并到 main。
+- 前端包、锁文件根包和后端 API 同步为 2.0.2；README、CHANGELOG 与 `docs/releases/v2.0.2.md` 同步本阶段真实范围，Phase 3—5 保持未实施。
+- 发行前重新运行：后端隔离回归 516 passed / 5 skipped / 16 个已有 Alembic 警告，43.43 秒；前端 56 项单测通过，生产构建通过，3 项模拟 API 浏览器流程通过。没有重复调用付费模型，真实模型证据沿用本阶段单独验收记录。
+- 发行检查：版本号一致、暂存 whitespace 检查通过；扫描待推送历史及索引共 456 个文件对象版本，未发现已配置模型 Key 或所检查凭据模式的匹配。该检查不等同于全面安全审计。
+- 提交排除本地 `backend/app/config.py`、`plan/`、环境文件、上传数据、工件及数据库备份，保留其原始内容。只推送本次三个版本的相关引用，不推送其他本地分支。
+- 合并策略：远程 main 为三个版本的共同祖先，使用快进合并保留现有提交历史；推送顺序为 V2.0.0 基线 `310e86b`、V2.0.1 `7f1e0a5`、V2.0.2 本次提交，各自保留标签。远程结果以推送后的 `git ls-remote` 核对为准。
 
 ## V2.0.1 — Phase 1 收口
 

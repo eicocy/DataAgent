@@ -71,6 +71,23 @@ describe('analysis workspace', () => {
     expect(wrapper.vm.uploadBusy).toBe(false)
     wrapper.unmount()
   })
+  it('binds a selected owned dataset before exposing its semantic editor and preserves selection on binding failure', async () => {
+    const wrapper = mountWorkspace({ params: { sessionId: '5' }, query: {} })
+    await flushPromises()
+    wrapper.vm.capabilities = { profile_execution: true }
+    wrapper.vm.attachedDatasets = [{ id: 7, original_name: 'sales.csv' }]
+    analysisApi.updateSession.mockResolvedValue({ id: 5 })
+    datasetApi.detail.mockResolvedValue({ id: 8, original_name: 'other.csv' })
+    await wrapper.vm.chooseDataset(8)
+    expect(analysisApi.updateSession).toHaveBeenCalledWith(5, { attached_dataset_ids: [7, 8] }, expect.any(Object))
+    expect(wrapper.vm.dataset.id).toBe(8)
+    analysisApi.updateSession.mockRejectedValue(new Error('附件已满'))
+    datasetApi.detail.mockResolvedValue({ id: 9, original_name: 'third.csv' })
+    await wrapper.vm.chooseDataset(9)
+    expect(wrapper.vm.dataset.id).toBe(8)
+    expect(wrapper.vm.errorMessage).toContain('附件已满')
+    wrapper.unmount()
+  })
   it('serializes removal behind an in-flight addition and restores a removal control', async () => {
     let finish
     analysisApi.updateSession.mockImplementationOnce(() => new Promise(resolve => { finish = resolve })).mockResolvedValue({ id: 5 })

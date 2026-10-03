@@ -26,6 +26,8 @@ class ToolMetadata:
     exposes_rows: bool=False
     chat_enabled: bool=True
     risk_level: str='read_only'
+    parallel_safe: bool=False
+    provides_frame: bool=False
 
 
 @dataclass
@@ -92,7 +94,7 @@ class ToolRegistry:
 
     def get_llm_tool_manifest(self, permissions=frozenset({Permission.READ_DATA})):
         return [dict(name=t.metadata.name, description=t.metadata.description, category=t.metadata.category.value,
-                     modifies_dataset=False, parameters=t.input_schema.model_json_schema())
+                     modifies_dataset=False, provides_frame=t.metadata.provides_frame, parameters=t.input_schema.model_json_schema())
                 for t in self.list_tools() if not t.metadata.modifies_dataset and t.metadata.chat_enabled and t.metadata.permissions<=permissions]
 
     def calculate(self, name, context, parameters, permissions=frozenset({Permission.READ_DATA})):
@@ -110,19 +112,7 @@ class ToolRegistry:
                 output = tool.execute(replace(context, registry=self), parsed)
             if (time.perf_counter() - started) > tool.metadata.timeout_seconds:
                 raise ToolExecutionError('TOOL_TIMEOUT')
-            output.data = tool.output_schema.model_validate(output.data)
-            validate_value(output.data.model_dump())
-            if output.frame is not None:
-                context.check_size(output.frame)
-                for column in output.frame:
-                    validate_numeric_series(output.frame[column])
-            if isinstance(output.data, TableResult):
-                names = [column.name for column in output.data.columns]
-                if len(names) != len(set(names)) or any(set(row) != set(names) for row in output.data.rows):
-                    raise ToolResultError('RESULT_SCHEMA_INVALID')
-                if output.frame is not None and (output.data.row_count!=len(output.frame) or names!=list(output.frame.columns)):
-                    raise ToolResultError('RESULT_SCHEMA_INVALID')
-            return output
+            return self.validate_output(tool, context, output)
         except ToolError:
             raise
         except ValidationError:
@@ -140,3 +130,18 @@ class ToolRegistry:
         return AnalysisResult(tool_name=name, data=output.data, dataset_version=context.dataset_version,
                               warnings=output.warnings, execution_time_ms=int((time.perf_counter()-started)*1000),
                               status='partial' if getattr(output.data, 'kind', None)=='eda' and any(s.status=='failed' for s in output.data.sections) else 'succeeded')
+
+    def validate_output(self, tool, context, output):
+        output.data = tool.output_schema.model_validate(output.data)
+        validate_value(output.data.model_dump())
+        if output.frame is not None:
+            context.check_size(output.frame)
+            for column in output.frame:
+                validate_numeric_series(output.frame[column])
+        if isinstance(output.data, TableResult):
+            names = [column.name for column in output.data.columns]
+            if len(names) != len(set(names)) or any(set(row) != set(names) for row in output.data.rows):
+                raise ToolResultError('RESULT_SCHEMA_INVALID')
+            if output.frame is not None and (output.data.row_count!=len(output.frame) or names!=list(output.frame.columns)):
+                raise ToolResultError('RESULT_SCHEMA_INVALID')
+        return output

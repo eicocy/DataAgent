@@ -9,6 +9,9 @@ from app.analysis import data_tools as data, aggregation_tools as aggregate, sta
 def build_registry(include_legacy=False):
     registry=ToolRegistry()
     def register(name,category,schema,output,function,raw=False,**metadata):
+        metadata['provides_frame'] = output in {TableResult, AggregationResult}
+        if name in {'dataset_overview', 'column_summary', 'aggregate', 'multi_aggregate', 'groupby_aggregate', 'descriptive_statistics', 'missing_value_analysis', 'duplicate_analysis', 'constant_column_analysis', 'cardinality_analysis'}:
+            metadata['parallel_safe'] = True
         registry.register(FunctionTool(ToolMetadata(name=name,description=name.replace('_',' '),category=category,capabilities=(category.value,name),exposes_rows=raw,**metadata),schema,output,function))
     register('dataset_overview',ToolCategory.DATA,DataInput,OverviewResult,data.overview)
     register('column_summary',ToolCategory.DATA,DataInput,TableResult,data.column_summary)

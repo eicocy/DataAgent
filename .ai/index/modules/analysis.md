@@ -54,7 +54,13 @@ depends: current_user、AnalysisRecord、AnalysisArtifact
 
 ## Related
 
-backend/app/profiles/{schemas,catalog}.py、catalog.json；routers/{profiles,workspace}.py：版本化领域策略目录与真实能力声明；当前不参与 Planner 执行，不把模板作为固定 Workflow。sessions.py 管理授权附件；ConversationContext 显式保存 attached_dataset_ids。
+backend/app/profiles/{schemas,catalog,service}.py、catalog.json；routers/{profiles,workspace}.py：版本化领域策略目录、持久化与真实能力声明，策略参与 Planner 上下文，不作为固定 Workflow。
+
+backend/app/semantic/{detectors,mappings}.py；routers/sessions.py：保守业务语义候选、按版本隔离的用户修正；Session JSON 保存映射与授权附件。
+
+backend/app/agent/{template_router,task_graph,graph_executor,budget}.py；services/{run_configuration,input_workspace}.py：多输入固定版本、完整配置幂等、Plan 3.0 校验、只读工具有限并行、DEEP 有界探索、模型与执行预算；兼容旧协议。
+
+docs/phase2-workspace.md；migrations/versions/0010_analysis_profiles.py：新版 Workspace Phase 2，区别于旧版工具阶段；未开放 Join、预测与沙箱。
 
 docs/tool-development.md；docs/analysis-capabilities.md；docs/phase2.md；backend/migrations/versions/0007_analysis_engine.py
 

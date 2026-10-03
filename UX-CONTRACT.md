@@ -42,6 +42,8 @@
 | Prompt Composer | `frontend/src/components/PromptComposer.vue` | 已批准升级计划 | landing / conversation | IME、附件、选项能力声明、重复发送 |
 | Button | Element Plus `ElButton`，Composer 复用同一组件 | DESIGN.md | primary / neutral / text | native-type、禁用、busy、键盘焦点与尺寸 |
 | Upload Queue | `frontend/src/components/UploadQueue.vue` + Dataset Store | 上传 API | sequential | 分文件失败/重试/取消与解析恢复 |
+| Semantic Mapping | `frontend/src/components/SemanticMappingEditor.vue` | Session 映射 API | native input/select + ElButton | 请求失效、保留错误输入、保存与刷新恢复 |
+| Analysis Input Selection | AnalysisWorkspaceView 会话附件 | 已授权附件/固定版本 | checkbox | 选择、去除、提交版本绑定与刷新 |
 
 ## Component behavior
 
@@ -94,7 +96,7 @@
 - Retry: 查询可重试；删除超时先刷新状态再允许再次提交。
 - Session expiry: 保存非敏感输入，重新登录后回原任务。
 - Stale requests: 搜索和列表请求取消或通过 request_id 忽略旧响应。
-- Agent: 通过 `POST /analysis/runs` 提交任务，使用持久 SSE 事件更新状态，断线后回到任务查询和 Trace。发送后锁定输入并显示实际执行步骤；刷新恢复当前会话任务。仅在 sessionStorage 保留 session_id、可为空的 dataset_id、question、request_id、record_id，不保存结果或凭据；退出和会话过期清除。网络状态不明时复用 request_id，明确再次分析使用新 request_id。离开页面只停止监听；“取消任务”才向服务端发取消请求。必需步骤未完成时显示部分完成和真实结果。
+- Agent: 通过 `POST /analysis/runs` 提交任务，使用持久 SSE 事件更新状态，断线后回到任务查询和 Trace。发送后锁定输入并显示实际执行步骤；刷新恢复当前会话任务。在 sessionStorage 保留 session_id、可为空的 dataset_id、question、request_id、record_id 和公开分析选项（深度、模板、模型 ID、输入绑定），不保存结果或凭据；退出和会话过期清除。网络状态不明时复用完整配置和 request_id，明确再次分析使用新 request_id。离开页面只停止监听；“取消任务”才向服务端发取消请求。必需步骤未完成时显示部分完成和真实结果。
 
 ## Validation
 

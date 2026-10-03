@@ -20,6 +20,12 @@ class AnalysisStep(StrictModel):
     result_ref: str | None = None
     error: str | None = None
     retry_count: int = Field(default=0, ge=0)
+    input_alias: str = Field(default='primary', pattern=r'^[a-zA-Z][a-zA-Z0-9_-]{0,31}$')
+    priority: int = Field(default=0, ge=0, le=100)
+    started_at: str | None = None
+    finished_at: str | None = None
+    exploration_parent: str | None = None
+    exploration_depth: int = Field(default=0, ge=0, le=3)
 
 
 class AnalysisPlan(StrictModel):
@@ -36,6 +42,22 @@ class AnalysisPlan(StrictModel):
     status: Literal["PENDING", "READY", "RUNNING", "COMPLETED", "PARTIAL_SUCCESS", "FAILED", "WAITING", "CANCELLED"] = "PENDING"
     assumptions: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class InputBinding(StrictModel):
+    alias: str = Field(pattern=r'^[a-zA-Z][a-zA-Z0-9_-]{0,31}$')
+    dataset_id: int = Field(gt=0)
+    dataset_version_id: int = Field(gt=0)
+
+
+class AnalysisPlanV3(AnalysisPlan):
+    version: Literal['3.0'] = '3.0'
+    inputs: list[InputBinding] = Field(min_length=1, max_length=10)
+    profiles: list[dict[str, Any]] = Field(default_factory=list, max_length=3)
+    semantic_snapshot: list[dict[str, Any]] = Field(default_factory=list)
+    semantic_version: int = Field(default=0, ge=0)
+    depth: Literal['FAST', 'STANDARD', 'DEEP'] = 'STANDARD'
+    budget: dict[str, Any] = Field(default_factory=dict)
 
 
 class ExecutionPlan(StrictModel):
