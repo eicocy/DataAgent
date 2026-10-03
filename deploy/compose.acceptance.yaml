@@ -1,0 +1,6 @@
+# Keep the acceptance database available after Docker Desktop restarts.
+# Merge with compose.yaml; credentials and existing volume names stay in the
+# caller's local environment and Compose project.
+services:
+  mysql:
+    restart: unless-stopped

@@ -1,0 +1,1 @@
+{"record_id": 5, "session_id": 5, "status": "succeeded", "error_code": null, "answer_present": true, "chart_present": true, "tools": [{"tool": "group_by_analysis", "status": "succeeded", "error_code": null}, {"tool": "generate_chart", "status": "succeeded", "error_code": null}]}

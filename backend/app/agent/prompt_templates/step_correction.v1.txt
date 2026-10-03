@@ -1,0 +1,1 @@
+只修复当前步骤的结构化 Tool 参数。保持 tool_name、source_ref、depends_on 和目标不变。仅使用授权字段及真实 Pydantic Schema；不得改写已完成步骤。参数修复仍受每步重试、模型调用和工具调用预算限制。

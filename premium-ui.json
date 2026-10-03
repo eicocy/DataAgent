@@ -1,0 +1,14 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["产品原型"],
+  "locale": "zh-CN",
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": ["Select/Listbox", "Form", "Scrollbar", "Toast", "CRUD"],
+  "ownership": {
+    "Select/Listbox": "native"
+  },
+  "evidence": {
+    "crudFullFlow": "产品原型/docs/06-页面流程与跳转关系.md",
+    "failurePaths": "产品原型/pages/states/state-gallery.html"
+  }
+}

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>开源项目启发的五种工作台 · DataLens Agent</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23182d52'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='Arial' font-size='21' font-weight='bold' fill='white'%3ED%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="ui-open-source-five.css">
+  <script src="ui-open-source-five.js" defer></script>
+</head>
+<body>
+  <nav class="comparison-bar" aria-label="五种 UI 方案切换">
+    <div class="comparison-brand"><span class="comparison-mark">D</span><span>DataLens <b>UI Studies</b><small>开源项目启发 · 静态设计预览</small></span></div>
+    <div class="comparison-links">
+      <a href="?variant=A" data-select="A">A <span>清晰对话</span></a>
+      <a href="?variant=B" data-select="B">B <span>Agent 执行舱</span></a>
+      <a href="?variant=C" data-select="C">C <span>可信指标台</span></a>
+      <a href="?variant=D" data-select="D">D <span>数据工坊</span></a>
+      <a href="?variant=E" data-select="E">E <span>分析审阅台</span></a>
+    </div>
+    <a class="comparison-old" href="ui-exploration-five.html">旧版五方案 ↗</a>
+  </nav>
+
+  <main class="view view-a" data-variant="A">
+    <aside class="a-sidebar" aria-label="示例工作区导航">
+      <div class="a-logo">data<span>lens</span><sup>agent</sup></div>
+      <div class="a-sidebar-label">工作区</div>
+      <div class="a-nav-current">✦　智能分析 <span>01</span></div>
+      <div class="a-nav-quiet">▤　数据集</div>
+      <div class="a-nav-quiet">◷　历史记录</div>
+      <div class="a-sidebar-label a-space">当前数据</div>
+      <div class="a-dataset"><span class="a-dataset-icon">CSV</span><span>sales_demo.csv<small>10 条订单 · 5 个字段</small></span></div>
+      <p class="a-sidebar-foot">A / 清晰对话<br>以对话为入口，结果是可核对的数据块。</p>
+    </aside>
+    <div class="a-main">
+      <header class="a-header"><span>分析会话 <span class="faint">/</span> 销售样例</span><span class="sample-chip">● 静态演示数据</span></header>
+      <div class="a-thread">
+        <div class="study-label">A · CLEAR CONVERSATION <span>参考 <a href="https://github.com/vanna-ai/vanna" target="_blank" rel="noopener noreferrer">Vanna ↗</a></span></div>
+        <h1>直接提问，逐层核对答案。</h1>
+        <p class="a-deck">问题、计算阶段、表格和图表在同一条回答里；展开即可看到工具参数。</p>
+        <div class="a-user"><span class="a-user-icon">你</span><p>各地区销售额分别是多少？哪个地区最高？</p></div>
+        <article class="a-answer">
+          <div class="a-answer-head"><span class="a-agent-avatar">✦</span><div><strong>DataLens Agent</strong><small>本次分析已完成 · 演示结果</small></div></div>
+          <div class="a-steps" aria-label="Agent 演示执行阶段"><span><i>1</i>识别字段</span><span><i>2</i>分组求和</span><span><i>3</i>生成图表</span><span><i>4</i>整理结论</span></div>
+          <div class="a-answer-title">华南最高，销售额 <em>¥12,439</em>。</div>
+          <p>对 10 条订单按地区汇总后，总销售额为 <b>¥37,093</b>。华南占总额约 33.5%。</p>
+          <section class="a-data-card" aria-labelledby="a-chart-title"><div class="block-head"><div><span class="eyebrow">RESULT / 01</span><h2 id="a-chart-title">地区销售额</h2></div><span class="unit">单位：元</span></div><div data-chart></div></section>
+          <details class="a-fold" open><summary>查看计算结果表 <span>4 行 ↗</span></summary><div data-table></div></details>
+          <details class="a-fold"><summary>查看 Tool 与参数 <span>2 次调用 ↗</span></summary><div class="a-param-grid"><div><code>group_by_analysis</code><p>group_column: <b>region</b><br>value_column: <b>sales</b><br>aggregation: <b>sum</b></p></div><div><code>generate_chart</code><p>type: <b>bar</b><br>x: <b>region</b><br>y: <b>sales_sum</b></p></div></div></details>
+          <div class="a-source">数据来源：<b>sales_demo.csv</b> · 10 行输入 → 4 行结果 · 演示执行记录</div>
+        </article>
+        <div class="a-composer" aria-label="静态输入框示意">继续问这份数据，例如“哪个产品卖得最好？”<span>发送 ↗</span></div>
+        <p class="prototype-note">输入框仅展示布局；本页不调用模型、数据库或分析接口。</p>
+      </div>
+    </div>
+  </main>
+
+  <main class="view view-b" data-variant="B" hidden>
+    <header class="b-header"><div class="b-brand">DATALENS <span>/ AGENT OPS</span></div><span>SALES_ANALYSIS_001</span><span class="b-live">● 演示记录 · 已完成</span></header>
+    <div class="b-workspace">
+      <aside class="b-brief">
+        <div class="study-label">B · AGENT EXECUTION BAY</div>
+        <h1>每一步执行，<br>都有去处。</h1>
+        <p>将提问、可视化结果和 Tool 轨迹并排摆放。适合讲解 Agent 如何把问题转成可验证的计算。</p>
+        <div class="b-question-label">用户问题 / INPUT</div>
+        <blockquote>各地区销售额分别是多少？哪个地区最高？</blockquote>
+        <div class="b-file"><span>◈</span><div><strong>sales_demo.csv</strong><small>10 行 · region / sales</small></div></div>
+        <a class="b-reference" href="https://github.com/eosphoros-ai/DB-GPT" target="_blank" rel="noopener noreferrer">参考 DB-GPT 的多工具分析流程 ↗</a>
+      </aside>
+      <section class="b-result" aria-labelledby="b-result-title">
+        <div class="b-result-top"><span class="b-kicker">ANALYSIS OUTPUT　/　04 REGIONS</span><span class="b-status">✓ 结果已生成</span></div>
+        <h2 id="b-result-title">华南位居第一。</h2>
+        <p>本次演示样例总销售额 <strong>¥37,093</strong>；华南 <strong>¥12,439</strong>，约占 33.5%。</p>
+        <div class="b-metrics"><div><span>最高地区</span><strong>华南</strong></div><div><span>销售额</span><strong>¥12,439</strong></div><div><span>分析行数</span><strong>10 → 4</strong></div></div>
+        <div class="b-chart-panel"><div class="block-head"><div><span class="eyebrow">VISUAL RESULT / 01</span><h3>地区销售额对比</h3></div><span class="unit">CNY</span></div><div data-chart></div></div>
+        <div class="b-table-panel"><div class="block-head"><h3>结构化结果</h3><span class="unit">由 Tool Result 形成</span></div><div data-table></div></div>
+      </section>
+      <aside class="b-trace" aria-label="演示执行轨迹">
+        <div class="b-trace-head"><span>EXECUTION TRACE</span><strong>演示执行轨迹</strong><small>产品级阶段，无模型内部推理内容</small></div>
+        <ol class="b-timeline">
+          <li><span class="b-node">01</span><div><small>AGENT · 完成</small><strong>识别意图与字段</strong><p>从数据集选择 <code>region</code> 与 <code>sales</code>。</p></div></li>
+          <li><span class="b-node">02</span><div><small>TOOL · 482 ms</small><strong>group_by_analysis</strong><pre>group_column: region
+value_column: sales
+aggregation: sum</pre><p>10 行输入，4 行结果</p></div></li>
+          <li><span class="b-node">03</span><div><small>TOOL · 126 ms</small><strong>generate_chart</strong><pre>type: bar
+x: region
+y: sales_sum</pre><p>生成地区销售额柱状图</p></div></li>
+          <li><span class="b-node">04</span><div><small>AGENT · 完成</small><strong>引用结果形成结论</strong><p>华南最高，¥12,439。</p></div></li>
+        </ol>
+        <div class="b-trace-foot">● 静态原型：耗时与状态仅是示例，不代表实际调用。</div>
+      </aside>
+    </div>
+  </main>
+
+  <main class="view view-c" data-variant="C" hidden>
+    <header class="c-header"><div class="c-brand"><span>◆</span> DataLens <b>Metrics</b></div><div class="c-header-links"><span>概览</span><strong>分析工作台</strong><span>指标目录</span></div><span class="sample-chip">静态演示 · sales_demo.csv</span></header>
+    <div class="c-wrap">
+      <div class="c-intro"><div><div class="study-label">C · TRUSTED METRICS <span>参考 <a href="https://github.com/Canner/WrenAI" target="_blank" rel="noopener noreferrer">WrenAI ↗</a></span></div><h1>先讲清指标，再相信图表。</h1><p>把业务问题、统计口径和来源放在一处，结果可以顺着定义向下核对。</p></div><div class="c-dataset-pill">当前样例 <b>sales_demo.csv</b><span>10 条订单 / 4 个地区</span></div></div>
+      <div class="c-question"><span>本次问题</span><strong>各地区销售额分别是多少？哪个地区最高？</strong><span class="c-query-status">✓ 演示分析已完成</span></div>
+      <div class="c-grid">
+        <aside class="c-definition">
+          <div class="c-card-head"><span class="eyebrow">METRIC DEFINITION</span><span class="c-verified">◆ 已核对</span></div>
+          <h2>销售额</h2><div class="c-symbol">Σ <code>sales</code></div>
+          <dl><dt>统计方式</dt><dd>求和 sum</dd><dt>分组维度</dt><dd><code>region</code></dd><dt>数据范围</dt><dd>sales_demo.csv 全部 10 行</dd><dt>结果粒度</dt><dd>地区 · 4 行</dd></dl>
+          <div class="c-tool-chain"><span>演示执行阶段</span><b>识别字段 → 分组求和 → 生成图表 → 形成结论</b></div>
+          <div class="c-tool-details"><code>group_by_analysis</code><p>group_column=region<br>value_column=sales<br>aggregation=sum</p><code>generate_chart</code><p>type=bar · x=region · y=sales_sum</p></div>
+        </aside>
+        <section class="c-insight" aria-labelledby="c-result-title"><div class="c-insight-head"><div><span class="eyebrow">VERIFIED ANALYSIS</span><h2 id="c-result-title">华南以 ¥12,439 领先</h2></div><span class="c-share">33.5%<small>占总额</small></span></div><p>四个地区总销售额 <strong>¥37,093</strong>。所有图表值均来自相同的分组结果。</p><div class="c-chart-card"><div class="block-head"><h3>地区销售额</h3><span class="unit">单位：元 · 降序</span></div><div data-chart></div></div><div class="c-table-card"><h3>对应数据表</h3><div data-table></div></div></section>
+      </div>
+      <div class="c-provenance"><div><span>01 / SOURCE</span><b>sales_demo.csv</b></div><i>→</i><div><span>02 / TOOL RESULT</span><b>10 行 → 4 行</b></div><i>→</i><div><span>03 / CHART</span><b>bar · region × sales_sum</b></div><i>→</i><div><span>04 / CONCLUSION</span><b>华南最高</b></div></div>
+      <p class="prototype-note">WrenAI 的当前主线着重数据语义与受治理查询；旧版聊天式 BI 界面保留于已冻结的 legacy/v1。本稿只借鉴“指标可追溯”思路，不声称本项目已实现语义层。</p>
+    </div>
+  </main>
+
+  <main class="view view-d" data-variant="D" hidden>
+    <header class="d-header"><div class="d-brand"><span>▦</span> DataLens <small>WORKBENCH</small></div><div class="d-tabs"><strong>分析工作台 <span>●</span></strong><span>sales_demo.csv</span></div><span class="d-header-tag">静态设计预览</span></header>
+    <div class="d-subbar"><span>工作区 / 销售样例 / 按地区汇总</span><span>参考 <a href="https://github.com/OtterMind/Chat2DB" target="_blank" rel="noopener noreferrer">Chat2DB ↗</a>　 ·　 D / DATA WORKSHOP</span></div>
+    <div class="d-layout">
+      <aside class="d-schema d-resizable" aria-label="数据字段面板，可拖动右下角调整宽度"><div class="d-pane-head"><span>DATA EXPLORER</span><strong>数据结构</strong></div><div class="d-tree"><div>▾　sales_demo.csv <small>10 rows</small></div><ul><li><span>◷</span> order_date <em>date</em></li><li class="d-field-active"><span>◇</span> region <em>text</em></li><li><span>◇</span> product <em>text</em></li><li class="d-field-active"><span>∑</span> sales <em>number</em></li><li><span>∑</span> quantity <em>number</em></li></ul></div><div class="d-schema-note"><b>当前问题</b><p>各地区销售额分别是多少？哪个地区最高？</p><small>Agent 选择字段 region 与 sales。</small></div><div class="d-resize-hint">↘ 拖动调整面板宽度</div></aside>
+      <section class="d-method d-resizable" aria-label="Tool 参数面板，可拖动右下角调整宽度"><div class="d-pane-head"><span>AGENT / TOOL PLAN</span><strong>执行方法 <small>示例</small></strong></div><div class="d-stage-list"><span>① 识别问题</span><span>② 聚合计算</span><span>③ 生成图表</span><span>④ 输出结论</span></div><div class="d-code-tabs"><strong>tool-calls.json</strong><span>只读 · 演示参数</span></div><div class="d-code"><div class="d-code-line"><span>01</span><code>{</code></div><div class="d-code-line"><span>02</span><code>  <b>"tool_name"</b>: <em>"group_by_analysis"</em>,</code></div><div class="d-code-line"><span>03</span><code>  <b>"group_column"</b>: <em>"region"</em>,</code></div><div class="d-code-line"><span>04</span><code>  <b>"value_column"</b>: <em>"sales"</em>,</code></div><div class="d-code-line"><span>05</span><code>  <b>"aggregation"</b>: <em>"sum"</em></code></div><div class="d-code-line"><span>06</span><code>}</code></div><div class="d-code-line"><span>07</span><code>→ <i>10 rows in / 4 rows out / 482 ms</i></code></div><div class="d-code-line"><span>08</span><code>{</code></div><div class="d-code-line"><span>09</span><code>  <b>"tool_name"</b>: <em>"generate_chart"</em>,</code></div><div class="d-code-line"><span>10</span><code>  <b>"type"</b>: <em>"bar"</em>, <b>"x"</b>: <em>"region"</em>,</code></div><div class="d-code-line"><span>11</span><code>  <b>"y"</b>: <em>"sales_sum"</em></code></div><div class="d-code-line"><span>12</span><code>}</code></div></div><div class="d-method-foot">示例耗时 482 + 126 ms。页面不执行 Tool，也不开放 SQL 写入。</div></section>
+      <section class="d-output" aria-labelledby="d-result-title"><div class="d-pane-head"><span>RESULT / PREVIEW</span><strong id="d-result-title">分析结果 <small>✓ 成功</small></strong></div><div class="d-output-inner"><div class="d-answer"><span>结论 / ANSWER</span><h1>华南销售额最高</h1><p>¥12,439，占样例总额 ¥37,093 的约 33.5%。</p></div><div class="d-chart-card"><div class="block-head"><h2>地区销售额</h2><span class="unit">元 · bar</span></div><div data-chart></div></div><div class="d-table-card"><h2>结果集 <small>4 rows</small></h2><div data-table></div></div><div class="d-output-source">SOURCE　sales_demo.csv → group_by_analysis → generate_chart</div></div></section>
+    </div>
+  </main>
+
+  <main class="view view-e" data-variant="E" hidden>
+    <header class="e-header"><div class="e-logo"><span>✳</span> DataLens <b>Review</b></div><span>分析记录 / SALES-001</span><span class="sample-chip">● 静态演示数据</span></header>
+    <div class="e-wrap"><div class="study-label">E · ANALYSIS REVIEW <span>参考 <a href="https://github.com/Dataherald/dataherald" target="_blank" rel="noopener noreferrer">Dataherald ↗</a></span></div><div class="e-title-row"><div><h1>让结论经得起回看。</h1><p>面向分析审阅：先看到答案，再检查每一条执行记录、参数与异常计数。</p></div><span class="e-record">RECORD<br><b>#001</b></span></div>
+      <div class="e-question"><span>用户问题</span><strong>各地区销售额分别是多少？哪个地区最高？</strong><small>数据集：sales_demo.csv · 10 条订单</small></div>
+      <section class="e-verdict" aria-labelledby="e-verdict-title"><div class="e-verdict-top"><span>ANALYSIS VERDICT</span><span>✓ 演示分析完成</span></div><div class="e-verdict-body"><div><span class="e-verdict-label">经 Tool 结果核对的结论</span><h2 id="e-verdict-title">华南销售额最高。</h2><p>金额 <strong>¥12,439</strong>，占四地区总销售额 <strong>¥37,093</strong> 的约 <strong>33.5%</strong>。</p></div><div class="e-score"><strong>04</strong><span>地区结果</span></div></div></section>
+      <div class="e-review-grid"><section class="e-result-panel"><div class="e-section-head"><div><span>01 / RESULT</span><h2>数值与图表</h2></div><small>单位：元</small></div><div data-chart></div><div data-table></div><div class="e-source-line">图表与表格使用同一份 4 行 Tool 结果。</div></section><aside class="e-audit"><div class="e-section-head"><div><span>02 / AUDIT</span><h2>执行审阅</h2></div><small>演示记录</small></div><div class="e-counters"><div><b>2</b><span>Tool 成功</span></div><div><b>0</b><span>Tool 失败</span></div><div><b>608<span>ms</span></b><span>示例耗时合计</span></div></div><ol class="e-log"><li><span>01</span><div><b>Agent · 识别分析意图</b><small>字段 region + sales；操作：分组求和</small></div><em>完成</em></li><li><span>02</span><div><b>group_by_analysis</b><small>group_column=region · value_column=sales · aggregation=sum<br>10 行输入 → 4 行结果</small></div><em>482 ms</em></li><li><span>03</span><div><b>generate_chart</b><small>type=bar · x=region · y=sales_sum</small></div><em>126 ms</em></li><li><span>04</span><div><b>Agent · 生成总结</b><small>结论仅引用上方的工具结果</small></div><em>完成</em></li></ol><div class="e-audit-foot">本次样例没有失败调用。失败计数用于说明审阅界面的信息位置，不代表真实监控能力。</div></aside></div>
+      <footer class="e-footer"><span>来源 <b>sales_demo.csv</b>　/　10 行 → 4 行</span><span>开源参考只用于分析交互，不复刻视觉素材。</span></footer>
+    </div>
+  </main>
+</body>
+</html>

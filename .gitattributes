@@ -1,0 +1,3 @@
+# MySQL entrypoint scripts are executed inside Linux containers.
+*.sh text eol=lf
+Dockerfile text eol=lf

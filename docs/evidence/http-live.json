@@ -1,0 +1,136 @@
+{
+  "requests": [
+    {
+      "method": "GET",
+      "uri": "/health/live",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/health/ready",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "POST",
+      "uri": "/api/v1/auth/register",
+      "status": 201,
+      "content_type": "application/json"
+    },
+    {
+      "method": "POST",
+      "uri": "/api/v1/datasets/upload",
+      "status": 202,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/datasets/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/datasets/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/datasets/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/datasets/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/datasets/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/datasets/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/datasets/1/preview",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "POST",
+      "uri": "/api/v1/analysis/sessions",
+      "status": 201,
+      "content_type": "application/json"
+    },
+    {
+      "method": "POST",
+      "uri": "/api/v1/analysis/runs",
+      "status": 202,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/analysis/runs/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/analysis/runs/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/analysis/runs/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/analysis/runs/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/analysis/runs/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/analysis/runs/1",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "POST",
+      "uri": "/api/v1/analysis/runs",
+      "status": 200,
+      "content_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "uri": "/api/v1/analysis/runs/1/trace",
+      "status": 200,
+      "content_type": "application/json"
+    }
+  ],
+  "dataset_rows": 22,
+  "task_status": "failed",
+  "task_error_code": "MODEL_UNAVAILABLE",
+  "trace_steps": 0,
+  "request_id_replayed": true,
+  "model_configured": false
+}

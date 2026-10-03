@@ -1,0 +1,22 @@
+# Modules
+
+## datasets
+path: backend/app/services/datasets.py；backend/app/routers/datasets.py
+role: 上传、解析、类型/质量画像、投影与授权加载
+entry: /api/v1/datasets；DatasetService
+depends: models、database、config
+index: modules/datasets.md
+
+## analysis
+path: backend/app/agent/；backend/app/analysis/；backend/app/tools/；backend/app/services/
+role: 结构化计划、通用 Registry/Engine、类型化工具、中间工件、后台任务与执行证据
+entry: backend/app/routers/analysis.py；analysis_runs.py
+depends: datasets、models、model provider、database
+index: modules/analysis.md
+
+## frontend
+path: frontend/src/
+role: 认证、数据集、分析任务、结果与图表工作台
+entry: frontend/src/main.js；App.vue；router/
+depends: api/client.js、Pinia、ECharts
+index: modules/frontend.md

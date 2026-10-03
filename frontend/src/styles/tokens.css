@@ -1,0 +1,28 @@
+:root {
+  font-family: "Segoe UI Variable Text", "Microsoft YaHei UI", system-ui, sans-serif;
+  color: #12213a;
+  background: #f3f6fa;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --ink: #12213a;
+  --muted: #69768b;
+  --brand: #2f6bff;
+  --evidence: #18a999;
+  --canvas: #f3f6fa;
+  --surface: #ffffff;
+  --line: #e4e9f1;
+  --danger: #d9415d;
+  --font-data: "Cascadia Mono", Consolas, monospace;
+  --radius-sm: 8px;
+  --radius-card: 14px;
+  --shadow-card: 0 10px 30px rgb(31 52 81 / 4%);
+  --el-color-primary: #2f6bff;
+  --el-color-success: #18a999;
+  --el-color-danger: #d9415d;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input { font: inherit; }
+button:focus-visible, a:focus-visible { outline: 3px solid rgb(47 107 255 / 32%); outline-offset: 3px; }
+::selection { color: #fff; background: #2f6bff; }

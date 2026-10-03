@@ -1,0 +1,43 @@
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / Vue
+node_modules/
+dist/
+.vite/
+coverage/
+
+# Local application data
+backend/uploads/
+backend/data/
+backend/logs/
+backend/artifacts/
+frontend/test-results/
+frontend/playwright-report/
+*.log
+*.sqlite
+*.sqlite3
+
+# Editor and task scratch
+.idea/
+.vscode/
+.superpowers/sdd/
+frontend/.playwright-cli/
+/.playwright-mcp/

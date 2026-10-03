@@ -1,0 +1,70 @@
+name: datalens
+x-backend: &backend
+  build: ./backend
+  environment: &app-env
+    APP_ENV: development
+    SECRET_KEY: ${SECRET_KEY:?Copy .env.example to .env and configure SECRET_KEY}
+    DATABASE_URL: mysql+pymysql://datalens_app:${MYSQL_APP_PASSWORD:?Configure MYSQL_APP_PASSWORD}@mysql:3306/datalens_agent?charset=utf8mb4
+    PROJECTION_DATABASE_URL: mysql+pymysql://datalens_projection:${MYSQL_PROJECTION_PASSWORD:?Configure MYSQL_PROJECTION_PASSWORD}@mysql:3306/datalens_data?charset=utf8mb4
+    SQL_READONLY_DATABASE_URL: mysql+pymysql://datalens_readonly:${MYSQL_READONLY_PASSWORD:?Configure MYSQL_READONLY_PASSWORD}@mysql:3306/datalens_data?charset=utf8mb4
+    DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+    DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+    FRONTEND_ORIGIN: http://localhost:${FRONTEND_PORT:-8080}
+    ARTIFACT_DIR: /data/artifacts
+    UPLOAD_DIR: /data/uploads
+  volumes:
+    - app-data:/data
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: datalens_agent
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?Configure MYSQL_APP_PASSWORD}
+      MYSQL_PROJECTION_PASSWORD: ${MYSQL_PROJECTION_PASSWORD:?Configure MYSQL_PROJECTION_PASSWORD}
+      MYSQL_READONLY_PASSWORD: ${MYSQL_READONLY_PASSWORD:?Configure MYSQL_READONLY_PASSWORD}
+      MYSQL_MIGRATION_PASSWORD: ${MYSQL_MIGRATION_PASSWORD:?Configure MYSQL_MIGRATION_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./deploy/mysql/init-users.sh:/docker-entrypoint-initdb.d/10-users.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -uroot -e "SELECT 1" >/dev/null 2>&1']
+      interval: 5s
+      timeout: 5s
+      retries: 40
+  migrate:
+    <<: *backend
+    environment:
+      <<: *app-env
+      MIGRATION_DATABASE_URL: mysql+pymysql://datalens_migrate:${MYSQL_MIGRATION_PASSWORD:?Configure MYSQL_MIGRATION_PASSWORD}@mysql:3306/datalens_agent?charset=utf8mb4
+      TASK_EXECUTOR_ENABLED: "false"
+    command: [alembic, upgrade, head]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: "no"
+  backend:
+    <<: *backend
+    environment:
+      <<: *app-env
+      TASK_EXECUTOR_ENABLED: "true"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health/ready", timeout=3)']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+  frontend:
+    build: ./frontend
+    ports: ["127.0.0.1:${FRONTEND_PORT:-8080}:80"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  mysql-data:
+  app-data:

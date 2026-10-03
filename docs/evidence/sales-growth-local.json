@@ -1,0 +1,805 @@
+{
+  "validation": "deterministic tools only; no MySQL or model call",
+  "source": "sample-data/sales_growth_demo.csv",
+  "plan": {
+    "version": "1.0",
+    "intent": "Six-month product growth",
+    "steps": [
+      {
+        "step_id": "monthly",
+        "tool_name": "time_group_analysis",
+        "arguments": {
+          "date_column": "order_date",
+          "group_column": "product",
+          "value_column": "sales",
+          "months": 6
+        },
+        "depends_on": [],
+        "source_ref": "dataset",
+        "required": true
+      },
+      {
+        "step_id": "growth",
+        "tool_name": "growth_analysis",
+        "arguments": {
+          "date_column": "order_date",
+          "group_column": "product",
+          "value_column": "sales_sum",
+          "top_n": 3
+        },
+        "depends_on": [
+          "monthly"
+        ],
+        "source_ref": "monthly",
+        "required": true
+      },
+      {
+        "step_id": "chart",
+        "tool_name": "generate_chart",
+        "arguments": {
+          "type": "line",
+          "dimension": "order_date",
+          "group_column": "product",
+          "metrics": [
+            {
+              "field": "sales_sum"
+            }
+          ],
+          "title": "Six-month sales trend",
+          "selected_groups": {
+            "$ref": "growth",
+            "field": "selected_groups"
+          }
+        },
+        "depends_on": [
+          "monthly",
+          "growth"
+        ],
+        "source_ref": "monthly",
+        "required": true
+      }
+    ],
+    "completion_requirements": [
+      "monthly",
+      "growth",
+      "chart"
+    ]
+  },
+  "trace": [
+    {
+      "call_id": "monthly",
+      "step_id": "monthly",
+      "attempt": 1,
+      "tool_name": "time_group_analysis",
+      "schema_version": "2.0",
+      "parameters": {
+        "date_column": "order_date",
+        "group_column": "product",
+        "value_column": "sales",
+        "months": 6
+      },
+      "source_ref": "dataset",
+      "status": "succeeded",
+      "started_at": "2026-10-02T04:53:06.415211+00:00",
+      "completed_at": "2026-10-02T04:53:06.422211+00:00",
+      "duration_ms": 6,
+      "result_summary": "time_group_analysis completed",
+      "artifact_id": null,
+      "error_code": null
+    },
+    {
+      "call_id": "growth",
+      "step_id": "growth",
+      "attempt": 1,
+      "tool_name": "growth_analysis",
+      "schema_version": "2.0",
+      "parameters": {
+        "date_column": "order_date",
+        "group_column": "product",
+        "value_column": "sales_sum",
+        "top_n": 3
+      },
+      "source_ref": "monthly",
+      "status": "succeeded",
+      "started_at": "2026-10-02T04:53:06.422211+00:00",
+      "completed_at": "2026-10-02T04:53:06.427806+00:00",
+      "duration_ms": 5,
+      "result_summary": "growth_analysis completed",
+      "artifact_id": null,
+      "error_code": null
+    },
+    {
+      "call_id": "chart",
+      "step_id": "chart",
+      "attempt": 1,
+      "tool_name": "generate_chart",
+      "schema_version": "2.0",
+      "parameters": {
+        "type": "line",
+        "dimension": "order_date",
+        "group_column": "product",
+        "metrics": [
+          {
+            "field": "sales_sum"
+          }
+        ],
+        "title": "Six-month sales trend",
+        "selected_groups": {
+          "$ref": "growth",
+          "field": "selected_groups"
+        }
+      },
+      "source_ref": "monthly",
+      "status": "succeeded",
+      "started_at": "2026-10-02T04:53:06.427806+00:00",
+      "completed_at": "2026-10-02T04:53:06.428596+00:00",
+      "duration_ms": 0,
+      "result_summary": "generate_chart completed",
+      "artifact_id": null,
+      "error_code": null
+    }
+  ],
+  "results": {
+    "monthly": {
+      "columns": [
+        "order_date",
+        "product",
+        "sales_sum"
+      ],
+      "rows": [
+        {
+          "order_date": "2026-01-01T00:00:00",
+          "product": "A",
+          "sales_sum": 100.0
+        },
+        {
+          "order_date": "2026-01-01T00:00:00",
+          "product": "B",
+          "sales_sum": 100.0
+        },
+        {
+          "order_date": "2026-01-01T00:00:00",
+          "product": "C",
+          "sales_sum": 100.0
+        },
+        {
+          "order_date": "2026-01-01T00:00:00",
+          "product": "D",
+          "sales_sum": 0.0
+        },
+        {
+          "order_date": "2026-01-01T00:00:00",
+          "product": "E",
+          "sales_sum": null
+        },
+        {
+          "order_date": "2026-02-01T00:00:00",
+          "product": "A",
+          "sales_sum": 120.0
+        },
+        {
+          "order_date": "2026-02-01T00:00:00",
+          "product": "B",
+          "sales_sum": 110.0
+        },
+        {
+          "order_date": "2026-02-01T00:00:00",
+          "product": "C",
+          "sales_sum": 104.0
+        },
+        {
+          "order_date": "2026-02-01T00:00:00",
+          "product": "D",
+          "sales_sum": null
+        },
+        {
+          "order_date": "2026-02-01T00:00:00",
+          "product": "E",
+          "sales_sum": 80.0
+        },
+        {
+          "order_date": "2026-03-01T00:00:00",
+          "product": "A",
+          "sales_sum": 140.0
+        },
+        {
+          "order_date": "2026-03-01T00:00:00",
+          "product": "B",
+          "sales_sum": 120.0
+        },
+        {
+          "order_date": "2026-03-01T00:00:00",
+          "product": "C",
+          "sales_sum": 108.0
+        },
+        {
+          "order_date": "2026-03-01T00:00:00",
+          "product": "D",
+          "sales_sum": null
+        },
+        {
+          "order_date": "2026-03-01T00:00:00",
+          "product": "E",
+          "sales_sum": null
+        },
+        {
+          "order_date": "2026-04-01T00:00:00",
+          "product": "A",
+          "sales_sum": 160.0
+        },
+        {
+          "order_date": "2026-04-01T00:00:00",
+          "product": "B",
+          "sales_sum": 130.0
+        },
+        {
+          "order_date": "2026-04-01T00:00:00",
+          "product": "C",
+          "sales_sum": 112.0
+        },
+        {
+          "order_date": "2026-04-01T00:00:00",
+          "product": "D",
+          "sales_sum": null
+        },
+        {
+          "order_date": "2026-04-01T00:00:00",
+          "product": "E",
+          "sales_sum": null
+        },
+        {
+          "order_date": "2026-05-01T00:00:00",
+          "product": "A",
+          "sales_sum": 180.0
+        },
+        {
+          "order_date": "2026-05-01T00:00:00",
+          "product": "B",
+          "sales_sum": 140.0
+        },
+        {
+          "order_date": "2026-05-01T00:00:00",
+          "product": "C",
+          "sales_sum": 116.0
+        },
+        {
+          "order_date": "2026-05-01T00:00:00",
+          "product": "D",
+          "sales_sum": null
+        },
+        {
+          "order_date": "2026-05-01T00:00:00",
+          "product": "E",
+          "sales_sum": null
+        },
+        {
+          "order_date": "2026-06-01T00:00:00",
+          "product": "A",
+          "sales_sum": 200.0
+        },
+        {
+          "order_date": "2026-06-01T00:00:00",
+          "product": "B",
+          "sales_sum": 150.0
+        },
+        {
+          "order_date": "2026-06-01T00:00:00",
+          "product": "C",
+          "sales_sum": 120.0
+        },
+        {
+          "order_date": "2026-06-01T00:00:00",
+          "product": "D",
+          "sales_sum": 300.0
+        },
+        {
+          "order_date": "2026-06-01T00:00:00",
+          "product": "E",
+          "sales_sum": 400.0
+        }
+      ],
+      "row_count": 30,
+      "window_start": "2026-01",
+      "window_end": "2026-06",
+      "invalid_date_count": 0
+    },
+    "growth": {
+      "columns": [
+        "product",
+        "first_month_value",
+        "last_month_value",
+        "absolute_growth",
+        "growth_rate"
+      ],
+      "rows": [
+        {
+          "product": "A",
+          "first_month_value": 100.0,
+          "last_month_value": 200.0,
+          "absolute_growth": 100.0,
+          "growth_rate": 1.0
+        },
+        {
+          "product": "B",
+          "first_month_value": 100.0,
+          "last_month_value": 150.0,
+          "absolute_growth": 50.0,
+          "growth_rate": 0.5
+        },
+        {
+          "product": "C",
+          "first_month_value": 100.0,
+          "last_month_value": 120.0,
+          "absolute_growth": 20.0,
+          "growth_rate": 0.2
+        }
+      ],
+      "row_count": 3,
+      "selected_groups": [
+        "A",
+        "B",
+        "C"
+      ],
+      "excluded_count": 2,
+      "excluded_groups": [
+        "D",
+        "E"
+      ],
+      "invalid_date_count": 0,
+      "window_start": "2026-01",
+      "window_end": "2026-06"
+    },
+    "chart": {
+      "version": "1.0",
+      "type": "line",
+      "title": "Six-month sales trend",
+      "dimension": {
+        "field": "order_date",
+        "label": "order_date",
+        "type": "time"
+      },
+      "metrics": [
+        {
+          "field": "sales_sum",
+          "label": "sales_sum",
+          "aggregation": "sum",
+          "unit": null
+        }
+      ],
+      "series": [
+        {
+          "name": "A",
+          "data": [
+            {
+              "name": "2026-01-01T00:00:00",
+              "value": 100.0
+            },
+            {
+              "name": "2026-02-01T00:00:00",
+              "value": 120.0
+            },
+            {
+              "name": "2026-03-01T00:00:00",
+              "value": 140.0
+            },
+            {
+              "name": "2026-04-01T00:00:00",
+              "value": 160.0
+            },
+            {
+              "name": "2026-05-01T00:00:00",
+              "value": 180.0
+            },
+            {
+              "name": "2026-06-01T00:00:00",
+              "value": 200.0
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "data": [
+            {
+              "name": "2026-01-01T00:00:00",
+              "value": 100.0
+            },
+            {
+              "name": "2026-02-01T00:00:00",
+              "value": 110.0
+            },
+            {
+              "name": "2026-03-01T00:00:00",
+              "value": 120.0
+            },
+            {
+              "name": "2026-04-01T00:00:00",
+              "value": 130.0
+            },
+            {
+              "name": "2026-05-01T00:00:00",
+              "value": 140.0
+            },
+            {
+              "name": "2026-06-01T00:00:00",
+              "value": 150.0
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "data": [
+            {
+              "name": "2026-01-01T00:00:00",
+              "value": 100.0
+            },
+            {
+              "name": "2026-02-01T00:00:00",
+              "value": 104.0
+            },
+            {
+              "name": "2026-03-01T00:00:00",
+              "value": 108.0
+            },
+            {
+              "name": "2026-04-01T00:00:00",
+              "value": 112.0
+            },
+            {
+              "name": "2026-05-01T00:00:00",
+              "value": 116.0
+            },
+            {
+              "name": "2026-06-01T00:00:00",
+              "value": 120.0
+            }
+          ]
+        }
+      ],
+      "source_tool_call_id": "monthly",
+      "notes": []
+    }
+  },
+  "report": {
+    "version": "1.0",
+    "status": "partial",
+    "answer": null,
+    "findings": [],
+    "tables": [
+      {
+        "columns": [
+          "order_date",
+          "product",
+          "sales_sum"
+        ],
+        "rows": [
+          {
+            "order_date": "2026-01-01T00:00:00",
+            "product": "A",
+            "sales_sum": 100.0
+          },
+          {
+            "order_date": "2026-01-01T00:00:00",
+            "product": "B",
+            "sales_sum": 100.0
+          },
+          {
+            "order_date": "2026-01-01T00:00:00",
+            "product": "C",
+            "sales_sum": 100.0
+          },
+          {
+            "order_date": "2026-01-01T00:00:00",
+            "product": "D",
+            "sales_sum": 0.0
+          },
+          {
+            "order_date": "2026-01-01T00:00:00",
+            "product": "E",
+            "sales_sum": null
+          },
+          {
+            "order_date": "2026-02-01T00:00:00",
+            "product": "A",
+            "sales_sum": 120.0
+          },
+          {
+            "order_date": "2026-02-01T00:00:00",
+            "product": "B",
+            "sales_sum": 110.0
+          },
+          {
+            "order_date": "2026-02-01T00:00:00",
+            "product": "C",
+            "sales_sum": 104.0
+          },
+          {
+            "order_date": "2026-02-01T00:00:00",
+            "product": "D",
+            "sales_sum": null
+          },
+          {
+            "order_date": "2026-02-01T00:00:00",
+            "product": "E",
+            "sales_sum": 80.0
+          },
+          {
+            "order_date": "2026-03-01T00:00:00",
+            "product": "A",
+            "sales_sum": 140.0
+          },
+          {
+            "order_date": "2026-03-01T00:00:00",
+            "product": "B",
+            "sales_sum": 120.0
+          },
+          {
+            "order_date": "2026-03-01T00:00:00",
+            "product": "C",
+            "sales_sum": 108.0
+          },
+          {
+            "order_date": "2026-03-01T00:00:00",
+            "product": "D",
+            "sales_sum": null
+          },
+          {
+            "order_date": "2026-03-01T00:00:00",
+            "product": "E",
+            "sales_sum": null
+          },
+          {
+            "order_date": "2026-04-01T00:00:00",
+            "product": "A",
+            "sales_sum": 160.0
+          },
+          {
+            "order_date": "2026-04-01T00:00:00",
+            "product": "B",
+            "sales_sum": 130.0
+          },
+          {
+            "order_date": "2026-04-01T00:00:00",
+            "product": "C",
+            "sales_sum": 112.0
+          },
+          {
+            "order_date": "2026-04-01T00:00:00",
+            "product": "D",
+            "sales_sum": null
+          },
+          {
+            "order_date": "2026-04-01T00:00:00",
+            "product": "E",
+            "sales_sum": null
+          },
+          {
+            "order_date": "2026-05-01T00:00:00",
+            "product": "A",
+            "sales_sum": 180.0
+          },
+          {
+            "order_date": "2026-05-01T00:00:00",
+            "product": "B",
+            "sales_sum": 140.0
+          },
+          {
+            "order_date": "2026-05-01T00:00:00",
+            "product": "C",
+            "sales_sum": 116.0
+          },
+          {
+            "order_date": "2026-05-01T00:00:00",
+            "product": "D",
+            "sales_sum": null
+          },
+          {
+            "order_date": "2026-05-01T00:00:00",
+            "product": "E",
+            "sales_sum": null
+          },
+          {
+            "order_date": "2026-06-01T00:00:00",
+            "product": "A",
+            "sales_sum": 200.0
+          },
+          {
+            "order_date": "2026-06-01T00:00:00",
+            "product": "B",
+            "sales_sum": 150.0
+          },
+          {
+            "order_date": "2026-06-01T00:00:00",
+            "product": "C",
+            "sales_sum": 120.0
+          },
+          {
+            "order_date": "2026-06-01T00:00:00",
+            "product": "D",
+            "sales_sum": 300.0
+          },
+          {
+            "order_date": "2026-06-01T00:00:00",
+            "product": "E",
+            "sales_sum": 400.0
+          }
+        ],
+        "row_count": 30,
+        "window_start": "2026-01",
+        "window_end": "2026-06",
+        "invalid_date_count": 0,
+        "truncated": false,
+        "source_ref": "monthly"
+      },
+      {
+        "columns": [
+          "product",
+          "first_month_value",
+          "last_month_value",
+          "absolute_growth",
+          "growth_rate"
+        ],
+        "rows": [
+          {
+            "product": "A",
+            "first_month_value": 100.0,
+            "last_month_value": 200.0,
+            "absolute_growth": 100.0,
+            "growth_rate": 1.0
+          },
+          {
+            "product": "B",
+            "first_month_value": 100.0,
+            "last_month_value": 150.0,
+            "absolute_growth": 50.0,
+            "growth_rate": 0.5
+          },
+          {
+            "product": "C",
+            "first_month_value": 100.0,
+            "last_month_value": 120.0,
+            "absolute_growth": 20.0,
+            "growth_rate": 0.2
+          }
+        ],
+        "row_count": 3,
+        "selected_groups": [
+          "A",
+          "B",
+          "C"
+        ],
+        "excluded_count": 2,
+        "excluded_groups": [
+          "D",
+          "E"
+        ],
+        "invalid_date_count": 0,
+        "window_start": "2026-01",
+        "window_end": "2026-06",
+        "truncated": false,
+        "source_ref": "growth"
+      }
+    ],
+    "charts": [
+      {
+        "version": "1.0",
+        "type": "line",
+        "title": "Six-month sales trend",
+        "dimension": {
+          "field": "order_date",
+          "label": "order_date",
+          "type": "time"
+        },
+        "metrics": [
+          {
+            "field": "sales_sum",
+            "label": "sales_sum",
+            "aggregation": "sum",
+            "unit": null
+          }
+        ],
+        "series": [
+          {
+            "name": "A",
+            "data": [
+              {
+                "name": "2026-01-01T00:00:00",
+                "value": 100.0
+              },
+              {
+                "name": "2026-02-01T00:00:00",
+                "value": 120.0
+              },
+              {
+                "name": "2026-03-01T00:00:00",
+                "value": 140.0
+              },
+              {
+                "name": "2026-04-01T00:00:00",
+                "value": 160.0
+              },
+              {
+                "name": "2026-05-01T00:00:00",
+                "value": 180.0
+              },
+              {
+                "name": "2026-06-01T00:00:00",
+                "value": 200.0
+              }
+            ]
+          },
+          {
+            "name": "B",
+            "data": [
+              {
+                "name": "2026-01-01T00:00:00",
+                "value": 100.0
+              },
+              {
+                "name": "2026-02-01T00:00:00",
+                "value": 110.0
+              },
+              {
+                "name": "2026-03-01T00:00:00",
+                "value": 120.0
+              },
+              {
+                "name": "2026-04-01T00:00:00",
+                "value": 130.0
+              },
+              {
+                "name": "2026-05-01T00:00:00",
+                "value": 140.0
+              },
+              {
+                "name": "2026-06-01T00:00:00",
+                "value": 150.0
+              }
+            ]
+          },
+          {
+            "name": "C",
+            "data": [
+              {
+                "name": "2026-01-01T00:00:00",
+                "value": 100.0
+              },
+              {
+                "name": "2026-02-01T00:00:00",
+                "value": 104.0
+              },
+              {
+                "name": "2026-03-01T00:00:00",
+                "value": 108.0
+              },
+              {
+                "name": "2026-04-01T00:00:00",
+                "value": 112.0
+              },
+              {
+                "name": "2026-05-01T00:00:00",
+                "value": 116.0
+              },
+              {
+                "name": "2026-06-01T00:00:00",
+                "value": 120.0
+              }
+            ]
+          }
+        ],
+        "source_tool_call_id": "monthly",
+        "notes": [],
+        "source_ref": "monthly"
+      }
+    ],
+    "warnings": [
+      "2 个分组因首月非正或首末月缺失未参与增长率排名",
+      "模型总结不可用，以下保留真实计算结果"
+    ],
+    "evidence_refs": [
+      "monthly",
+      "growth",
+      "chart"
+    ],
+    "incomplete_steps": []
+  }
+}

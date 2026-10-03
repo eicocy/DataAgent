@@ -1,0 +1,311 @@
+<script>
+import { ChatLineRound, DataAnalysis, Refresh, Promotion } from '@element-plus/icons-vue'
+
+import AppShell from '../components/AppShell.vue'
+import AgentSteps from '../components/AgentSteps.vue'
+import AnalysisResult from '../components/AnalysisResult.vue'
+import { mapState } from 'pinia'
+import { useAnalysisStore } from '../stores/analysis'
+import { analysisApi } from '../api/analysis'
+import { datasetApi } from '../api/datasets'
+
+export default {
+  name: 'AnalysisWorkspaceView',
+  components: { AppShell, AgentSteps, AnalysisResult, ChatLineRound, DataAnalysis, Refresh, Promotion },
+  data() {
+    return {
+      dataset: null,
+      datasetChoices: [],
+      selectedDatasetId: null,
+      choosingDataset: false,
+      datasetSearchToken: 0,
+      cancelRequested: false,
+      sessionId: null,
+      messages: [],
+      messageCursor: null,
+      messageCount: 0,
+      olderLoading: false,
+      question: '',
+      loading: false,
+      initializing: true,
+      errorMessage: '',
+      controller: null,
+    }
+  },
+  computed: {
+    ...mapState(useAnalysisStore, { activeTrace: 'trace', activeResult: 'result' }),
+    latestEvidence() { return [...this.messages].reverse().find((message) => message.evidence)?.evidence || null },
+    runningLabel() {
+      if (this.cancelRequested) return '正在取消任务…'
+      if (!this.activeResult?.agent_response?.intent) return '正在理解问题…'
+      if (!this.activeTrace?.plan) return '正在规划分析…'
+      const steps = this.activeTrace.plan.steps || []
+      const running = steps.find((step) => step.status === 'RUNNING')
+      if (running) return running.tool_name === 'generate_chart' ? '正在绘制图表…' : '正在计算数据…'
+      if (steps.length && steps.every((step) => ['COMPLETED', 'SKIPPED', 'FAILED'].includes(step.status))) return '正在总结结果…'
+      return '正在执行分析…'
+    },
+  },
+  watch: {
+    '$route.params.sessionId'(value) {
+      if (value && Number(value) !== this.sessionId) this.initializeWorkspace()
+    },
+  },
+  created() { this.initializeWorkspace() },
+  beforeUnmount() { this.controller?.abort() },
+  methods: {
+    async initializeWorkspace() {
+      // 路由切换只停止客户端轮询，后台任务仍可在原会话恢复。
+      this.controller?.abort()
+      const controller = new AbortController()
+      this.controller = controller
+      this.loading = false
+      this.initializing = true
+      this.errorMessage = ''
+      this.messages = []
+      this.olderLoading = false
+      this.messageCursor = null
+      this.cancelRequested = false
+      this.choosingDataset = false
+      let historyMessages = []
+      try {
+        const queryDatasetId = this.$route.query.datasetId
+        const routeSessionId = this.$route.params.sessionId
+        if (!routeSessionId) {
+          this.dataset = queryDatasetId ? await datasetApi.detail(queryDatasetId, { signal: controller.signal }) : null
+          if (!this.isCurrent(controller)) return
+          const session = await analysisApi.createSession({ dataset_id: this.dataset?.id ?? null }, { signal: controller.signal })
+          if (!this.isCurrent(controller)) return
+          const query = { ...this.$route.query, datasetId: queryDatasetId }
+          this.$router.replace({ name: 'analysis', params: { sessionId: session.id }, query })
+          this.sessionId = session.id
+        } else {
+          this.sessionId = Number(routeSessionId)
+          const history = await analysisApi.session(this.sessionId, {}, { signal: controller.signal })
+          if (!this.isCurrent(controller)) return
+          const datasetId = history.dataset?.id || queryDatasetId
+          const dataset = datasetId ? await datasetApi.detail(datasetId, { signal: controller.signal }) : null
+          if (!this.isCurrent(controller)) return
+          this.dataset = dataset
+          historyMessages = history.messages
+          this.messages = history.messages.map(this.toChatMessage)
+          // 澄清候选以持久任务详情为准，刷新后恢复最近的待补充响应。
+          const latest = this.messages.at(-1)
+          if (latest?.role === 'assistant' && latest.evidence?.status === 'waiting') {
+            const restored = await analysisApi.run(latest.evidence.record_id, { signal: controller.signal })
+            if (!this.isCurrent(controller)) return
+            latest.evidence = restored
+          }
+          this.messageCursor = history.next_cursor
+          this.messageCount = history.message_count
+        }
+        this.selectedDatasetId = this.dataset?.id ?? null
+        const available = await datasetApi.list({ status: 'ready', page: 1, page_size: 50 }, { signal: controller.signal })
+        if (!this.isCurrent(controller)) return
+        this.datasetChoices = available?.items || []
+        if (this.dataset && !this.datasetChoices.some((item) => item.id === this.dataset.id)) this.datasetChoices.push(this.dataset)
+        if (this.$route.query.question) this.question = String(this.$route.query.question)
+        const pending = useAnalysisStore().restore(this.sessionId, this.dataset?.id ?? null, historyMessages)
+        if (pending) {
+          this.loading = true
+          this.resumeTask(controller).catch((error) => { if (this.isCurrent(controller) && error.name !== 'AbortError' && error.code !== 'ERR_CANCELED') this.errorMessage = error.message }).finally(() => { if (this.isCurrent(controller)) this.loading = false })
+        }
+      } catch (error) {
+        if (this.isCurrent(controller) && error.name !== 'AbortError' && error.code !== 'ERR_CANCELED') this.errorMessage = error.message || '工作区加载失败'
+      } finally {
+        if (this.isCurrent(controller)) this.initializing = false
+        if (this.isCurrent(controller) && this.$route.query.run === '1' && this.question && this.sessionId) {
+          const query = { ...this.$route.query }
+          delete query.run
+          this.$router.replace({ query })
+          this.$nextTick(() => this.submitQuestion())
+        }
+      }
+    },
+    async submitQuestion() {
+      const question = this.question.trim()
+      if (!question || this.loading || this.choosingDataset || !this.sessionId) return
+      this.controller?.abort()
+      this.controller = new AbortController()
+      const controller = this.controller
+      this.loading = true
+      this.cancelRequested = false
+      this.errorMessage = ''
+      this.question = ''
+      const userMessage = { id: crypto.randomUUID(), role: 'user', content: question }
+      this.messages.push(userMessage)
+      try {
+        const store = useAnalysisStore()
+        await store.submit({ session_id: this.sessionId, dataset_id: this.dataset?.id ?? null, question }, false, { signal: controller.signal })
+        if (!this.isCurrent(controller)) return
+        const result = await store.watchRun(controller.signal)
+        if (!result || !this.isCurrent(controller)) return
+        if (result.dataset_id && this.dataset?.id !== result.dataset_id) await this.chooseDataset(result.dataset_id)
+        userMessage.evidence = result
+        this.messages.push({ id: result.message_id || result.record_id, role: 'assistant', content: result.answer || result.error_message, status: result.status, evidence: result })
+      } catch (error) {
+        if (!this.isCurrent(controller) || error.name === 'AbortError' || error.code === 'ERR_CANCELED') return
+        userMessage.error = error.message || '分析失败，请保留问题后重试。'
+        userMessage.errorCode = error.code
+      } finally {
+        if (this.isCurrent(controller)) this.loading = false
+      }
+    },
+    toChatMessage(message) {
+      const record = message.analysis_record
+      const evidence = record ? {
+        record_id: record.id,
+        report: record.report,
+        status: record.status,
+        answer: record.final_answer,
+        execution_time: (record.execution_time_ms || 0) / 1000,
+        tool_calls: record.tool_calls || [],
+        tool_result: record.tool_result,
+        chart: record.chart,
+        summary_error: record.status === 'partial' ? 'SUMMARY_UNAVAILABLE' : null,
+      } : null
+      return {
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        status: message.status,
+        evidence: message.role === 'assistant' ? evidence : null,
+        error: message.status === 'failed' ? record?.error_message || '分析失败，请稍后重试' : '',
+      }
+    },
+    async loadOlderMessages() {
+      if (!this.messageCursor || this.olderLoading) return
+      const controller = this.controller
+      this.olderLoading = true
+      try {
+        const page = await analysisApi.session(this.sessionId, { message_cursor: this.messageCursor, message_limit: 50 }, { signal: controller.signal })
+        if (!this.isCurrent(controller)) return
+        this.messages = [...page.messages.map(this.toChatMessage), ...this.messages]
+        this.messageCursor = page.next_cursor
+      } catch (error) {
+        if (this.isCurrent(controller) && error.code !== 'ERR_CANCELED' && error.name !== 'AbortError') this.errorMessage = error.message || '更早的消息加载失败'
+      } finally {
+        if (this.isCurrent(controller)) this.olderLoading = false
+      }
+    },
+    handleEnter(event) {
+      if (!event.isComposing) { event.preventDefault(); this.submitQuestion() }
+    },
+    formatDuration(seconds) {
+      return seconds < 1 ? `${Math.round(seconds * 1000)} ms` : `${seconds.toFixed(2)} 秒`
+    },
+    showValue(value) { return value === null || value === undefined ? '—' : String(value) },
+    async searchDatasets(query) {
+      const token = ++this.datasetSearchToken
+      const controller = this.controller
+      try {
+        const result = await datasetApi.list({ status: 'ready', q: query || undefined, page: 1, page_size: 50 }, { signal: controller.signal })
+        if (!this.isCurrent(controller) || token !== this.datasetSearchToken) return
+        this.datasetChoices = result?.items || []
+        if (this.dataset && !this.datasetChoices.some((item) => item.id === this.dataset.id)) this.datasetChoices.push(this.dataset)
+      } catch (error) {
+        if (this.isCurrent(controller)) this.errorMessage = error.message || '数据集搜索失败'
+      }
+    },
+    async chooseDataset(id) {
+      if (!id) { this.dataset = null; this.selectedDatasetId = null; return }
+      const controller = this.controller
+      this.choosingDataset = true
+      try {
+        const dataset = await datasetApi.detail(id, { signal: controller.signal })
+        if (!this.isCurrent(controller)) return
+        this.dataset = dataset
+        this.selectedDatasetId = dataset.id
+        if (!this.datasetChoices.some((item) => item.id === dataset.id)) this.datasetChoices.push(dataset)
+        this.$router.replace({ query: { ...this.$route.query, datasetId: String(dataset.id) } })
+      } catch (error) {
+        if (this.isCurrent(controller)) this.errorMessage = error.message || '数据集加载失败'
+      } finally { if (this.isCurrent(controller)) this.choosingDataset = false }
+    },
+    async cancelTask() {
+      if (!this.loading || this.cancelRequested) return
+      this.cancelRequested = true
+      try { await useAnalysisStore().cancel() }
+      catch (error) { this.cancelRequested = false; this.errorMessage = error.message || '取消请求失败' }
+    },
+    useClarificationDataset(id) {
+      const lastQuestion = [...this.messages].reverse().find((message) => message.role === 'user')
+      this.question = lastQuestion?.content || this.question
+      this.chooseDataset(id)
+    },
+    isCurrent(controller) { return this.controller === controller && !controller.signal.aborted },
+    async resumeTask(controller = this.controller) {
+      const store = useAnalysisStore()
+      if (!store.pending.record_id) await store.submit({}, true, { signal: controller.signal })
+      if (!this.isCurrent(controller)) return
+      const result = await store.watchRun(controller.signal)
+      if (result?.dataset_id && this.isCurrent(controller) && this.dataset?.id !== result.dataset_id) await this.chooseDataset(result.dataset_id)
+      if (result && this.isCurrent(controller) && !this.messages.some((message) => message.role === 'assistant' && message.evidence?.record_id === result.record_id)) this.messages.push({ id: result.message_id || result.record_id, role: 'assistant', content: result.answer || result.error_message, status: result.status, evidence: result })
+    },
+    async retryMessage(message) {
+      if (message.errorCode === 'NETWORK_ERROR' && useAnalysisStore().pending) {
+        this.controller?.abort(); this.controller = new AbortController(); this.loading = true; message.error = ''
+        const controller = this.controller
+        try { await this.resumeTask(controller) }
+        catch (error) { if (this.isCurrent(controller) && error.code !== 'ERR_CANCELED' && error.name !== 'AbortError') { message.error = error.message; message.errorCode = error.code } }
+        finally { if (this.isCurrent(controller)) this.loading = false }
+      } else { this.question = message.content; this.submitQuestion() }
+    },
+  },
+}
+</script>
+
+<template>
+  <AppShell>
+    <section class="analysis-heading">
+      <div>
+        <p class="eyebrow">真实数据计算 · 可核对执行证据</p>
+        <h1>智能分析</h1>
+        <p class="page-intro">{{ dataset?.original_name || '可先聊天，分析前请选择数据集' }}<span v-if="dataset"> · {{ dataset.row_count }} 行 · {{ dataset.column_count }} 列</span></p>
+      </div>
+      <el-button v-if="dataset" plain @click="$router.push(`/datasets/${dataset.id}`)">数据集详情</el-button>
+    </section>
+
+    <div v-if="errorMessage" class="inline-error" role="alert"><span>{{ errorMessage }}</span><el-button text type="primary" @click="initializeWorkspace"><el-icon><Refresh /></el-icon>重试</el-button></div>
+    <section v-if="initializing" class="panel analysis-loading" aria-live="polite"><span class="large-loader"></span><h2>正在准备分析工作区</h2></section>
+    <section v-else class="analysis-layout">
+      <div class="panel conversation-panel">
+        <header class="conversation-header"><div class="conversation-title"><span class="analysis-mark"><el-icon><DataAnalysis /></el-icon></span><div><h2>分析对话</h2><p>基于服务器端计算结果回答</p></div></div><el-tag v-if="sessionId" effect="plain" round>会话 #{{ sessionId }}</el-tag></header>
+        <div class="analysis-dataset-picker"><label for="analysis-dataset">当前数据集</label><el-select id="analysis-dataset" v-model="selectedDatasetId" filterable remote :remote-method="searchDatasets" placeholder="选择数据集（聊天可留空）" :disabled="loading" @change="chooseDataset"><el-option v-for="option in datasetChoices" :key="option.id" :label="option.original_name" :value="option.id" /></el-select></div>
+
+        <div class="conversation-stream" aria-live="polite" aria-relevant="additions text">
+          <el-button v-if="messageCursor" class="load-older-button" text :loading="olderLoading" @click="loadOlderMessages">加载更早的消息</el-button>
+          <div v-if="messages.length === 0" class="conversation-empty">
+            <span class="empty-analysis-icon"><el-icon><ChatLineRound /></el-icon></span>
+            <h3>从一个具体问题开始</h3>
+            <p>例如：按地区汇总销售额，并生成柱状图。</p>
+            <button type="button" class="suggestion-chip" @click="question = '按地区汇总销售额，并生成柱状图'">按地区汇总销售额</button>
+          </div>
+          <article v-for="message in messages" :key="message.id" class="chat-message" :class="`message-${message.role}`">
+            <div class="message-role">{{ message.role === 'user' ? '你' : 'DataLens Agent' }}</div>
+            <p v-if="message.content" class="message-content">{{ message.content }}</p>
+            <div v-if="message.role === 'assistant' && message.evidence?.agent_response?.clarification?.candidate_dataset_ids?.length" class="clarification-choices"><el-button v-for="id in message.evidence.agent_response.clarification.candidate_dataset_ids" :key="id" plain size="small" @click="useClarificationDataset(id)">选择 {{ datasetChoices.find((item) => item.id === id)?.original_name || `数据集 #${id}` }}</el-button></div>
+            <div v-if="message.evidence?.status === 'cancelled'" class="partial-note" role="status">任务已取消，已完成的结果仍可查看。</div>
+            <div v-if="message.evidence?.status === 'partial'" class="partial-note" role="status">分析部分完成，下面保留已完成的真实计算结果。</div>
+            <div v-if="message.error" class="message-error" role="alert"><span>{{ message.error }}</span><el-button text type="primary" @click="retryMessage(message)">保留问题并重试</el-button></div>
+          </article>
+          <div v-if="loading" class="agent-pending" role="status"><span class="status-pulse"></span>{{ runningLabel }}<el-button text type="danger" :disabled="cancelRequested" @click="cancelTask">取消任务</el-button></div>
+        </div>
+
+        <form novalidate class="analysis-composer" @submit.prevent="submitQuestion">
+          <label class="sr-only" for="analysis-question">分析问题</label>
+          <el-input id="analysis-question" v-model="question" type="textarea" :rows="3" maxlength="2000" show-word-limit resize="none" placeholder="输入数据分析问题；Enter 发送，Shift+Enter 换行" :disabled="loading" @keydown.enter.exact="handleEnter" />
+          <div class="composer-footer"><span>模型可能出错，结论可在下方核对计算证据。</span><el-button type="primary" native-type="submit" :loading="loading" :disabled="!question.trim() || choosingDataset"><el-icon><Promotion /></el-icon>发送问题</el-button></div>
+        </form>
+      </div>
+
+      <aside class="panel evidence-panel" aria-label="分析执行证据">
+        <div class="evidence-panel-heading"><span class="evidence-dot"></span><div><h2>执行证据</h2><p>模型选择的工具与真实结果</p></div></div>
+        <p v-if="loading && activeResult?.progress?.total" class="caption">已完成 {{ activeResult.progress.completed }} / {{ activeResult.progress.total }} 步</p>
+        <AgentSteps :trace="activeTrace" :calls="loading ? [] : latestEvidence?.tool_calls || []" />
+        <AnalysisResult v-if="loading && activeResult" :evidence="activeResult" />
+        <AnalysisResult v-else-if="latestEvidence" :evidence="latestEvidence" />
+      </aside>
+    </section>
+  </AppShell>
+</template>

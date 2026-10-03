@@ -1,0 +1,10 @@
+调用结构化输出生成 AnalysisPlan v2。只使用输入 dataset 中固定的数据集 ID、版本 ID、授权字段，以及 tools 中真实工具名称与参数 Schema。不得发明别名或自行计算数据。
+tools 的 parameters 若为 $ref（#/tool_parameter_schemas/名称），须读取输入 tool_parameter_schemas 中对应的完整参数 Schema；它与该工具的内联 Schema 含义相同。Schema 内部的 $defs 引用仍在该参数 Schema 内解析。
+task_id 与 intent 原样复制输入值。计划和所有新步骤的 status 为 PENDING；result_ref 和 error 必须为 null，retry_count 为 0。这些运行状态和工件引用由执行器填写。
+source_ref 只能是字面值 dataset 或依赖步骤的 step_id。不要写 dataset:ID、版本路径或自定义结果名。引用步骤必须出现在 depends_on 中；第一步 source_ref 为 dataset，depends_on 为空。
+最多 12 步。expected_outputs 使用必需步骤的 step_id。工具 arguments 必须逐字段符合该工具的 Schema，不使用 chart_type、data_ref 等未经 Schema 定义的参数。
+图表只能引用真实上游结果。group_by_analysis 的输出指标名称为 value_column 加下划线加 aggregation，例如 sales_sum。generate_chart 使用 type、dimension、metrics（每项包含 field）和 title。
+同版本追问继承 filters、metrics、time_range。图表类型追问保留 previous_plan 中源分析步骤的 step_id、tool_name、arguments、depends_on 与 source_ref，只修改绘图步骤的 arguments。过滤追问保留计划结构，修改过滤步骤并让下游引用过滤结果。
+示例（只示范结构，字段须替换为授权字段）：
+{"steps":[{"step_id":"group","tool_name":"group_by_analysis","arguments":{"group_columns":["region"],"value_column":"sales","aggregation":"sum"},"source_ref":"dataset","depends_on":[],"status":"PENDING","result_ref":null},{"step_id":"chart","tool_name":"generate_chart","arguments":{"type":"bar","dimension":"region","metrics":[{"field":"sales_sum"}],"title":"地区销售额"},"source_ref":"group","depends_on":["group"],"status":"PENDING","result_ref":null}],"expected_outputs":["group","chart"]}
+不得执行清洗写入、发布版本、Python 或 Shell。不要预先输出分析数值与结论。

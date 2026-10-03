@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23152d3d'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='Arial' font-size='21' font-weight='bold' fill='%239fe9da'%3ED%3C/text%3E%3C/svg%3E">
+  <title>DataLens Agent · 五种分析视图探索原型</title>
+  <style>
+    /* PROTOTYPE: Five read-only visual directions for the same sales analysis. */
+    :root { font-family: "Segoe UI Variable Text", "Microsoft YaHei UI", system-ui, sans-serif; color: #172636; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; min-width: 320px; }
+    button, a { font: inherit; }
+    button:focus-visible, a:focus-visible { outline: 3px solid #4e7eff; outline-offset: 3px; }
+    [hidden] { display: none !important; }
+    .concept { min-height: 100vh; padding-bottom: 120px; }
+    .proto-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .proto-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .quiet { color: var(--quiet, #697889); }
+    .mono { font-family: "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .caps { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .demo-tag { border: 1px solid currentColor; border-radius: 999px; padding: 5px 9px; font-size: 11px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+
+    /* A — Guided path: the next decision is always visible. */
+    .guided { --quiet: #647486; background: #eaf1f5; color: #173342; }
+    .guided .g-top { height: 74px; padding: 0 clamp(20px, 4vw, 70px); display: flex; align-items: center; justify-content: space-between; background: #f8fbfc; border-bottom: 1px solid #ccdae1; }
+    .guided .g-brand { font-family: Bahnschrift, "Segoe UI", sans-serif; font-size: 22px; letter-spacing: -.04em; font-weight: 800; }
+    .guided .g-brand span { color: #008a7d; }
+    .guided .g-top-right { display: flex; align-items: center; gap: 18px; color: #3f6170; font-size: 13px; font-weight: 700; }
+    .guided .g-wrap { max-width: 1370px; margin: 0 auto; padding: 38px clamp(20px, 4vw, 60px) 0; }
+    .guided .g-title { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+    .guided .g-title h1 { margin: 9px 0 7px; max-width: 700px; font: 700 clamp(30px, 3vw, 44px)/1.18 Bahnschrift, "Microsoft YaHei UI", sans-serif; letter-spacing: -.035em; }
+    .guided .g-title p { margin: 0; line-height: 1.7; }
+    .guided .g-context { min-width: 230px; padding: 13px 18px; border: 1px solid #c9dce2; border-radius: 14px; background: #f7fbfc; font-size: 12px; line-height: 1.8; }
+    .guided .g-context strong { display: block; font-size: 14px; }
+    .guided .g-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; list-style: none; margin: 32px 0 28px; padding: 0; }
+    .guided .g-steps li { min-height: 80px; padding: 15px 18px; border: 1px solid #ccdae1; background: #f7fbfc; border-radius: 13px; display: flex; gap: 13px; align-items: flex-start; }
+    .guided .g-steps li.current { background: #153e4c; border-color: #153e4c; color: white; box-shadow: 0 13px 24px #193f4b20; }
+    .guided .g-steps .num { width: 26px; height: 26px; border-radius: 50%; flex: none; display: grid; place-items: center; background: #dcebe9; color: #08786d; font: 800 12px/1 "Cascadia Mono", monospace; }
+    .guided .g-steps .current .num { background: #4de0c1; color: #113843; }
+    .guided .g-steps strong { display: block; font-size: 13px; margin: 1px 0 4px; }
+    .guided .g-steps small { color: #6c8190; font-size: 11px; }
+    .guided .g-steps .current small { color: #cce5e4; }
+    .guided .g-body { display: grid; grid-template-columns: minmax(265px, .75fr) minmax(0, 1.65fr); gap: 22px; }
+    .guided .g-left, .guided .g-result { background: #fff; border: 1px solid #d3e0e5; border-radius: 18px; }
+    .guided .g-left { padding: 24px; }
+    .guided .g-left h2, .guided .g-result h2 { font-size: 17px; margin: 0; }
+    .guided .g-question { margin: 20px 0; padding: 18px 19px; background: #e9f4f3; border-left: 4px solid #0ca899; border-radius: 8px; font-size: 20px; font-weight: 750; line-height: 1.45; }
+    .guided .g-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .guided .g-field { background: #f4f7f8; border: 1px solid #e1e9ec; border-radius: 10px; padding: 10px 11px; font-size: 12px; }
+    .guided .g-field b { display: block; margin-top: 5px; font-size: 14px; }
+    .guided .g-help { margin-top: 24px; padding-top: 17px; border-top: 1px solid #e2ebed; color: #667b87; font-size: 12px; line-height: 1.7; }
+    .guided .g-result { padding: 24px 29px 20px; }
+    .guided .g-result-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+    .guided .g-result-header p { margin: 6px 0 0; color: #6b7c85; font-size: 12px; }
+    .guided .g-total { margin: 18px 0 9px; font: 700 45px/1 Bahnschrift, "Segoe UI", sans-serif; letter-spacing: -.04em; }
+    .guided .g-total small { font: 700 14px/1 "Segoe UI", sans-serif; color: #667b87; letter-spacing: 0; }
+    .guided .g-bars { display: grid; gap: 12px; padding: 10px 0; }
+    .guided .g-row { display: grid; grid-template-columns: 45px 1fr 85px; align-items: center; gap: 13px; font-size: 13px; font-weight: 700; }
+    .guided .g-track { height: 14px; background: #e9f1f2; border-radius: 2px; overflow: hidden; }
+    .guided .g-track span { display: block; height: 100%; width: var(--w); background: #0e9f91; border-radius: 2px; }
+    .guided .g-row:first-child .g-track span { background: #f0b24c; }
+    .guided .g-result-foot { border-top: 1px solid #e1e9ec; display: flex; justify-content: space-between; gap: 18px; align-items: center; padding-top: 16px; margin-top: 14px; font-size: 12px; color: #566d78; }
+    .guided .g-method { color: #087c70; font-weight: 800; }
+    .guided .g-evidence { margin-top: 20px; border: 1px solid #b9dcd5; background: #dff0ec; border-radius: 13px; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px; font-size: 13px; }
+    .guided .g-evidence b { color: #006b63; }
+
+    /* B — Conversation: chart and proof live inside the answer. */
+    .conversation { --quiet: #827c8d; background: #f3f1f7; color: #30273e; }
+    .conversation .c-shell { min-height: calc(100vh - 120px); display: grid; grid-template-columns: 252px minmax(0, 1fr); }
+    .conversation .c-side { background: #272238; color: #f6f0ff; padding: 31px 19px; display: flex; flex-direction: column; }
+    .conversation .c-logo { padding: 2px 12px 29px; font: 700 23px/1 Bahnschrift, "Segoe UI", sans-serif; }
+    .conversation .c-logo span { color: #e9b9a1; }
+    .conversation .c-nav-title { padding: 0 12px 10px; font-size: 10px; letter-spacing: .16em; color: #aaa5bb; text-transform: uppercase; font-weight: 800; }
+    .conversation .c-new { background: #f1c2aa; color: #32253b; padding: 13px 14px; border-radius: 12px; font-weight: 800; font-size: 13px; }
+    .conversation .c-session { margin-top: 14px; padding: 14px; background: #423a55; border-radius: 11px; font-size: 13px; line-height: 1.45; }
+    .conversation .c-session small { display: block; margin-top: 7px; color: #c3bfd0; }
+    .conversation .c-session.subtle { background: transparent; color: #d4d0df; }
+    .conversation .c-side-bottom { margin-top: auto; border-top: 1px solid #4c455c; padding: 17px 12px 0; color: #cbc6d8; font-size: 12px; line-height: 1.7; }
+    .conversation .c-main { min-width: 0; }
+    .conversation .c-top { min-height: 72px; padding: 17px clamp(20px, 4vw, 56px); background: #fff; border-bottom: 1px solid #e5dfeb; display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+    .conversation .c-top strong { display: block; font-size: 15px; }
+    .conversation .c-top small { color: #888292; }
+    .conversation .c-data { border: 1px solid #dfd8e6; padding: 8px 12px; border-radius: 99px; font-size: 12px; white-space: nowrap; }
+    .conversation .c-thread { width: min(850px, calc(100% - 48px)); margin: 31px auto 0; }
+    .conversation .c-date { text-align: center; font-size: 11px; color: #928b9b; margin-bottom: 25px; }
+    .conversation .c-user { max-width: 68%; margin-left: auto; padding: 15px 18px; background: #e2d9f2; border-radius: 17px 17px 4px 17px; font-size: 15px; font-weight: 700; }
+    .conversation .c-ai { margin-top: 22px; display: grid; grid-template-columns: 34px 1fr; gap: 10px; }
+    .conversation .c-avatar { width: 34px; height: 34px; display: grid; place-items: center; color: #fff; background: #6d568d; border-radius: 10px; font-weight: 800; }
+    .conversation .c-answer { background: #fff; border: 1px solid #e4dfeb; border-radius: 5px 17px 17px 17px; padding: 23px; box-shadow: 0 14px 30px #44324e0c; }
+    .conversation .c-answer > small { color: #83669e; font-weight: 800; }
+    .conversation .c-answer h1 { font: 720 clamp(24px, 2.6vw, 34px)/1.25 Bahnschrift, "Microsoft YaHei UI", sans-serif; margin: 8px 0 9px; letter-spacing: -.025em; }
+    .conversation .c-answer > p { line-height: 1.7; margin: 0 0 19px; color: #554a60; font-size: 13px; }
+    .conversation .c-chart { border: 1px solid #e6e1eb; border-radius: 13px; padding: 19px 20px; background: #fbf9fd; }
+    .conversation .c-chart-title { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; margin-bottom: 15px; }
+    .conversation .c-chart-row { display: grid; grid-template-columns: 35px 1fr 80px; gap: 11px; align-items: center; margin: 10px 0; font-size: 12px; }
+    .conversation .c-chart-row i { display: block; height: 11px; width: var(--w); border-radius: 8px; background: #8c6aac; }
+    .conversation .c-chart-row:first-of-type i { background: #df9c7f; }
+    .conversation .c-proof { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; font-size: 11px; }
+    .conversation .c-proof span { background: #f1edf5; padding: 7px 9px; border-radius: 6px; color: #61536e; }
+    .conversation .c-proof b { color: #517c69; }
+    .conversation .c-compose { border: 1px solid #dcd4e5; border-radius: 15px; background: #fff; margin: 21px 0 0 44px; padding: 15px 16px; display: flex; justify-content: space-between; gap: 12px; align-items: center; color: #a39baa; font-size: 13px; }
+    .conversation .c-compose span:last-child { background: #674f86; color: white; border-radius: 8px; padding: 9px 13px; font-weight: 700; }
+    .conversation .c-note { margin: 12px 0 0 44px; color: #9b92a5; font-size: 11px; }
+
+    /* C — BI cockpit: fast monitoring and comparison. */
+    .dashboard { --quiet: #6a7a89; background: #eaf0f3; color: #183147; }
+    .dashboard .d-top { background: #0e283c; color: white; padding: 20px clamp(20px, 4vw, 56px); display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .dashboard .d-brand { font: 800 23px/1 Bahnschrift, "Segoe UI", sans-serif; letter-spacing: -.02em; }
+    .dashboard .d-brand span { color: #5ce1d0; }
+    .dashboard .d-menu { display: flex; gap: 22px; color: #b3c7d3; font-size: 12px; font-weight: 700; }
+    .dashboard .d-menu b { color: #fff; border-bottom: 2px solid #57d7c9; padding-bottom: 7px; }
+    .dashboard .d-wrap { max-width: 1440px; margin: 0 auto; padding: 34px clamp(20px, 4vw, 56px); }
+    .dashboard .d-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; }
+    .dashboard .d-head h1 { margin: 8px 0 4px; font: 780 clamp(31px, 3vw, 43px)/1.1 Bahnschrift, "Microsoft YaHei UI", sans-serif; }
+    .dashboard .d-head p { margin: 0; color: #637a89; font-size: 13px; }
+    .dashboard .d-filter { background: white; border: 1px solid #d6e2e8; border-radius: 9px; padding: 10px 14px; font-size: 12px; color: #315467; white-space: nowrap; }
+    .dashboard .d-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 27px 0 17px; }
+    .dashboard .d-kpi { background: #fff; border: 1px solid #dce5e9; border-top: 3px solid #1f9eab; border-radius: 10px; padding: 18px 19px; min-height: 120px; }
+    .dashboard .d-kpi:nth-child(2) { border-top-color: #ff9b66; }
+    .dashboard .d-kpi:nth-child(3) { border-top-color: #7090bd; }
+    .dashboard .d-kpi:nth-child(4) { border-top-color: #46a991; }
+    .dashboard .d-kpi span { color: #6b7b87; font-size: 12px; }
+    .dashboard .d-kpi strong { display: block; font: 780 32px/1.05 Bahnschrift, "Segoe UI", sans-serif; margin: 11px 0 8px; letter-spacing: -.03em; }
+    .dashboard .d-kpi small { color: #7b8c99; font-size: 11px; }
+    .dashboard .d-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, .8fr); gap: 17px; }
+    .dashboard .d-panel { border: 1px solid #dce5e9; border-radius: 10px; background: white; padding: 21px 23px; min-width: 0; }
+    .dashboard .d-panel-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+    .dashboard .d-panel h2 { font-size: 17px; margin: 0 0 5px; }
+    .dashboard .d-panel p { font-size: 11px; color: #81919a; margin: 0; }
+    .dashboard .d-columns { height: 250px; border-bottom: 1px solid #cfdbe1; display: flex; justify-content: space-around; align-items: flex-end; gap: 21px; padding: 20px 14px 0; margin-top: 12px; background: repeating-linear-gradient(to top, transparent 0 48px, #e8eef0 49px 50px); }
+    .dashboard .d-column { width: min(18%, 75px); height: var(--h); background: #1b91a2; border-radius: 4px 4px 0 0; position: relative; }
+    .dashboard .d-column:nth-child(1) { background: #ff9b66; }
+    .dashboard .d-column:nth-child(3) { background: #69b5ab; }
+    .dashboard .d-column:nth-child(4) { background: #7e9bc1; }
+    .dashboard .d-column b { position: absolute; bottom: calc(100% + 8px); width: 100%; text-align: center; font: 700 12px/1 "Cascadia Mono", monospace; }
+    .dashboard .d-labels { display: flex; justify-content: space-around; gap: 20px; padding: 10px 14px 0; color: #526d7c; font-size: 12px; font-weight: 800; }
+    .dashboard .d-rank { margin-top: 25px; }
+    .dashboard .d-rank-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e8eef0; padding: 15px 0; font-size: 13px; }
+    .dashboard .d-rank-row:last-child { border: 0; }
+    .dashboard .d-rank-row b { font-family: "Cascadia Mono", monospace; }
+    .dashboard .d-rank-row em { color: #f07e4d; font-style: normal; font-weight: 800; margin-right: 10px; }
+    .dashboard .d-source { margin-top: 17px; border: 1px solid #c7e4de; background: #f2f9f7; border-radius: 9px; padding: 13px 17px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 11px; color: #4d786f; }
+
+    /* D — Notebook: each conclusion follows its method and data. */
+    .notebook { --quiet: #64766f; background: #f2f6f3; color: #1b3933; }
+    .notebook .n-top { background: #f9fbf8; border-bottom: 1px solid #cedbd3; padding: 19px clamp(20px, 4vw, 60px); display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+    .notebook .n-brand { font: 800 22px/1 Bahnschrift, "Segoe UI", sans-serif; }
+    .notebook .n-brand span { color: #3b9581; }
+    .notebook .n-wrap { max-width: 1300px; margin: 0 auto; padding: 28px clamp(20px, 4vw, 60px); display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 37px; }
+    .notebook .n-index { border-right: 1px solid #d1dfd7; padding-right: 20px; }
+    .notebook .n-index strong { font-size: 11px; letter-spacing: .14em; }
+    .notebook .n-index ol { list-style: none; padding: 0; margin: 19px 0 0; }
+    .notebook .n-index li { padding: 13px 0; border-bottom: 1px solid #dfe8e1; color: #718378; font-size: 12px; font-weight: 700; }
+    .notebook .n-index li.current { color: #147563; }
+    .notebook .n-paper { background: #fff; border: 1px solid #d5e0d8; box-shadow: 0 20px 40px #234c2d0b; padding: clamp(22px, 2.4vw, 32px); max-width: 925px; }
+    .notebook .n-meta { display: flex; justify-content: space-between; gap: 15px; color: #4b8e7f; font: 700 11px/1.4 "Cascadia Mono", monospace; }
+    .notebook h1 { font: 750 clamp(29px, 3.2vw, 44px)/1.2 Bahnschrift, "Microsoft YaHei UI", sans-serif; letter-spacing: -.03em; margin: 15px 0 13px; }
+    .notebook .n-deck { color: #64796e; font-size: 13px; line-height: 1.8; margin: 0 0 16px; }
+    .notebook .n-cell { border-top: 1px solid #dfe8e1; display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 12px; padding: 11px 0; }
+    .notebook .n-cell-number { color: #62a08e; font: 800 11px/1.4 "Cascadia Mono", monospace; }
+    .notebook .n-cell h2 { font-size: 14px; margin: 0 0 10px; }
+    .notebook .n-cell p { margin: 0; line-height: 1.75; color: #456056; font-size: 13px; }
+    .notebook .n-param { display: flex; flex-wrap: wrap; gap: 8px; }
+    .notebook .n-param span { background: #edf5f0; border: 1px solid #d8e7dc; padding: 8px 10px; font: 700 11px/1.2 "Cascadia Mono", monospace; color: #236a59; }
+    .notebook .n-table-wrap { overflow-x: auto; }
+    .notebook table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 350px; }
+    .notebook th { color: #6a8275; text-align: left; font-size: 10px; letter-spacing: .09em; text-transform: uppercase; }
+    .notebook th, .notebook td { padding: 10px 14px 10px 0; border-bottom: 1px solid #e7eee8; }
+    .notebook td:last-child, .notebook th:last-child { text-align: right; font-family: "Cascadia Mono", monospace; }
+    .notebook .n-conclusion { border-left: 3px solid #31967d; background: #f2f8f3; padding: 14px 17px; font-size: 14px !important; font-weight: 700; }
+    .notebook .n-foot { border-top: 1px solid #dfe8e1; padding-top: 16px; color: #70877a; font-size: 11px; line-height: 1.8; }
+
+    /* E — Decision brief: the conclusion is the entry point. */
+    .report { --quiet: #716e74; background: #f6f5f3; color: #292d32; }
+    .report .r-top { padding: 22px clamp(20px, 5vw, 84px); background: #fdfdfc; border-bottom: 1px solid #dbd8d4; display: flex; justify-content: space-between; gap: 15px; align-items: center; }
+    .report .r-brand { font: 800 22px/1 Bahnschrift, "Segoe UI", sans-serif; letter-spacing: -.025em; }
+    .report .r-brand span { color: #bd5b47; }
+    .report .r-edition { font: 700 11px/1.5 "Cascadia Mono", monospace; color: #746f6c; }
+    .report .r-wrap { max-width: 1220px; margin: 0 auto; padding: 48px clamp(20px, 5vw, 80px); }
+    .report .r-kicker { color: #b15b4a; font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+    .report h1 { max-width: 900px; font: 750 clamp(36px, 4vw, 56px)/1.18 Bahnschrift, "Microsoft YaHei UI", sans-serif; letter-spacing: -.045em; margin: 13px 0 17px; }
+    .report .r-intro { max-width: 765px; color: #656266; font-size: 15px; line-height: 1.85; margin: 0 0 32px; }
+    .report .r-rule { height: 5px; width: 100%; background: linear-gradient(to right, #b95644 0 28%, #e5e0db 28% 100%); }
+    .report .r-layout { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(270px, .88fr); gap: clamp(28px, 5vw, 70px); padding: 36px 0 30px; }
+    .report .r-big { font: 770 clamp(58px, 8vw, 110px)/.92 Bahnschrift, "Segoe UI", sans-serif; letter-spacing: -.07em; color: #b85645; }
+    .report .r-big small { font: 700 18px/1 "Microsoft YaHei UI", sans-serif; letter-spacing: 0; }
+    .report .r-takeaway { margin-top: 21px; font-size: 23px; line-height: 1.5; font-weight: 750; max-width: 470px; }
+    .report .r-takeaway b { color: #ae513f; }
+    .report .r-notes { margin-top: 29px; border-top: 1px solid #d9d5d0; padding-top: 16px; font-size: 12px; color: #716d6b; line-height: 1.85; max-width: 460px; }
+    .report .r-figure { border: 1px solid #dedbd6; background: #fff; padding: 23px 25px; }
+    .report .r-figure h2 { margin: 0; font-size: 14px; }
+    .report .r-figure p { color: #7b7674; margin: 7px 0 15px; font-size: 11px; }
+    .report .r-bars { display: grid; gap: 15px; padding: 6px 0; }
+    .report .r-bar { display: grid; grid-template-columns: 38px 1fr 78px; align-items: center; gap: 12px; font-size: 12px; }
+    .report .r-bar i { display: block; height: 16px; width: var(--w); background: #40566a; }
+    .report .r-bar:first-child i { background: #b85c49; }
+    .report .r-bar b { text-align: right; font-family: "Cascadia Mono", monospace; }
+    .report .r-foot { border-top: 1px solid #d8d4ce; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding-top: 22px; font-size: 12px; color: #625f60; line-height: 1.65; }
+    .report .r-foot strong { display: block; color: #292d32; margin-bottom: 5px; }
+
+    /* The comparison control belongs to the prototype, not any direction. */
+    .variant-dock { position: fixed; z-index: 30; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 28px); padding: 8px 10px 8px 14px; background: #142236; color: #fff; border: 1px solid #36485c; border-radius: 17px; box-shadow: 0 20px 55px #12253e45; }
+    .variant-dock .dock-title { flex: none; width: 118px; border-right: 1px solid #3c4d5e; padding-right: 12px; margin-right: 2px; }
+    .variant-dock .dock-title strong { display: block; font-size: 11px; }
+    .variant-dock .dock-title small { display: block; color: #9eb3c5; font-size: 10px; margin-top: 4px; }
+    .variant-dock .dock-list { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+    .variant-dock a, .variant-dock button { flex: none; border: 0; color: #b9cada; text-decoration: none; background: transparent; border-radius: 10px; cursor: pointer; padding: 10px 11px; font-size: 11px; white-space: nowrap; }
+    .variant-dock a:hover, .variant-dock button:hover { color: white; background: #2d4156; }
+    .variant-dock a[aria-current="page"] { color: #112534; background: #9fe9da; font-weight: 850; }
+    .variant-dock button { font-size: 17px; line-height: 1; }
+    .variant-dock .dock-hint { flex: none; color: #94a9bb; font-size: 10px; margin-left: 2px; }
+
+    @media (max-width: 1000px) {
+      .guided .g-steps { grid-template-columns: repeat(2, 1fr); }
+      .dashboard .d-kpis { grid-template-columns: repeat(2, 1fr); }
+      .dashboard .d-grid, .report .r-layout { grid-template-columns: 1fr; }
+      .notebook .n-wrap { grid-template-columns: minmax(0, 1fr); gap: 17px; }
+      .notebook .n-index, .notebook .n-paper, .notebook .n-cell > div { min-width: 0; }
+      .notebook .n-index { border-right: 0; border-bottom: 1px solid #d1dfd7; padding-right: 0; }
+      .notebook .n-index ol { display: flex; flex-wrap: wrap; gap: 14px; }
+      .notebook .n-index li { border: 0; padding: 0 0 14px; }
+    }
+    @media (max-width: 720px) {
+      .guided .g-top-right span, .dashboard .d-menu, .variant-dock .dock-hint { display: none; }
+      .guided .g-title, .dashboard .d-head { display: block; }
+      .guided .g-context { margin-top: 16px; }
+      .guided .g-steps { grid-template-columns: 1fr 1fr; gap: 7px; }
+      .guided .g-steps li { padding: 11px; min-height: 70px; }
+      .guided .g-steps small { display: none; }
+      .guided .g-body { grid-template-columns: 1fr; }
+      .guided .g-evidence { display: block; line-height: 1.7; }
+      .conversation .c-shell { grid-template-columns: 1fr; }
+      .conversation .c-side { min-height: auto; padding: 14px 18px; }
+      .conversation .c-logo { padding: 0; font-size: 19px; }
+      .conversation .c-nav-title, .conversation .c-new, .conversation .c-session, .conversation .c-side-bottom { display: none; }
+      .conversation .c-thread { width: calc(100% - 30px); }
+      .conversation .c-user { max-width: 86%; }
+      .conversation .c-ai { grid-template-columns: 1fr; }
+      .conversation .c-avatar { display: none; }
+      .conversation .c-compose, .conversation .c-note { margin-left: 0; }
+      .dashboard .d-filter { display: inline-block; margin-top: 17px; }
+      .dashboard .d-kpis { gap: 9px; }
+      .dashboard .d-kpi { min-height: 105px; padding: 14px; }
+      .dashboard .d-kpi strong { font-size: 25px; }
+      .dashboard .d-columns { gap: 10px; }
+      .notebook .n-cell { grid-template-columns: 1fr; gap: 3px; }
+      .report .r-foot { grid-template-columns: 1fr; gap: 7px; }
+      .variant-dock { bottom: 10px; width: calc(100vw - 20px); }
+      .variant-dock .dock-title { display: none; }
+      .variant-dock .dock-list { flex: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <main class="concept guided" data-variant="A">
+    <header class="g-top"><div class="g-brand">DataLens<span>.</span> <small class="caps">Method</small></div><div class="g-top-right"><span>工作区 / 销售样本</span><span class="demo-tag">设计预览</span></div></header>
+    <div class="g-wrap">
+      <div class="g-title"><div><span class="proto-badge" style="color:#008d7c">A · 引导式分析</span><h1>一步一步，找到有根据的答案。</h1><p class="quiet">把复杂分析拆成明确任务；当前这一步先核对工具计算，再看结论。</p></div><div class="g-context"><span class="caps quiet">当前数据集</span><strong>sales_demo.csv</strong>10 条订单 · 5 个字段 · 4 个地区</div></div>
+      <ol class="g-steps"><li><span class="num">01</span><span><strong>选择数据</strong><small>sales_demo.csv 已就绪</small></span></li><li><span class="num">02</span><span><strong>提出问题</strong><small>按地区汇总销售额</small></span></li><li class="current"><span class="num">03</span><span><strong>核对计算</strong><small>查看分组和求和结果</small></span></li><li><span class="num">04</span><span><strong>形成结论</strong><small>保存到分析历史</small></span></li></ol>
+      <div class="g-body"><aside class="g-left"><h2>本轮分析</h2><div class="g-question">“按地区汇总销售额”</div><div class="g-fields"><div class="g-field">维度<b>region</b></div><div class="g-field">指标<b>sales</b></div><div class="g-field">计算<b>求和</b></div><div class="g-field">范围<b>全部 10 行</b></div></div><div class="g-help">先看分组结果，再决定结论是否可信。这里展示的数值均来自仓库里的销售样例。</div></aside><section class="g-result"><div class="g-result-header"><div><h2>地区销售额对比</h2><p>示例结果 · 单位：元</p></div><span class="demo-tag" style="color:#087c70">计算已核对</span></div><div class="g-total mono">¥37,093 <small>总销售额</small></div><div class="g-bars"><div class="g-row"><span>华南</span><div class="g-track"><span style="--w:100%"></span></div><b class="mono">12,439</b></div><div class="g-row"><span>华东</span><div class="g-track"><span style="--w:86.6%"></span></div><b class="mono">10,777</b></div><div class="g-row"><span>西南</span><div class="g-track"><span style="--w:80.2%"></span></div><b class="mono">9,979</b></div><div class="g-row"><span>华北</span><div class="g-track"><span style="--w:31.3%"></span></div><b class="mono">3,898</b></div></div><div class="g-result-foot"><span>领先地区：华南，占总额约 33.5%</span><span class="g-method">下一步：阅读结论 →</span></div></section></div>
+      <div class="g-evidence"><span><b>计算依据</b>　group_by_analysis · 按 region 分组 · 对 sales 求和 · 10 行输入</span><span class="mono">4 rows · sample</span></div>
+    </div>
+  </main>
+
+  <main class="concept conversation" data-variant="B" hidden>
+    <div class="c-shell"><aside class="c-side"><div class="c-logo">DataLens<span>✦</span></div><div class="c-nav-title">分析会话</div><div class="c-new">＋ 开始一个问题</div><div class="c-session">按地区汇总销售额<small>sales_demo.csv · 当前会话</small></div><div class="c-session subtle">查看历史问题<small>选择旧会话继续分析</small></div><div class="c-side-bottom">示例界面 · 当前结果来自 sales_demo.csv，不连接模型或数据库。</div></aside><section class="c-main"><header class="c-top"><div><strong>销售数据分析</strong><small>对话、图表与计算依据在同一条消息里</small></div><span class="c-data">▦ sales_demo.csv · 10 行</span></header><div class="c-thread"><div class="c-date">设计预览 · 销售样例</div><div class="c-user">按地区汇总销售额</div><div class="c-ai"><div class="c-avatar">D</div><article class="c-answer"><small>DataLens · 示例回答</small><h1>华南销售额最高，为 ¥12,439。</h1><p>样例数据总销售额 ¥37,093。华南占约 33.5%；华北为 ¥3,898，地区差异可在下方逐项核对。</p><div class="c-chart"><div class="c-chart-title"><span>各地区销售额</span><span class="quiet">单位：元</span></div><div class="c-chart-row"><span>华南</span><i style="--w:100%"></i><b class="mono">12,439</b></div><div class="c-chart-row"><span>华东</span><i style="--w:86.6%"></i><b class="mono">10,777</b></div><div class="c-chart-row"><span>西南</span><i style="--w:80.2%"></i><b class="mono">9,979</b></div><div class="c-chart-row"><span>华北</span><i style="--w:31.3%"></i><b class="mono">3,898</b></div></div><div class="c-proof"><b>✓ 已使用真实样例计算</b><span>工具 group_by_analysis</span><span>参数 region + sales + sum</span><span>结果 4 行</span></div></article></div><div class="c-compose"><span>继续问这份数据，例如“哪个产品卖得最好？”</span><span>发送 ↗</span></div><p class="c-note">静态设计稿：输入框与发送按钮仅用于展示版式。</p></div></section></div>
+  </main>
+
+  <main class="concept dashboard" data-variant="C" hidden>
+    <header class="d-top"><div class="d-brand">DataLens<span> / INSIGHTS</span></div><nav class="d-menu" aria-label="示例导航"><b>概览</b><span>数据集</span><span>分析历史</span></nav><span class="demo-tag" style="color:#8fe7dd">设计预览</span></header>
+    <div class="d-wrap"><div class="d-head"><div><span class="proto-badge" style="color:#138a98">C · 数据驾驶舱</span><h1>销售表现一眼看清</h1><p>同一份 sales_demo.csv · 10 条订单 · 4 个地区</p></div><span class="d-filter">数据范围　全部地区　▾</span></div><div class="d-kpis"><article class="d-kpi"><span>总销售额</span><strong class="mono">¥37,093</strong><small>样例中的 10 条订单</small></article><article class="d-kpi"><span>领先地区</span><strong>华南</strong><small>销售额 ¥12,439</small></article><article class="d-kpi"><span>地区数量</span><strong class="mono">04</strong><small>region 字段去重</small></article><article class="d-kpi"><span>订单数量</span><strong class="mono">10</strong><small>覆盖 2026 年 1–5 月</small></article></div><div class="d-grid"><section class="d-panel"><div class="d-panel-head"><div><h2>地区销售额</h2><p>按地区汇总 · 单位：元</p></div><span class="demo-tag" style="color:#1c8991">示例图表</span></div><div class="d-columns"><div class="d-column" style="--h:91%"><b>12,439</b></div><div class="d-column" style="--h:79%"><b>10,777</b></div><div class="d-column" style="--h:73%"><b>9,979</b></div><div class="d-column" style="--h:29%"><b>3,898</b></div></div><div class="d-labels"><span>华南</span><span>华东</span><span>西南</span><span>华北</span></div></section><section class="d-panel"><h2>地区排名</h2><p>根据 sales 汇总值降序</p><div class="d-rank"><div class="d-rank-row"><span><em>01</em>华南</span><b>¥12,439</b></div><div class="d-rank-row"><span><em>02</em>华东</span><b>¥10,777</b></div><div class="d-rank-row"><span><em>03</em>西南</span><b>¥9,979</b></div><div class="d-rank-row"><span><em>04</em>华北</span><b>¥3,898</b></div></div></section></div><div class="d-source"><span><b>计算证明</b> · group_by_analysis 以 region 分组，对 sales 求和</span><span>输入 10 行 → 输出 4 行　|　静态设计预览</span></div></div>
+  </main>
+
+  <main class="concept notebook" data-variant="D" hidden>
+    <header class="n-top"><div class="n-brand">DataLens<span> / notebook</span></div><span class="demo-tag" style="color:#247969">设计预览 · 记录式界面</span></header>
+    <div class="n-wrap"><aside class="n-index"><strong>本次分析目录</strong><ol><li>01　问题</li><li>02　计算方法</li><li class="current">03　数据结果</li><li>04　结论</li></ol><p class="quiet" style="font-size:11px;line-height:1.8;margin-top:23px">适合需要逐步复查参数、结果与结论的用户。</p></aside><article class="n-paper"><div class="n-meta"><span>ANALYSIS / 001</span><span>sales_demo.csv · 10 rows</span></div><h1>按地区汇总销售额</h1><p class="n-deck">每一个结论都从可复核的计算开始。此页为静态方案，示例数值直接取自仓库销售样例。</p><section class="n-cell"><div class="n-cell-number">[01]</div><div><h2>原始问题</h2><p>按地区汇总销售额，并找出销售额最高的地区。</p></div></section><section class="n-cell"><div class="n-cell-number">[02]</div><div><h2>计算方法</h2><div class="n-param"><span>Tool: group_by_analysis</span><span>分组: region</span><span>指标: sales</span><span>方法: sum</span></div></div></section><section class="n-cell"><div class="n-cell-number">[03]</div><div><h2>输出数据 · 4 行</h2><div class="n-table-wrap"><table><thead><tr><th>地区</th><th>订单数</th><th>销售额 / 元</th></tr></thead><tbody><tr><td>华南</td><td>3</td><td>12,439</td></tr><tr><td>华东</td><td>3</td><td>10,777</td></tr><tr><td>西南</td><td>2</td><td>9,979</td></tr><tr><td>华北</td><td>2</td><td>3,898</td></tr></tbody></table></div></div></section><section class="n-cell"><div class="n-cell-number">[04]</div><div><h2>结论</h2><p class="n-conclusion">华南以 ¥12,439 位居首位，占样例总销售额 ¥37,093 的约 33.5%。</p></div></section><div class="n-foot">输入：sales_demo.csv · 10 行 / 5 字段。展示值已离线核对；本原型不发起模型或数据库请求。</div></article></div>
+  </main>
+
+  <main class="concept report" data-variant="E" hidden>
+    <header class="r-top"><div class="r-brand">DataLens<span> / BRIEF</span></div><span class="r-edition">DATA NOTE 001 · 销售样例 · 设计预览</span></header>
+    <div class="r-wrap"><span class="r-kicker">E · 决策报告视图 / Sales intelligence</span><h1>华南领跑销售，<br>地区表现出现明显分层。</h1><p class="r-intro">这份简报将分析结论放在最前面，再给出地区对比和可复核的计算说明。适合向同事展示结果，而不要求他们先阅读完整对话。</p><div class="r-rule"></div><div class="r-layout"><section><span class="caps quiet">关键发现 / 01</span><div class="r-big mono">33.5<small>%</small></div><div class="r-takeaway">华南贡献样例总销售额的约 <b>三分之一</b>，金额为 ¥12,439。</div><div class="r-notes">样例总额 ¥37,093；华东 ¥10,777、西南 ¥9,979、华北 ¥3,898。这里呈现的是示例数据结论，不代表真实业务趋势。</div></section><section class="r-figure"><h2>地区销售额排序</h2><p>单位：元 · 由高到低</p><div class="r-bars"><div class="r-bar"><span>华南</span><i style="--w:100%"></i><b>12,439</b></div><div class="r-bar"><span>华东</span><i style="--w:86.6%"></i><b>10,777</b></div><div class="r-bar"><span>西南</span><i style="--w:80.2%"></i><b>9,979</b></div><div class="r-bar"><span>华北</span><i style="--w:31.3%"></i><b>3,898</b></div></div></section></div><footer class="r-foot"><div><strong>问题</strong>按地区汇总销售额。</div><div><strong>计算方式</strong>将 10 条订单按 region 分组，对 sales 求和。</div><div><strong>数据来源</strong>仓库销售样例 sales_demo.csv；静态设计预览。</div></footer></div>
+  </main>
+
+  <nav class="variant-dock" aria-label="切换五种设计方案"><div class="dock-title"><strong>五种分析视图</strong><small>静态 UI 探索原型</small></div><button type="button" id="previous" aria-label="上一种方案">‹</button><div class="dock-list"><a href="?variant=A" data-select="A">A 引导式</a><a href="?variant=B" data-select="B">B 对话式</a><a href="?variant=C" data-select="C">C 驾驶舱</a><a href="?variant=D" data-select="D">D 笔记本</a><a href="?variant=E" data-select="E">E 决策报告</a></div><button type="button" id="next" aria-label="下一种方案">›</button><span class="dock-hint">← → 切换</span></nav>
+  <script>
+    const keys = ['A', 'B', 'C', 'D', 'E']
+    const names = { A: '引导式分析', B: '对话式分析', C: '数据驾驶舱', D: '分析笔记本', E: '决策报告' }
+    function showVariant(key, updateUrl = false) {
+      const chosen = keys.includes(key) ? key : 'A'
+      document.querySelectorAll('.concept').forEach((view) => { view.hidden = view.dataset.variant !== chosen })
+      document.querySelectorAll('[data-select]').forEach((link) => {
+        if (link.dataset.select === chosen) link.setAttribute('aria-current', 'page')
+        else link.removeAttribute('aria-current')
+      })
+      document.title = `${names[chosen]} · DataLens Agent 五种 UI 探索`
+      if (updateUrl) {
+        const next = new URL(window.location.href)
+        next.searchParams.set('variant', chosen)
+        try { window.history.replaceState(null, '', next) }
+        catch { window.location.href = next.href; return }
+        window.scrollTo({ top: 0, behavior: 'instant' })
+      }
+    }
+    function cycle(direction) {
+      const current = document.querySelector('[data-select][aria-current="page"]')?.dataset.select || 'A'
+      showVariant(keys[(keys.indexOf(current) + direction + keys.length) % keys.length], true)
+    }
+    document.querySelectorAll('[data-select]').forEach((link) => link.addEventListener('click', (event) => {
+      event.preventDefault()
+      showVariant(link.dataset.select, true)
+    }))
+    document.querySelector('#previous').addEventListener('click', () => cycle(-1))
+    document.querySelector('#next').addEventListener('click', () => cycle(1))
+    window.addEventListener('keydown', (event) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); cycle(event.key === 'ArrowLeft' ? -1 : 1) }
+    })
+    window.addEventListener('popstate', () => showVariant(new URLSearchParams(window.location.search).get('variant')))
+    showVariant(new URLSearchParams(window.location.search).get('variant'))
+  </script>
+</body>
+</html>

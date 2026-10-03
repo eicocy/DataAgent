@@ -1,0 +1,56 @@
+name: Verify DataLens
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_password
+          MYSQL_DATABASE: datalens_test_ci
+        # The disposable administrator uses default MySQL 8 authentication.
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci_root_password"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: sqlite:///./ci.sqlite
+      SECRET_KEY: ci_only_secret_at_least_32_characters
+      TASK_EXECUTOR_ENABLED: "false"
+      TEST_MYSQL_URL: mysql+pymysql://root:ci_root_password@127.0.0.1:3306/datalens_test_ci
+      TEST_MYSQL_READONLY_URL: mysql+pymysql://ci_readonly:ci_readonly_password@127.0.0.1:3306/datalens_test_projection
+      TEST_MYSQL_PROJECTION_URL: mysql+pymysql://ci_projection:ci_projection_password@127.0.0.1:3306/datalens_test_projection
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-lock.txt
+      - run: pip install -r requirements-lock.txt cryptography
+      - name: Provision dedicated integration reader
+        env:
+          MYSQL_PWD: ci_root_password
+        run: mysql -h127.0.0.1 -uroot -e "CREATE DATABASE datalens_test_projection; CREATE USER 'ci_readonly'@'%' IDENTIFIED WITH mysql_native_password BY 'ci_readonly_password'; CREATE USER 'ci_projection'@'%' IDENTIFIED WITH mysql_native_password BY 'ci_projection_password'; GRANT SELECT ON datalens_test_projection.* TO 'ci_readonly'@'%'; GRANT CREATE,DROP,INSERT,SELECT ON datalens_test_projection.* TO 'ci_projection'@'%';"
+      - run: python -m pytest -q
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

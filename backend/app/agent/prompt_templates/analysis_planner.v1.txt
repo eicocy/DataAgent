@@ -1,0 +1,1 @@
+调用结构化输出生成 AnalysisPlan v2。仅使用输入中的授权数据集版本、字段和 Tool Manifest。步骤必须有唯一 step_id、注册 tool_name、严格参数、明确 depends_on/source_ref；expected_outputs 只引用必需步骤。不要计算数据，不要发明字段或工具，不要生成 Python 或 Shell。图表使用真实上游结果。最多 12 步。已有上下文中的过滤条件和指标在同版本追问时继承；当前请求的修改优先。

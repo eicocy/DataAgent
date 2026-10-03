@@ -1,0 +1,76 @@
+{
+  "username": "p3_live_1a0ffe7f383",
+  "api_mock": false,
+  "datasets": [
+    29,
+    30
+  ],
+  "model_metadata": [
+    {
+      "provider": "deepseek",
+      "model": "deepseek-flash",
+      "prompt_version": "intent_router.v2",
+      "input_tokens": 1069,
+      "output_tokens": 280,
+      "latency_ms": 1426,
+      "status": "succeeded",
+      "error_code": null
+    },
+    {
+      "provider": "deepseek",
+      "model": "deepseek-flash",
+      "prompt_version": "analysis_planner.v3",
+      "input_tokens": 5522,
+      "output_tokens": 524,
+      "latency_ms": 2414,
+      "status": "failed",
+      "error_code": "MODEL_OUTPUT_INVALID"
+    },
+    {
+      "provider": "deepseek",
+      "model": "deepseek-flash",
+      "prompt_version": "analysis_planner.v3",
+      "input_tokens": 5552,
+      "output_tokens": 677,
+      "latency_ms": 2476,
+      "status": "succeeded",
+      "error_code": null
+    },
+    {
+      "provider": "deepseek",
+      "model": "deepseek-flash",
+      "prompt_version": "result_interpreter.v3",
+      "input_tokens": 1510,
+      "output_tokens": 670,
+      "latency_ms": 2746,
+      "status": "succeeded",
+      "error_code": null
+    }
+  ],
+  "runs": {
+    "chat": 54,
+    "aggregate": 56,
+    "south": 57,
+    "chart": 58,
+    "expired": 59,
+    "switched": 61,
+    "cancelled": 63
+  },
+  "checks": [
+    "upload",
+    "dataset_free_chat",
+    "ambiguity",
+    "numeric_binding",
+    "pinned_filter",
+    "chart_reuse",
+    "model_metadata",
+    "sse_fallback",
+    "sse_replay",
+    "expiry_recompute",
+    "version_unavailable",
+    "dataset_switch",
+    "isolation",
+    "queued_cancel",
+    "running_cancel"
+  ]
+}
