@@ -25,7 +25,7 @@ class TransformationService:
         version=service.get_version(dataset,version_id)
         if version is None: raise ToolInputError('DATASET_VERSION_UNAVAILABLE')
         bound=DatasetService(self.db,select_projection_bind(version,self.business_bind,self.projection_bind))
-        return dataset,version,context_for(bound,dataset,columns,version.id)
+        return dataset,version,context_for(bound,dataset,columns,version.id,preserve_decimal=True)
 
     def prepare(self,user_id,dataset_id,version_id,tool,parameters):
         parsed=self.registry.validate_input(tool,parameters)
@@ -47,7 +47,9 @@ class TransformationService:
         from app.analysis.inputs import QualityScoreInput
         from app.analysis.quality_tools import data_quality_score
         from app.analysis.serialization import records
-        after=DatasetContext.from_frame(output.frame)
+        after=DatasetContext.from_frame(output.frame,context.dataset_id,context.dataset_version,
+            max_rows=context.max_rows,max_columns=context.max_columns,max_bytes=context.max_bytes,
+            preview_rows=context.preview_rows,max_cells=context.max_cells,correlation_columns=context.correlation_columns)
         def summary(ctx):
             return {'row_count':len(ctx.frame),'column_count':len(ctx.frame.columns),'schema':ctx.schema.model_dump(mode='json'),'sample':records(ctx.frame.head(min(ctx.preview_rows,max(1,ctx.max_cells//max(1,len(ctx.frame.columns)))))),'quality':data_quality_score(ctx,QualityScoreInput()).data.model_dump(mode='json')}
         return {'preview_hash':digest,'dataset_version_id':version_id,'before':summary(context),'after':summary(after),'result':output.data.model_dump(mode='json')}

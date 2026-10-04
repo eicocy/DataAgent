@@ -329,6 +329,11 @@ def _infer_date_columns(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def _data_type(series: pd.Series) -> tuple[str, Any]:
+    from app.analysis.precision import decimal_series
+    # Text projections retain the complete Decimal coefficient and exponent;
+    # ordinary numeric ingestion retains its established Numeric(24,8) path.
+    if decimal_series(series):
+        return "decimal", Text()
     if pd.api.types.is_bool_dtype(series.dtype):
         return "boolean", Boolean()
     if pd.api.types.is_integer_dtype(series.dtype):
@@ -357,6 +362,8 @@ def _sample_value(value: Any) -> Any:
 
 
 def _sql_value(value: Any) -> Any:
+    from decimal import Decimal
+    if isinstance(value,Decimal): return str(value)
     if pd.isna(value):
         return None
     if hasattr(value, "item"):
@@ -580,7 +587,7 @@ class DatasetService:
             raise HTTPException(status_code=409, detail={'code': 'DATASET_VERSION_UNAVAILABLE', 'message': '数据版本投影不匹配'})
         return version
 
-    def load_frame(self, dataset: Dataset, columns: list[DatasetColumn], version_id: int | None = None) -> pd.DataFrame:
+    def load_frame(self, dataset: Dataset, columns: list[DatasetColumn], version_id: int | None = None, preserve_decimal: bool = False) -> pd.DataFrame:
         version = None
         if self.db is not None:
             version = self.get_version(dataset, version_id)
@@ -610,9 +617,15 @@ class DatasetService:
             elif column.data_type == 'integer':
                 frame[column.name] = pd.to_numeric(frame[column.name], errors='raise').astype('Int64')
             elif column.data_type == 'decimal':
-                frame[column.name] = pd.to_numeric(frame[column.name], errors='raise')
+                if preserve_decimal:
+                    from app.analysis.business_tools import decimal
+                    frame[column.name] = frame[column.name].map(lambda value: value if pd.isna(value) else decimal(value)).astype(object)
+                else:
+                    frame[column.name] = pd.to_numeric(frame[column.name], errors='raise')
             elif column.data_type == 'boolean':
                 frame[column.name] = frame[column.name].astype('boolean')
         frame.attrs['quality_warnings'] = (version.profile_json.get('warnings',[]) if version else getattr(dataset, 'quality_warnings_json', None)) or []
+        if preserve_decimal:
+            frame.attrs['precision_limitations']=['Exact calculations preserve stored projection values; historical CSV/Excel float parsing and Numeric(24,8) projection approximation cannot be recovered.']
         if version: frame.attrs['original_columns']=[column.original_name for column in schema.columns]
         return frame

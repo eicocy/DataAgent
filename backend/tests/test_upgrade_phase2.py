@@ -17,7 +17,7 @@ def test_profiles_are_versioned_and_unsupported_templates_stay_blocked():
         assert len(service.catalog()['items']) == 105
         assert service.get('general-quality').availability == 'available'
         with pytest.raises(ValueError, match='PROFILE_UNAVAILABLE'):
-            service.selected(['forecast-sales'])
+            service.selected(['finance-cash-flow'])
 
 
 def test_semantics_distinguish_metrics_ids_and_versioned_user_corrections():
@@ -39,8 +39,8 @@ def test_router_combines_profiles_and_clarifies_unavailable_forecast():
     router = AnalysisTemplateRouter(profile_catalog()['items'])
     result = router.route('分析销售下降原因，并预测下季度销量')
     assert 'sales-decline' in result.profile_ids
-    assert result.needs_clarification
-    assert result.missing_requirements
+    assert not result.needs_clarification
+    assert not result.missing_requirements
     assert len(result.profile_ids) <= 3
 
 
@@ -298,7 +298,7 @@ def test_sales_route_requires_a_confirmed_metric_and_time_when_requested():
     router = AnalysisTemplateRouter(profile_catalog()['items'])
     assert router.route('分析今年销售额', semantics=[]).needs_clarification
     assert router.route('分析今年销售额', semantics=[{'column': 'revenue', 'concept': 'revenue', 'role': 'metric'}]).needs_clarification
-    assert not router.route('分析今年销售额', semantics=[{'column': 'revenue', 'concept': 'revenue', 'role': 'metric'}, {'column': 'day', 'concept': 'time', 'role': 'dimension'}]).needs_clarification
+    assert not router.route('分析今年销售额', semantics=[{'column': 'revenue', 'concept': 'revenue', 'role': 'metric','source':'user','currency':'USD','unit':'dollar'}, {'column': 'day', 'concept': 'time', 'role': 'dimension'}]).needs_clarification
 
 
 def test_question_correction_is_saved_at_submission_for_future_runs(analysis_context):

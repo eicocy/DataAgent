@@ -6,6 +6,22 @@ from app.services.analysis_tools import model_tool_schemas
 from app.tools.registry import tool_registry
 
 
+def compact_tool_schema(schema):
+    """Strip annotations on schema nodes, never keys of property/default maps."""
+    if not isinstance(schema,dict):return schema
+    result={}
+    maps={'properties','$defs','definitions','patternProperties','dependentSchemas'}
+    nodes={'items','contains','not','if','then','else','additionalProperties','propertyNames','unevaluatedProperties'}
+    arrays={'allOf','anyOf','oneOf','prefixItems'}
+    for key,value in schema.items():
+        if key in {'title','examples'}:continue
+        if key in maps and isinstance(value,dict):result[key]={name:compact_tool_schema(item) for name,item in value.items()}
+        elif key in nodes:result[key]=compact_tool_schema(value)
+        elif key in arrays and isinstance(value,list):result[key]=[compact_tool_schema(item) for item in value]
+        else:result[key]=value
+    return result
+
+
 def validate_plan_arguments(plan):
     registry = tool_registry()
     for step in plan.steps:
@@ -47,6 +63,9 @@ class Planner:
         wanted = {'dataset_overview', 'column_summary', 'missing_value_analysis', 'duplicate_analysis', 'descriptive_statistics', 'generate_chart', 'aggregate', 'groupby_aggregate', 'filter_rows', 'chart_recommendations'}
         for profile in config['profiles']:
             wanted.update(profile['preferred_tools'])
+        import re
+        if re.search(r'预测|未来|forecast',question,re.I):wanted.add('forecast')
+        if len(config['inputs'])>1:wanted.add('join_data')
         if intent == 'DATA_CLEANING':
             from app.agent.tool_policy import CLEANING_TOOLS
             wanted.intersection_update(CLEANING_TOOLS)
@@ -55,16 +74,21 @@ class Planner:
         import json
         schemas, names, tools = {}, {}, []
         for tool in manifests:
-            signature = json.dumps(tool['parameters'], sort_keys=True)
+            parameters=compact_tool_schema(tool['parameters'])
+            signature = json.dumps(parameters, sort_keys=True)
             if signature not in names:
                 names[signature] = f'params_{len(names)}'
-                schemas[names[signature]] = tool['parameters']
+                schemas[names[signature]] = parameters
             tools.append(dict(tool, parameters={'$ref': f"#/tool_parameter_schemas/{names[signature]}"}))
         budget = getattr(self.adapter, 'budget', None) or RuntimeBudget.for_depth(config['depth'])
         payload = {'question': question[:2000], 'task_id': task_id, 'intent': intent, 'inputs': config['inputs'],
             'datasets': metadata_by_input, 'dataset': metadata_by_input.get(config['inputs'][0]['alias'], {}),
-            'profiles': config['profiles'], 'semantics': config['semantic_snapshot'], 'semantic_version': config['semantic_version'],
+            'profiles': [{k:p[k] for k in ('id','version','name','category','description','expected_metrics','expected_dimensions','preferred_tools','analysis_steps','constraints','prompt_context') if k in p} for p in config['profiles']], 'semantics': config['semantic_snapshot'], 'semantic_version': config['semantic_version'],
             'depth': config['depth'], 'budget': budget.snapshot(), 'tools': tools, 'tool_parameter_schemas': schemas}
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        payload['current_date']=datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()
+        payload['timezone']='Asia/Shanghai'
         payload.update(filters=context.active_filters[:20], metrics=context.active_metrics[:20], dimensions=context.active_dimensions[:20],
             time_range=context.active_time_range, previous_plan=context.previous_plan, summary=context.messages_summary[:2000])
         columns = {alias: {c['name']: c['data_type'] for c in meta.get('columns', [])} for alias, meta in metadata_by_input.items()}
@@ -89,10 +113,10 @@ class Planner:
                 plan.semantic_snapshot = config['semantic_snapshot']
                 plan.semantic_version = config['semantic_version']
                 plan.depth, plan.budget = config['depth'], budget.snapshot()
-                validate_graph(plan, columns, permissions, budget.max_tasks)
+                validate_graph(plan, columns, permissions, budget.max_tasks,metadata_by_input)
                 plan.steps, aliases = deduplicate_steps(plan.steps, {i.alias: i.dataset_version_id for i in plan.inputs}, plan.semantic_version)
                 plan.expected_outputs = list(dict.fromkeys(aliases.get(k, k) for k in plan.expected_outputs))
-                return validate_graph(plan, columns, permissions, budget.max_tasks)
+                return validate_graph(plan, columns, permissions, budget.max_tasks,metadata_by_input)
             except BudgetExceeded:
                 raise
             except ValueError as exc:

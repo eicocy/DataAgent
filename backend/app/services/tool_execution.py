@@ -17,9 +17,9 @@ from app.analysis.errors import ToolError,ToolInputError,ToolExecutionError
 from app.datasets.profiler import build_profile
 
 
-def context_for(service,dataset,columns,version_id=None):
+def context_for(service,dataset,columns,version_id=None,preserve_decimal=False):
     version=service.get_version(dataset,version_id)
-    frame=service.load_frame(dataset,columns,version_id)
+    frame=service.load_frame(dataset,columns,version_id,preserve_decimal=preserve_decimal)
     settings=get_settings()
     budgets=dict(max_rows=settings.tool_max_rows,max_columns=settings.tool_max_columns,max_cells=settings.tool_max_cells,preview_rows=settings.tool_preview_rows,correlation_columns=settings.tool_correlation_columns,max_bytes=settings.dataframe_max_bytes)
     if version:
@@ -113,13 +113,14 @@ class ToolExecutionService:
             location=version if version else dataset
             bind=select_projection_bind(location,self.business_bind,self.projection_bind)
             service=DatasetService(db,bind)
-            context=context_for(service,dataset,columns,record.dataset_version_id)
+            exact=record.tool_name in {'kpi_analysis','period_comparison','contribution_analysis','join_data','publish_join'} or self.engine.registry.get(record.tool_name).metadata.modifies_dataset
+            context=context_for(service,dataset,columns,record.dataset_version_id,preserve_decimal=exact)
             if record.tool_name=='publish_join':
                 right_id=record.parameters_json['right_dataset_id'];right_version_id=record.parameters_json['right_version_id']
                 right,right_columns=DatasetService(db).get(right_id,record.user_id)
                 right_version=DatasetService(db).get_version(right,right_version_id)
                 right_service=DatasetService(db,select_projection_bind(right_version,self.business_bind,self.projection_bind))
-                context=replace(context,related_inputs={'right':context_for(right_service,right,right_columns,right_version_id)})
+                context=replace(context,related_inputs={'right':context_for(right_service,right,right_columns,right_version_id,preserve_decimal=True)})
             if self.engine.registry.get(record.tool_name).output_schema.__name__ in {'LegacyResult','LegacyChartResult'}:
                 from app.services.analysis_tools import DatasetTools
                 from app.datasets.schemas import column_storage_type

@@ -238,6 +238,9 @@ class WorkflowExecutor:
                     self.charts.append(chart)
                 elif step.tool_name not in {'get_dataset_info', 'preview_data'}:
                     table = dict(persisted or clip_context(result.data, max_rows=100))
+                    from app.analysis.result_tables import result_table
+                    normalized=result_table(result.data,step.step_id)
+                    if normalized:table.update(normalized)
                     table['source_ref'] = step.step_id
                     self.tables.append(table)
             except Exception as exc:

@@ -19,7 +19,7 @@ def test_capabilities_enable_phase2_and_keep_future_tools_closed(analysis_contex
     assert data['multi_dataset_execution'] is True
     assert data['depth_selection'] is True
     assert data['depths'] == ['FAST', 'STANDARD', 'DEEP']
-    assert data['cross_dataset_join'] is False
+    assert data['cross_dataset_join'] is True
     assert data['automatic_reports'] is False
     assert not data['sandbox_available']
     assert TestClient(app).get('/api/v1/workspace/capabilities').status_code == 401
@@ -35,7 +35,7 @@ def test_catalog_has_fifteen_categories_and_explicit_availability(analysis_conte
     quality = client.get('/api/v1/analysis/profiles/general-quality').json()['data']
     assert quality['example_questions'] and quality['recommended_data']
     assert quality['availability'] == 'available'
-    assert next(p for p in catalog['items'] if p['id'] == 'forecast-sales')['availability'] == 'planned'
+    assert next(p for p in catalog['items'] if p['id'] == 'forecast-sales')['availability'] == 'limited'
     assert client.get('/api/v1/analysis/profiles/does-not-exist').status_code == 404
 
 

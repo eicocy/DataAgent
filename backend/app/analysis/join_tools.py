@@ -59,7 +59,14 @@ def join_data(context,args):
     frame=left.copy(deep=True).merge(right.copy(deep=True),left_on=args.left_on,right_on=args.right_on,how=args.how,validate=args.relationship,suffixes=('_left','_right'),sort=False).reset_index(drop=True)
     # pandas may carry equal source attrs into a wider joined frame. Original
     # source labels no longer align after suffixing/combining both schemas.
-    frame.attrs['original_columns']=list(frame.columns)
+    left_labels=dict(zip(left.columns,left.attrs.get('original_columns',list(left.columns))))
+    right_labels=dict(zip(right.columns,right.attrs.get('original_columns',list(right.columns))))
+    shared={l for l,r in zip(args.left_on,args.right_on) if l==r}
+    overlaps=(set(left.columns)&set(right.columns))-shared
+    labels={column+'_left' if column in overlaps else column:str(label)+'_left' if column in overlaps else str(label) for column,label in left_labels.items()}
+    labels.update({column+'_right' if column in overlaps else column:str(label)+'_right' if column in overlaps else str(label) for column,label in right_labels.items() if column not in shared})
+    frame.attrs['original_columns']=[labels[column] for column in frame.columns]
+    frame.attrs['precision_limitations']=list(dict.fromkeys([*left.attrs.get('precision_limitations',[]),*right.attrs.get('precision_limitations',[])]))
     context.check_size(frame)
     preview=frame.head(min(context.preview_rows,max(1,context.max_cells//max(1,len(labels)))))
     ml=sum(n for k,n in lc.items() if k in rc);mr=sum(n for k,n in rc.items() if k in lc)

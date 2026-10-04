@@ -40,14 +40,21 @@ def load_workspace(db, user_id, configuration, primary_tools, business_bind, pro
                 nullable=bool(tools.frame[c.name].isna().any()), missing_count=int(tools.frame[c.name].isna().sum()), unique_count=int(tools.frame[c.name].nunique()), sample_values_json=[]) for c in tools.version_schema.columns]
             tools.schema = {c.name: c for c in tools.columns}
         tools.on_event, tools.check_lease = event, lease_check
+        # Authorized Session remains on the owner thread: business/Join tools
+        # are serial; parallel tools receive only already loaded frames.
+        bind=select_projection_bind(version,business_bind,projection_bind)
+        tools.exact_frame_loader=lambda dataset=dataset,version_id=version.id,columns=tools.columns,bind=bind: DatasetService(db,bind).load_frame(dataset,columns,version_id,preserve_decimal=True)
         total_bytes += int(tools.frame.memory_usage(deep=True).sum())
         if total_bytes * 3 > get_settings().dataframe_max_bytes:
             raise ValueError('WORKSPACE_MEMORY_BUDGET')
         names = {c['name']: c.get('original_name', c['name']) for c in version.schema_json['columns']}
         candidates = detect_semantics(tools.frame, version.id, names)
         semantics.extend(m.model_dump() for m in merge_mappings(candidates, configuration['semantic_snapshot'], version.id))
+        tools.semantic_mappings=[m for m in semantics if m['dataset_version_id']==version.id]
+        from app.semantic.business_validation import metadata_evidence
         metadata[binding['alias']] = {'dataset_id': dataset.id, 'dataset_version_id': version.id, 'row_count': len(tools.frame),
-            'columns': [{'name': c.name, 'label': c.original_name, 'data_type': c.data_type} for c in tools.columns]}
+            'columns': [{'name': c.name, 'label': c.original_name, 'data_type': c.data_type} for c in tools.columns],
+            'business_metadata':metadata_evidence(tools.frame)}
         inputs[binding['alias']] = tools
     workspace = InputWorkspace(inputs)
     workspace.metadata_by_input = metadata

@@ -95,14 +95,19 @@
         "自动探索分析"
       ],
       "preferred_tools": [
-        "eda"
+        "eda",
+        "data_quality_score",
+        "join_data"
       ],
       "required_capabilities": [
-        "eda"
+        "data_quality_score",
+        "join_data"
       ],
       "availability": "available",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -117,7 +122,8 @@
       "output_artifacts": [
         "table",
         "chart"
-      ]
+      ],
+      "version": "2.0"
     },
     {
       "id": "general-quality",
@@ -139,16 +145,17 @@
       "preferred_tools": [
         "missing_value_analysis",
         "duplicate_analysis",
-        "outlier_analysis"
+        "outlier_analysis",
+        "data_quality_score"
       ],
       "required_capabilities": [
-        "missing_value_analysis",
-        "duplicate_analysis",
-        "outlier_analysis"
+        "data_quality_score"
       ],
       "availability": "available",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -163,7 +170,8 @@
       "output_artifacts": [
         "table",
         "chart"
-      ]
+      ],
+      "version": "2.0"
     },
     {
       "id": "general-clean",
@@ -226,14 +234,19 @@
         "探索性数据分析 EDA"
       ],
       "preferred_tools": [
-        "eda"
+        "eda",
+        "data_quality_score",
+        "join_data"
       ],
       "required_capabilities": [
-        "eda"
+        "data_quality_score",
+        "join_data"
       ],
       "availability": "available",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -248,7 +261,8 @@
       "output_artifacts": [
         "table",
         "chart"
-      ]
+      ],
+      "version": "2.0"
     },
     {
       "id": "sales-overview",
@@ -269,16 +283,21 @@
       ],
       "preferred_tools": [
         "aggregate_data",
-        "group_by_analysis"
+        "group_by_analysis",
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
       ],
       "required_capabilities": [
-        "aggregate_data",
-        "group_by_analysis"
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
       ],
       "availability": "limited",
       "constraints": [
         "仅根据计算结果描述发现；相关性不代表因果。",
-        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -293,7 +312,8 @@
       "output_artifacts": [
         "table",
         "chart"
-      ]
+      ],
+      "version": "2.0"
     },
     {
       "id": "sales-growth",
@@ -313,15 +333,21 @@
         "销售增长分析"
       ],
       "preferred_tools": [
-        "time_group_analysis"
+        "time_group_analysis",
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
       ],
       "required_capabilities": [
-        "time_group_analysis"
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
       ],
       "availability": "limited",
       "constraints": [
         "仅根据计算结果描述发现；相关性不代表因果。",
-        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -336,7 +362,8 @@
       "output_artifacts": [
         "table",
         "chart"
-      ]
+      ],
+      "version": "2.0"
     },
     {
       "id": "sales-decline",
@@ -357,16 +384,21 @@
       ],
       "preferred_tools": [
         "group_by_analysis",
-        "time_group_analysis"
+        "time_group_analysis",
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
       ],
       "required_capabilities": [
-        "group_by_analysis",
-        "time_group_analysis"
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
       ],
       "availability": "limited",
       "constraints": [
         "仅根据计算结果描述发现；相关性不代表因果。",
-        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -381,7 +413,8 @@
       "output_artifacts": [
         "table",
         "chart"
-      ]
+      ],
+      "version": "2.0"
     },
     {
       "id": "sales-ranking",
@@ -402,15 +435,22 @@
       ],
       "preferred_tools": [
         "group_by_analysis",
-        "sort_data"
+        "sort_data",
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
       ],
       "required_capabilities": [
-        "group_by_analysis",
-        "sort_data"
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
       ],
-      "availability": "available",
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。",
+        "通用数量排名可用；金额分组排名不得借通用浮点求和替代受控金额工具。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -425,7 +465,8 @@
       "output_artifacts": [
         "table",
         "chart"
-      ]
+      ],
+      "version": "2.0"
     },
     {
       "id": "sales-report",
@@ -445,15 +486,21 @@
         "销售经营管理报告"
       ],
       "preferred_tools": [
-        "eda"
+        "eda",
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
       ],
       "required_capabilities": [
-        "eda"
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
       ],
       "availability": "limited",
       "constraints": [
         "仅根据计算结果描述发现；相关性不代表因果。",
-        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -468,7 +515,8 @@
       "output_artifacts": [
         "table",
         "chart"
-      ]
+      ],
+      "version": "2.0"
     },
     {
       "id": "finance-overview",
@@ -487,11 +535,21 @@
       "intent_keywords": [
         "财务综合分析"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "required_capabilities": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -503,7 +561,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "finance-revenue",
@@ -522,11 +581,21 @@
       "intent_keywords": [
         "收入分析"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "required_capabilities": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -538,7 +607,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "finance-cost",
@@ -557,11 +627,21 @@
       "intent_keywords": [
         "成本分析"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "required_capabilities": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -573,7 +653,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "finance-profit",
@@ -592,11 +673,21 @@
       "intent_keywords": [
         "利润分析"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "required_capabilities": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -608,7 +699,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "finance-gross-margin",
@@ -627,11 +719,21 @@
       "intent_keywords": [
         "毛利分析"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "required_capabilities": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -643,7 +745,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "finance-expense",
@@ -662,11 +765,21 @@
       "intent_keywords": [
         "费用分析"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "required_capabilities": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -678,7 +791,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "finance-cash-flow",
@@ -732,11 +846,21 @@
       "intent_keywords": [
         "预算执行分析"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "required_capabilities": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -748,7 +872,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "finance-variance",
@@ -802,11 +927,21 @@
       "intent_keywords": [
         "盈利能力分析"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "required_capabilities": [
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -818,7 +953,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "customer-overview",
@@ -3300,11 +3436,18 @@
       "intent_keywords": [
         "销量预测"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "forecast"
+      ],
+      "required_capabilities": [
+        "forecast"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。",
+        "仅规则单变量时间序列；滚动验证和基线选择；无季节性或自动机器学习。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -3316,7 +3459,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "forecast-revenue",
@@ -3335,11 +3479,18 @@
       "intent_keywords": [
         "销售额预测"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "forecast"
+      ],
+      "required_capabilities": [
+        "forecast"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。",
+        "仅规则单变量时间序列；滚动验证和基线选择；无季节性或自动机器学习。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -3351,7 +3502,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "forecast-orders",
@@ -3370,11 +3522,18 @@
       "intent_keywords": [
         "订单预测"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "forecast"
+      ],
+      "required_capabilities": [
+        "forecast"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。",
+        "仅规则单变量时间序列；滚动验证和基线选择；无季节性或自动机器学习。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -3386,7 +3545,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "forecast-users",
@@ -3405,11 +3565,18 @@
       "intent_keywords": [
         "用户增长预测"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "forecast"
+      ],
+      "required_capabilities": [
+        "forecast"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。",
+        "仅规则单变量时间序列；滚动验证和基线选择；无季节性或自动机器学习。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -3421,7 +3588,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "forecast-inventory",
@@ -3440,11 +3608,18 @@
       "intent_keywords": [
         "库存需求预测"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "forecast"
+      ],
+      "required_capabilities": [
+        "forecast"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。",
+        "仅规则单变量时间序列；滚动验证和基线选择；无季节性或自动机器学习。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -3456,7 +3631,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "forecast-trend",
@@ -3475,11 +3651,18 @@
       "intent_keywords": [
         "趋势预测"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "forecast"
+      ],
+      "required_capabilities": [
+        "forecast"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。",
+        "仅规则单变量时间序列；滚动验证和基线选择；无季节性或自动机器学习。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -3491,7 +3674,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "forecast-time-series",
@@ -3510,11 +3694,18 @@
       "intent_keywords": [
         "时间序列预测"
       ],
-      "preferred_tools": [],
-      "required_capabilities": [],
-      "availability": "planned",
+      "preferred_tools": [
+        "forecast"
+      ],
+      "required_capabilities": [
+        "forecast"
+      ],
+      "availability": "limited",
       "constraints": [
-        "仅根据计算结果描述发现；相关性不代表因果。"
+        "仅根据计算结果描述发现；相关性不代表因果。",
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。",
+        "仅规则单变量时间序列；滚动验证和基线选择；无季节性或自动机器学习。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -3526,7 +3717,8 @@
         "关键发现",
         "方法与限制"
       ],
-      "output_artifacts": []
+      "output_artifacts": [],
+      "version": "2.0"
     },
     {
       "id": "statistics-descriptive",
@@ -3840,15 +4032,27 @@
         "自定义分析"
       ],
       "preferred_tools": [
-        "group_by_analysis"
+        "group_by_analysis",
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis",
+        "forecast",
+        "join_data",
+        "data_quality_score"
       ],
       "required_capabilities": [
-        "group_by_analysis"
+        "kpi_analysis",
+        "period_comparison",
+        "contribution_analysis",
+        "forecast",
+        "join_data",
+        "data_quality_score"
       ],
       "availability": "limited",
       "constraints": [
         "仅根据计算结果描述发现；相关性不代表因果。",
-        "目前使用通用工具；专业口径、自动报告或清洗发布尚未开放。"
+        "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+        "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
       ],
       "analysis_steps": [
         "核对数据结构与口径",
@@ -3863,7 +4067,8 @@
       "output_artifacts": [
         "table",
         "chart"
-      ]
+      ],
+      "version": "2.0"
     }
   ]
 }

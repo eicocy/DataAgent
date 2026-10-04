@@ -136,7 +136,7 @@ class DeepSeekAgent:
         selected_ids = config['public']['profile_ids']
         if not selected_ids and (decision.follow_up or decision.intent == 'FOLLOW_UP_ANALYSIS') and tools.conversation_state.previous_analysis:
             selected_ids = [p['id'] for p in tools.conversation_state.selected_profiles if p.get('source') == 'system']
-        route = AnalysisTemplateRouter(config['catalog']).route(question, selected_ids, config['semantic_snapshot'], config['public']['category'])
+        route = AnalysisTemplateRouter(config['catalog']).route(question, selected_ids, config['semantic_snapshot'], config['public']['category'],tools.metadata_by_input)
         event('profile_selected', route.model_dump())
         if route.needs_clarification:
             answer = '请补充或确认分析需求：' + ('；'.join(route.missing_requirements) or '请选择分析模板或说明想分析的指标。')
@@ -154,6 +154,11 @@ class DeepSeekAgent:
         except BudgetExceeded:
             return AgentOutcome([], {}, '分析规划已达到本次预算，请缩小问题范围或选择更高分析深度。', None, 'waiting', usage=provider.usage)
         except ValueError as exc:
+            cause=exc
+            while cause.__cause__ is not None: cause=cause.__cause__
+            if str(cause).startswith(('BUSINESS_METADATA','BUSINESS_METRIC','BUSINESS_PERIOD','BUSINESS_PREVIOUS')):
+                answer='请确认金额字段的币种和单位、指标含义以及完整且不重叠的比较区间；现有数据需覆盖这些区间。'
+                return AgentOutcome([],{},answer,None,'waiting',report={'version':'1.0','status':'waiting','answer':answer,'warnings':[str(cause)],'tables':[],'charts':[],'evidence_refs':[],'incomplete_steps':[]},usage=provider.usage)
             raise AnalysisFailure('PLAN_INVALID', '模型未能生成有效分析计划，请调整问题重试', True) from exc
         event('plan', plan.model_dump())
         event('plan_validated', {'plan_id': plan.plan_id, 'steps': len(plan.steps)})

@@ -79,7 +79,7 @@ def prepare(context, params, columns, required_metadata=('currency','unit')):
             explicit=inferred
         if explicit is None and label in required_metadata: raise ToolInputError('BUSINESS_METADATA_REQUIRED')
         resolved.append(explicit)
-    limits=list(LIMITATIONS)
+    limits=list(LIMITATIONS)+list(context.frame.attrs.get('precision_limitations',[]))
     if any(isinstance(v,Real) and not isinstance(v,Integral) for c in columns for v in frame[c]):
         limits.append('Legacy float inputs were already approximated; Decimal conversion cannot restore lost precision.')
     return frame, dict(dataset_id=context.dataset_id,dataset_version=context.dataset_version,source_ref=context.source_ref,

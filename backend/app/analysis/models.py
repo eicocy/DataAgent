@@ -354,6 +354,9 @@ class ForecastResult(StrictModel):
     source_ref: str
     time_column: str
     target_column: str
+    currency: str | None=None
+    unit: str | None=None
+    unit_status: Literal['verified','unconfirmed']='unconfirmed'
     aggregation: Literal['sum','mean','median','min','max']
     granularity: Literal['day','week','month','quarter','year']
     frequency: str

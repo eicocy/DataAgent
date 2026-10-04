@@ -52,7 +52,21 @@ def _history(context, args):
         raise ToolInputError('FORECAST_INVALID_TARGET') from None
     if not np.isfinite(values).all():
         raise ToolInputError('FORECAST_NON_FINITE_TARGET')
-    history = pd.DataFrame({'period': periods.to_numpy(), 'value': values.to_numpy()}).groupby('period', sort=True)['value'].agg(args.aggregation)
+    if context.monetary_metadata:
+        from app.analysis.business_tools import decimal,total
+        from decimal import Decimal,localcontext
+        def exact_bucket(series):
+            raw=[decimal(value) for value in series]
+            if args.aggregation=='sum': return total(raw)
+            if args.aggregation in {'min','max'}: return (min if args.aggregation=='min' else max)(raw)
+            with localcontext() as arithmetic:
+                arithmetic.prec=3100
+                if args.aggregation=='mean': return total(raw)/Decimal(len(raw))
+                ordered=sorted(raw);middle=len(raw)//2
+                return ordered[middle] if len(raw)%2 else total(ordered[middle-1:middle+1])/Decimal(2)
+        history=pd.DataFrame({'period':periods.to_numpy(),'value':target.to_numpy()}).groupby('period',sort=True)['value'].agg(exact_bucket).map(float)
+    else:
+        history = pd.DataFrame({'period': periods.to_numpy(), 'value': values.to_numpy()}).groupby('period', sort=True)['value'].agg(args.aggregation)
     if not np.isfinite(history).all():
         raise ToolInputError('FORECAST_NON_FINITE_AGGREGATE')
     if len(history) < 12:
@@ -160,12 +174,14 @@ def forecast(context, args):
         points = [ForecastPoint(time=t.isoformat(), value=float(v), lower=float(v-width), upper=float(v+width)) for t, v in zip(future, final_predictions[selected.model])]
     return ToolOutput(ForecastResult(dataset_id=context.dataset_id, dataset_version=context.dataset_version, source_ref=context.source_ref,
         time_column=args.time_column, target_column=args.target_column, aggregation=args.aggregation, granularity=args.granularity,
+        currency=context.monetary_metadata.get('currency'),unit=context.monetary_metadata.get('unit'),unit_status='verified' if context.monetary_metadata else 'unconfirmed',
         frequency=PERIODS[args.granularity][1], history_start=times[0].isoformat(), history_end=times[-1].isoformat(),
         observation_count=len(values), input_row_count=len(context.frame), horizon=horizon, selected_model=selected.model, metrics=selected.metrics,
         folds=folds, baseline=candidates[0], candidates=candidates, points=points,
         uncertainty=ForecastUncertainty(residual_quantile=.9, residual_count=len(residuals[selected.model]),
             limitations='Symmetric empirical bounds from the selected model held-out absolute residual 90th percentile. Not calibrated confidence or prediction intervals; model selection reuses these folds. Small samples, horizon effects and regime changes can reduce coverage; zero errors can yield zero width.'),
-        limitations=['Univariate, nonseasonal forecasts; no external variables or causal claims.',
+        limitations=[('Verified monetary buckets aggregate Decimal before approximate floating-point model fitting; forecast values are estimates, not exact financial facts.' if context.monetary_metadata else '原字段单位未确认；数值预测不确认金额口径。'),
+            'Univariate, nonseasonal forecasts; no external variables or causal claims.',
             'Calendar periods start on day/Monday/month/quarter/year boundaries; duplicates aggregate by the declared rule; no missing-period imputation.',
             'Three expanding chronological folds use the requested forecast horizon. MAE selects the model; RMSE breaks ties; near-equal numerical ties retain the simpler candidate.',
             'Maximum 1000 periods, 24-step horizon, five candidates; fixed ARIMA(1,1,0), at most 50 optimizer iterations; SES at most 100.']))

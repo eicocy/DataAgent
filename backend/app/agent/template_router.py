@@ -16,7 +16,7 @@ class AnalysisTemplateRouter:
     def __init__(self, catalog):
         self.catalog = {p['id']: p for p in catalog}
 
-    def route(self, question, explicit_ids=None, semantics=None, category=None):
+    def route(self, question, explicit_ids=None, semantics=None, category=None,metadata_by_input=None):
         text = re.sub(r'不是[^，,。；;]+', '', question.lower())
         ids = list(explicit_ids or [])
         confidence = 1.0 if ids else .8
@@ -45,7 +45,7 @@ class AnalysisTemplateRouter:
                 missing.append(f"{profile['name'] if profile else key} 的必要工具尚未开放。")
             if category and profile and profile['category'] not in {category, 'general'}:
                 missing.append('分析方向与识别到的任务不一致，请选择对应模板或使用自动方向。')
-        if any(self.catalog.get(key, {}).get('category') in {'sales', 'finance'} for key in ids):
+        if any(self.catalog.get(key, {}).get('category') in {'sales', 'finance','forecast'} for key in ids):
             ambiguous = [s['column'] for s in semantics or [] if s.get('concept') == 'ambiguous_sales' and s.get('source') != 'user']
             if ambiguous:
                 missing.append(f"请确认 {', '.join(ambiguous)} 表示金额还是销量。")
@@ -60,6 +60,14 @@ class AnalysisTemplateRouter:
                     missing.append('同时存在金额和销量指标，请说明本次排名或比较采用哪个指标。')
                 if re.search(r'今年|同比|环比|趋势|增长|下降|下滑', text) and not any(s.get('concept') == 'time' for s in semantics):
                     missing.append('未识别到时间字段，无法确定比较区间，请确认时间字段。')
+                from app.semantic.business_validation import MONEY
+                money=[s for s in semantics if s.get('concept') in MONEY] if expected!='quantity' else []
+                for mapping in money:
+                    metadata=next((m.get('business_metadata',{}) for m in (metadata_by_input or {}).values() if m.get('dataset_version_id')==mapping.get('dataset_version_id')), {})
+                    verified=all(metadata.get(label,{}).get('status')=='valid' for label in ('currency','unit'))
+                    if verified: continue
+                    if mapping.get('source') not in {'confirmed','user'} or not mapping.get('currency') or not mapping.get('unit'):
+                        missing.append(f"请确认 {mapping['column']} 的币种和单位（例如：{mapping['column']} 是销售额，币种 USD，单位 美元）。")
         return ProfileRoute(profile_ids=ids, category=self.catalog.get(ids[0], {}).get('category', 'general'), confidence=confidence,
             reason='用户显式选择' if explicit_ids else '根据问题关键词匹配可复用分析策略', missing_requirements=missing,
             needs_clarification=confidence < .75 or bool(missing))

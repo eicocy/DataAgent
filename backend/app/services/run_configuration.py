@@ -54,7 +54,7 @@ def snapshot_config(db, user_id, session, request, primary, version):
     corrections = []
     for binding in pinned:
         fixed = db.get(DatasetVersion, binding['dataset_version_id'])
-        corrections.extend(m.model_dump() for m in parse_corrections(request.question, [c['name'] for c in fixed.schema_json['columns']], fixed.id))
+        corrections.extend(m.model_dump() for m in parse_corrections(request.question, [c['name'] for c in fixed.schema_json['columns']], fixed.id,context.semantic_mappings))
     if corrections:
         changed = {(m['dataset_version_id'], m['column']) for m in corrections}
         context.semantic_mappings = [m for m in context.semantic_mappings if (m['dataset_version_id'], m['column']) not in changed] + corrections

@@ -4,6 +4,7 @@ import re
 from datetime import date, datetime
 import numpy as np
 import pandas as pd
+from app.analysis.precision import decimal_series
 from app.datasets.schemas import DatasetSchema, DatasetProfile, SchemaColumn, ColumnProfile, NumericStatistics
 
 
@@ -16,7 +17,8 @@ def build_profile(frame: pd.DataFrame) -> tuple[DatasetSchema, DatasetProfile]:
         values = series.dropna()
         identifier = bool(re.search(r'(^|_)(id|code|identifier)($|_)', str(name), re.I) or any(part in str(labels[position]) for part in ('编号', '编码')))
         leading_zero = not values.empty and values.astype(str).str.fullmatch(r'0\d+').any()
-        numeric = pd.api.types.is_numeric_dtype(series.dtype) and not pd.api.types.is_bool_dtype(series.dtype)
+        exact = decimal_series(series)
+        numeric = exact or (pd.api.types.is_numeric_dtype(series.dtype) and not pd.api.types.is_bool_dtype(series.dtype))
         if identifier or leading_zero:
             semantic, role, reason = 'Identifier', 'Identifier', 'identifier label or preserved leading zero'
         elif values.empty:
@@ -33,7 +35,7 @@ def build_profile(frame: pd.DataFrame) -> tuple[DatasetSchema, DatasetProfile]:
         storage = 'boolean' if pd.api.types.is_bool_dtype(series.dtype) else 'integer' if pd.api.types.is_integer_dtype(series.dtype) else 'decimal' if numeric else 'datetime' if pd.api.types.is_datetime64_any_dtype(series.dtype) else 'date' if not values.empty and values.map(lambda v:isinstance(v,date) and not isinstance(v,datetime)).all() else 'string'
         columns.append(SchemaColumn(name=str(name), original_name=str(labels[position]), dtype=str(series.dtype), storage_type=storage, semantic_type=semantic, role=role, confidence=.9 if identifier or leading_zero else .8, inference_reason=reason))
         stats, non_finite = None, 0
-        if numeric:
+        if numeric and not exact:
             finite = values[np.isfinite(values.astype(float))]
             non_finite = len(values) - len(finite)
             if finite.empty:

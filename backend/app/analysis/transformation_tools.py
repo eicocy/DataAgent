@@ -11,8 +11,8 @@ def cleaning_plan(context,args):
     before=data_quality_score(context,QualityScoreInput()).data
     steps=[];warnings=[]
     for step in args.operations:
-        intermediate=DatasetContext.from_frame(frame,context.dataset_id,context.dataset_version,max_rows=context.max_rows,max_columns=context.max_columns,max_bytes=context.max_bytes,preview_rows=context.preview_rows)
+        intermediate=DatasetContext.from_frame(frame,context.dataset_id,context.dataset_version,max_rows=context.max_rows,max_columns=context.max_columns,max_bytes=context.max_bytes,preview_rows=context.preview_rows,max_cells=context.max_cells,correlation_columns=context.correlation_columns)
         output=context.registry.calculate(step.tool,intermediate,step.parameters,frozenset({Permission.READ_DATA,Permission.TRANSFORM_DATA}))
         frame=output.frame;steps.append(output.data);warnings.extend(output.warnings)
-    after=data_quality_score(DatasetContext.from_frame(frame),QualityScoreInput()).data
+    after=data_quality_score(DatasetContext.from_frame(frame,context.dataset_id,context.dataset_version,max_rows=context.max_rows,max_columns=context.max_columns,max_bytes=context.max_bytes,preview_rows=context.preview_rows,max_cells=context.max_cells,correlation_columns=context.correlation_columns),QualityScoreInput()).data
     return ToolOutput(CleaningPlanResult(operation='cleaning_plan',source_version=context.dataset_version,row_count=len(frame),column_count=len(frame.columns),before_rows=len(context.frame),before_quality=before,after_quality=after,steps=steps,changed_cells=sum(s.changed_cells for s in steps),added_missing=sum(s.added_missing for s in steps)),frame,warnings)

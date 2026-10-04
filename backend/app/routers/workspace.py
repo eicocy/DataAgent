@@ -14,11 +14,12 @@ def capabilities(user: User = Depends(current_user)):
     model = settings.deepseek_model if provider == 'deepseek' else settings.openai_model
     configured = bool(settings.deepseek_api_key if provider == 'deepseek' else settings.openai_api_key)
     return {'code': 200, 'message': 'success', 'data': {
-        'file_formats': ['csv', 'tsv', 'json', 'xlsx', 'xls', 'parquet'],
-        'document_formats': [], 'max_upload_bytes': settings.max_upload_bytes,
+        'file_formats': ['csv', 'tsv', 'json', 'jsonl', 'xlsx', 'xls', 'parquet'],
+        'document_formats': ['txt','pdf','docx'], 'max_upload_bytes': settings.max_upload_bytes,
         'max_files': 10, 'max_dataset_rows': settings.max_dataset_rows,
         'max_dataset_columns': settings.max_dataset_columns,
-        'profile_execution': True, 'multi_dataset_execution': True, 'cross_dataset_join': False,
+        'profile_execution': True, 'multi_dataset_execution': True, 'cross_dataset_join': True,
+        'cleaning_confirmation': True,
         'depth_selection': True, 'depths': ['FAST', 'STANDARD', 'DEEP'], 'model_selection': True,
         'models': [{'id': model, 'provider': provider, 'configured': configured}],
         'report_formats': ['online', 'xlsx', 'docx', 'pdf', 'html', 'markdown', 'csv', 'json'],

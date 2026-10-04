@@ -6,6 +6,7 @@ import tempfile
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, Request, Form
 from sqlalchemy import func, select
@@ -286,31 +287,42 @@ def preview_dataset(
     columns: str | None = None,
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
+    dataset_version_id: Annotated[int | None,Query(gt=0)] = None,
 ):
     dataset = _owned_dataset(db, dataset_id, user.id)
     if dataset.status != "ready":
         raise _error(409, "DATASET_NOT_READY", "数据集尚未完成解析")
+    version=None
+    if dataset_version_id is not None:
+        from app.services.datasets import DatasetService
+        version=DatasetService(db).get_version(dataset,dataset_version_id)
     try:
         from app.database import projection_engine
         from app.services.analysis import select_projection_bind
-        bind = select_projection_bind(dataset, engine, projection_engine)
-        table = projection_table(dataset_id, bind, dataset.projection_table)
+        bind = select_projection_bind(version or dataset, engine, projection_engine)
+        table = projection_table(dataset_id, bind, (version or dataset).projection_table)
     except LookupError:
         raise _error(409, "DATASET_NOT_READY", "数据预览暂不可用，请重新上传数据集")
     column_names = [column.name for column in db.scalars(
         select(DatasetColumn).where(DatasetColumn.dataset_id == dataset_id).order_by(DatasetColumn.ordinal_position)
     ).all()]
+    if version: column_names=[column['name'] for column in version.schema_json['columns']]
     requested = [item.strip() for item in columns.split(",") if item.strip()] if columns else column_names
     if any(name not in column_names for name in requested):
         raise _error(422, "DATASET_UNKNOWN_COLUMN", "预览字段不存在")
     selected = [table.c[name] for name in requested]
     with bind.connect() as connection:
         rows = connection.execute(select(*selected).select_from(table).offset(offset).limit(limit)).mappings().all()
+    def preview_value(key,value):
+        if version:
+            from decimal import Decimal
+            if isinstance(value,Decimal): return str(value)
+        return _json_value(value)
     return {
         "code": 200,
         "message": "success",
-        "data": {"columns": requested, "rows": [{key: _json_value(value) for key, value in row.items()} for row in rows],
-                 "offset": offset, "limit": limit, "total_rows": dataset.row_count or 0},
+        "data": {"columns": requested, "rows": [{key: preview_value(key,value) for key, value in row.items()} for row in rows],
+                 "offset": offset, "limit": limit, "total_rows": version.profile_json['row_count'] if version else dataset.row_count or 0},
     }
 
 

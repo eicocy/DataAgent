@@ -1,6 +1,7 @@
 """Conservative suggestions from names, types and cardinality; never invent units."""
 import re
 import pandas as pd
+from app.analysis.precision import decimal_series
 from app.semantic.mappings import SemanticMapping
 
 METRICS = {
@@ -9,6 +10,9 @@ METRICS = {
     'quantity': ('quantity', 'qty', 'units', '销量', '销售数量'),
     'profit': ('profit', 'net_profit', '利润', '净利润'),
     'cost': ('cost', '成本'),
+    'operating_expense': ('expense','expenses','operating_expense','费用','支出','运营费用'),
+    'budget': ('budget','预算'),
+    'actual': ('actual','实际','实际金额'),
     'conversion': ('conversion', '转化率'),
 }
 DIMENSIONS = {'region': ('region', '地区', '区域', 'city', '城市'), 'product': ('product', 'sku', '商品', '产品'),
@@ -23,7 +27,7 @@ def detect_semantics(frame, version_id, original_names=None):
         series = frame[column]
         name = str(original_names.get(column, column)).lower().strip()
         normalized = re.sub(r'[\s-]+', '_', name)
-        numeric = pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_bool_dtype(series)
+        numeric = decimal_series(series) or (pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_bool_dtype(series))
         concept, role, confidence, aggregation = None, 'dimension', .75, 'none'
         identifier = normalized.endswith('_id') or normalized.endswith('编号') or normalized.endswith('编码')
         if numeric and not identifier:

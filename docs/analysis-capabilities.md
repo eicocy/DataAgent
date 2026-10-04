@@ -37,6 +37,10 @@ Available means implemented and covered by automated execution tests. It does no
 | `kurtosis` | statistics | `StatisticsInput` | `StatisticsResult` | read-only | 3.0 | Available |
 | `correlation` | statistics | `StatisticsInput` | `CorrelationResult` | read-only | 3.0 | Available |
 | `covariance` | statistics | `StatisticsInput` | `StatisticsResult` | read-only | 3.0 | Available |
+| `kpi_analysis` | business | `KPIInput` | `KPIResult` | read-only | 3.0 | Available |
+| `period_comparison` | business | `PeriodComparisonInput` | `PeriodComparisonResult` | read-only | 3.0 | Available |
+| `contribution_analysis` | business | `ContributionInput` | `ContributionResult` | read-only | 3.0 | Available |
+| `forecast` | time_series | `ForecastInput` | `ForecastResult` | read-only | 3.0 | Available |
 | `missing_value_analysis` | data | `QualityInput` | `DataQualityResult` | read-only | 3.0 | Available |
 | `duplicate_analysis` | data | `QualityInput` | `DataQualityResult` | read-only | 3.0 | Available |
 | `constant_column_analysis` | data | `QualityInput` | `DataQualityResult` | read-only | 3.0 | Available |
@@ -54,6 +58,10 @@ Available means implemented and covered by automated execution tests. It does no
 | `normalize_text` | cleaning | `CleaningInput` | `CleaningResult` | internal only | 3.0 | Available |
 | `rename_columns` | cleaning | `CleaningInput` | `CleaningResult` | internal only | 3.0 | Available |
 | `outlier_treatment` | cleaning | `CleaningInput` | `CleaningResult` | internal only | 3.0 | Available |
+| `join_data` | data | `JoinInput` | `JoinResult` | read-only | 3.0 | Available |
+| `publish_join` | cleaning | `PublishJoinInput` | `JoinResult` | internal only | 3.0 | Available |
+| `data_quality_score` | data | `QualityScoreInput` | `QualityScoreResult` | read-only | 3.0 | Available |
+| `cleaning_plan` | cleaning | `CleaningPlanInput` | `CleaningPlanResult` | internal only | 3.0 | Available |
 | `chart_spec` | visualization | `ChartInput` | `ChartResult` | internal only | 3.0 | Available |
 | `chart_recommendations` | visualization | `DataInput` | `RecommendationResult` | read-only | 3.0 | Available |
 | `eda` | eda | `DataInput` | `EDAResult` | read-only | 3.0 | Available |
@@ -76,10 +84,12 @@ Old names and parameters retain their established response fields; SQL additiona
 | `time_group_analysis` | `TimeGroupArgs` | `LegacyResult` | 3.0 |
 | `growth_analysis` | `GrowthArgs` | `LegacyResult` | 3.0 |
 
+## Current integration and limits
+
+Plan 1/2 compatibility and Plan 3 owned fixed-input graphs, persistent conversation state, SSE task events and explicit report exports are implemented in their services. Forecast is the registered controlled regular-series baseline tool; it is not automatic machine learning. Join uses only loaded authorized fixed aliases; cleaning publication requires preview and explicit confirmation.
+
 ## Deferred
 
-Phase 2.5: Kendall, normality tests, t tests, chi-square and ANOVA are not registered or advertised as Available.
+Kendall, normality tests, t tests, chi-square and ANOVA are not registered or advertised as Available.
 
-Phase 3: more advanced planning, persistent multi-turn state, streaming and task lifecycle extensions require a separately approved scope.
-
-Future: dynamic Python, sandbox execution, report export, a cache platform, machine learning and new infrastructure are not implemented.
+Dynamic Python and sandbox execution, automatic multi-format reports, a cache platform and machine-learning infrastructure remain reserved future scope.

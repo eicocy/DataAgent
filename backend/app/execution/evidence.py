@@ -2,7 +2,7 @@
 import math
 import re
 import string
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation, localcontext
 from numbers import Real
 from typing import Literal
 
@@ -56,12 +56,20 @@ def render_report(content: ReportContent, results: dict) -> str:
                 raise ValueError("Expected a text label")
             values[fact.key] = value
         else:
-            if isinstance(value, bool) or not isinstance(value, (Real, Decimal)) or not math.isfinite(value):
+            if isinstance(value, bool) or not isinstance(value, (Real, Decimal, str)):
                 raise ValueError("Expected a finite numeric fact")
-            number = Decimal(str(value)) * (100 if fact.format == "percent" else 1)
-            if fact.decimals is not None:
-                number = number.quantize(Decimal(1).scaleb(-fact.decimals), rounding=ROUND_HALF_UP)
-            values[fact.key] = format(number, "f") + ("%" if fact.format == "percent" else "")
+            if isinstance(value,str) and (len(value)>2100 or not re.fullmatch(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d{1,4})?',value)):
+                raise ValueError("Expected a finite numeric fact")
+            try: number=Decimal(str(value))
+            except InvalidOperation: raise ValueError("Expected a finite numeric fact") from None
+            if not number.is_finite() or len(number.as_tuple().digits)>1000 or abs(number.as_tuple().exponent)>1000:
+                raise ValueError("Expected a bounded finite numeric fact")
+            with localcontext() as arithmetic:
+                arithmetic.prec=3100
+                number *= 100 if fact.format == "percent" else 1
+                if fact.decimals is not None:
+                    number = number.quantize(Decimal(1).scaleb(-fact.decimals), rounding=ROUND_HALF_UP)
+                values[fact.key] = format(number, "f") + ("%" if fact.format == "percent" else "")
     output, used = [], set()
     for literal, key, spec, conversion in string.Formatter().parse(content.template):
         if _has_unbound_number(literal):

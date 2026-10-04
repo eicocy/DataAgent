@@ -18,7 +18,7 @@ def render_catalog():
     for tool in all_tools.list_tools():
         if canonical.exists(tool.metadata.name):continue
         lines.append(f'| `{tool.metadata.name}` | `{tool.input_schema.__name__}` | `{tool.output_schema.__name__}` | {tool.metadata.version} |')
-    lines+=['','## Deferred','','Phase 2.5: Kendall, normality tests, t tests, chi-square and ANOVA are not registered or advertised as Available.','','Phase 3: more advanced planning, persistent multi-turn state, streaming and task lifecycle extensions require a separately approved scope.','','Future: dynamic Python, sandbox execution, report export, a cache platform, machine learning and new infrastructure are not implemented.','']
+    lines+=['','## Current integration and limits','','Plan 1/2 compatibility and Plan 3 owned fixed-input graphs, persistent conversation state, SSE task events and explicit report exports are implemented in their services. Forecast is the registered controlled regular-series baseline tool; it is not automatic machine learning. Join uses only loaded authorized fixed aliases; cleaning publication requires preview and explicit confirmation.','','## Deferred','','Kendall, normality tests, t tests, chi-square and ANOVA are not registered or advertised as Available.','','Dynamic Python and sandbox execution, automatic multi-format reports, a cache platform and machine-learning infrastructure remain reserved future scope.','']
     return '\n'.join(lines)
 
 

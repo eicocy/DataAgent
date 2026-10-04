@@ -20,6 +20,8 @@ class InputWorkspace:
         self.inputs = inputs
         self.active = next(iter(inputs.values()))
         self.frame_results, self.call_results, self.reuse_steps = {}, {}, {}
+        self.frame_semantics={}
+        for adapter in inputs.values(): adapter.budget_adapters=list(inputs.values())
         self.registry = getattr(self.active, '_registry', None) or build_registry(include_legacy=True)
         self.conversation_state = getattr(self.active, 'conversation_state', None)
         self.model_metadata = getattr(self.active, 'model_metadata', {})
@@ -29,7 +31,9 @@ class InputWorkspace:
 
     def select(self, alias):
         self.active = self.inputs[alias]
+        self.active.related_adapters={key:adapter for key,adapter in self.inputs.items() if key!=alias}
         self.active.frame_results, self.active.call_results = self.frame_results, self.call_results
+        self.active.frame_semantics=self.frame_semantics
         self.active.deadline = self.deadline
 
     def execute(self, *args, **kwargs):
@@ -64,6 +68,9 @@ class GraphExecutor(WorkflowExecutor):
         super().__init__(tools, settings, adapter, emit)
         self.budget = budget
         self.deadline = budget.deadline
+        self.pending_frames=[]
+        self.pending_workers={}
+        for adapter in tools.inputs.values():adapter.pending_frames=self.pending_frames
         tools.deadline = self.deadline
 
     def _safe_parallel(self, step):
@@ -71,25 +78,46 @@ class GraphExecutor(WorkflowExecutor):
         if not (metadata.parallel_safe and not metadata.modifies_dataset and metadata.chat_enabled and metadata.permissions <= self.tools.permissions):
             return False
         try:
+            adapter=self.tools.inputs[step.input_alias]
+            if hasattr(adapter,'semantic_mappings'):
+                from app.semantic.business_validation import validate_business_arguments,metadata_evidence
+                validate_business_arguments(step.tool_name,step.arguments,getattr(adapter,'frame_semantics',{}).get(step.source_ref,adapter.semantic_mappings),adapter.dataset_version_id,metadata_evidence(adapter.frame))
             self.tools.registry.validate_input(step.tool_name, self._resolve(step.arguments, step))
             return step.source_ref == 'dataset' or step.source_ref in self.tools.frame_results
         except ValueError:
             return False
 
+    def _release_completed_workers(self):
+        released=set()
+        for future,frame in list(self.pending_workers.items()):
+            if future.done():
+                released.add(id(frame))
+                del self.pending_workers[future]
+        if released:self.pending_frames[:]=[frame for frame in self.pending_frames if id(frame) not in released]
+
     def _source_context(self, step):
+        self._release_completed_workers()
         tools = self.tools.inputs[step.input_alias]
-        source = tools.frame if step.source_ref == 'dataset' else self.tools.frame_results[step.source_ref]
+        source = tools.frame_for(step.tool_name,step.source_ref)
+        tools.check_frame_budget(source,reserved_bytes=int(source.memory_usage(deep=True).sum()))
         frame = source.copy(deep=True)
+        self.pending_frames.append(frame)
         settings = __import__('app.config', fromlist=['get_settings']).get_settings()
         return DatasetContext.from_frame(frame, dataset_id=tools.dataset.id, dataset_version=getattr(tools, 'dataset_version_id', None),
-            source_ref=step.source_ref, max_bytes=settings.dataframe_max_bytes, registry=self.tools.registry)
+            source_ref=step.source_ref, max_bytes=settings.dataframe_max_bytes,registry=self.tools.registry,
+            max_rows=settings.tool_max_rows,max_columns=settings.tool_max_columns,max_cells=settings.tool_max_cells,
+            preview_rows=settings.tool_preview_rows,correlation_columns=settings.tool_correlation_columns)
 
     def _run_parallel(self, steps):
         registry = self.tools.registry
         pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix='analysis-readonly')
         pending = []
+        previous_reservations={id(frame) for frame in self.pending_frames}
         try:
-            for step in steps:
+            # Allocate/verify every context before submitting any worker. A
+            # rejected batch must not leave one worker consuming resident memory.
+            contexts=[self._source_context(step) for step in steps]
+            for step,context in zip(steps,contexts):
                 self.tools.select(step.input_alias)
                 if getattr(self.tools, 'check_lease', None):
                     self.tools.check_lease()
@@ -100,13 +128,14 @@ class GraphExecutor(WorkflowExecutor):
                 args = self._resolve(step.arguments, step)
                 tool = registry.get(step.tool_name)
                 parsed = registry.validate_input(step.tool_name, args)
-                context = self._source_context(step)
                 call = ToolCall(call_id=step.step_id, step_id=step.step_id, attempt=1, tool_name=step.tool_name, parameters=args, source_ref=step.source_ref, status='running').model_dump()
                 call.update(input_alias=step.input_alias, started_at=step.started_at)
                 self.calls.append(call)
                 self.emit('call', call.copy())
                 self.emit('tool_parameters', {'parameters': parsed.model_dump(mode='json'), 'tool_name': step.tool_name})
-                pending.append((step, call, context, tool, time.monotonic(), pool.submit(tool.execute, context, parsed)))
+                future=pool.submit(tool.execute,context,parsed)
+                self.pending_workers[future]=context.frame
+                pending.append((step, call, context, tool, time.monotonic(), future))
             self.emit('plan', self.final_plan.model_dump())
             self.emit('stage', {'stage': 'tool', 'timeout_seconds': min(registry.get(s.tool_name).metadata.timeout_seconds for s in steps)})
             for step, call, context, tool, started, future in pending:
@@ -132,9 +161,12 @@ class GraphExecutor(WorkflowExecutor):
                     self.result_warnings.extend(n.message for n in notes)
                     self.result_warnings.extend(w.message for w in output.warnings)
                     if output.frame is not None:
-                        memory = sum(int(f.memory_usage(deep=True).sum()) for f in self.tools.frame_results.values()) + int(output.frame.memory_usage(deep=True).sum())
-                        if memory > context.max_bytes:
-                            raise ValueError('RESULT_BUDGET_EXCEEDED')
+                        ready_frames=[output.frame]
+                        for _,_,_,_,_,queued in pending:
+                            if queued.done() and queued.exception() is None:
+                                ready=queued.result()
+                                if ready.frame is not None:ready_frames.append(ready.frame)
+                        self.tools.active.check_frame_budget(ready_frames,reserved_bytes=int(output.frame.memory_usage(deep=True).sum()))
                         self.tools.frame_results[step.step_id] = output.frame.copy(deep=True)
                     computed = True
                     # Refresh execution pointer on the main thread before persistence.
@@ -150,6 +182,10 @@ class GraphExecutor(WorkflowExecutor):
                     transition_step(step, 'COMPLETED')
                     if isinstance(data.get('rows'), list):
                         self.tables.append(dict(data, source_ref=step.step_id))
+                    else:
+                        from app.analysis.result_tables import result_table
+                        table=result_table(data,step.step_id)
+                        if table:self.tables.append(table)
                 except Exception as exc:
                     if exc.__class__.__name__ == 'WorkerLeaseLost':
                         raise
@@ -168,6 +204,11 @@ class GraphExecutor(WorkflowExecutor):
                 self.emit('plan', self.final_plan.model_dump())
         finally:
             pool.shutdown(wait=False, cancel_futures=True)
+            # Keep reservations for every outstanding batch, not just this one.
+            # Drop only unsubmitted copies from this batch and completed futures.
+            tracked={id(frame) for frame in self.pending_workers.values()}
+            self.pending_frames[:]=[frame for frame in self.pending_frames if id(frame) in previous_reservations or id(frame) in tracked]
+            self._release_completed_workers()
             self.emit('stage', {'stage': 'idle'})
 
     def _explore(self, plan):
@@ -200,7 +241,7 @@ class GraphExecutor(WorkflowExecutor):
             for step in validation.steps[:len(plan.steps)]:
                 step.status, step.result_ref, step.error, step.retry_count = 'PENDING', None, None, 0
                 step.started_at = step.finished_at = None
-            validate_graph(validation, self.columns, self.tools.permissions, self.budget.max_tasks)
+            validate_graph(validation, self.columns, self.tools.permissions, self.budget.max_tasks,getattr(self.tools,'metadata_by_input',None))
             plan.steps.extend(proposal.steps)
             self.emit('exploration_created', {'trigger_step_id': parent.step_id, 'step_ids': [s.step_id for s in proposal.steps], 'depth': depth, 'reason': proposal.reason})
             return True

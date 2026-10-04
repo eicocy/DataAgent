@@ -12,6 +12,8 @@ def clean(context,args,operation):
     original=context.frame
     frame=original.copy(deep=True)
     added=0
+    approximated=[]
+    from app.analysis.precision import decimal_series
     if operation=='rename_columns':
         if set(args.names)!=set(names) or any(not new.strip() for new in args.names.values()): raise ToolInputError('RENAME_MAPPING_INVALID')
         labels=[args.names.get(name,name) for name in frame]
@@ -23,6 +25,9 @@ def clean(context,args,operation):
     else:
         for name in names:
             series=frame[name]
+            if decimal_series(series) and (operation=='outlier_treatment' or operation=='fill_missing_values' and args.strategy in {'mean','median'}):
+                series=pd.to_numeric(series,errors='raise')
+                approximated.append(name)
             if operation=='fill_missing_values':
                 if args.strategy in {'forward','backward'}: result=series.ffill() if args.strategy=='forward' else series.bfill()
                 else:
@@ -71,4 +76,6 @@ def clean(context,args,operation):
     else: changed=0
     frame=frame.reset_index(drop=True)
     notes=[ResultWarning(code='CONVERSION_ADDED_MISSING',message='显式转换产生缺失值',count=added)] if added else []
+    if approximated or operation=='convert_dtype' and args.dtype in {'decimal','integer'} and any(decimal_series(original[name]) for name in names):
+        notes.append(ResultWarning(code='APPROXIMATE_NUMERIC_TRANSFORMATION',message='显式数值转换可能近似所选 Decimal 字段；未选择的金额字段保持原值。'))
     return ToolOutput(CleaningResult(operation=operation,source_version=context.dataset_version,row_count=len(frame),column_count=len(frame.columns),changed_cells=changed,added_missing=added),frame,notes)

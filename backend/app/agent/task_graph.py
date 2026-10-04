@@ -37,7 +37,7 @@ def deduplicate_steps(steps, versions, semantic_version):
     return unique, aliases
 
 
-def validate_graph(plan, columns_by_input, permissions=frozenset({Permission.READ_DATA}), max_steps=32):
+def validate_graph(plan, columns_by_input, permissions=frozenset({Permission.READ_DATA}), max_steps=32, metadata_by_input=None):
     bindings = {item.alias: item for item in plan.inputs}
     if len(bindings) != len(plan.inputs) or len(plan.steps) > max_steps:
         raise ValueError('PLAN_INPUT_OR_STEP_LIMIT')
@@ -83,5 +83,7 @@ def validate_graph(plan, columns_by_input, permissions=frozenset({Permission.REA
     proxy = AnalysisPlan(task_id=plan.task_id, goal=plan.goal, intent=plan.intent, dataset_id=plan.dataset_id,
         dataset_version_id=plan.dataset_version_id, steps=plan.steps, expected_outputs=plan.expected_outputs)
     PlanValidator(max_steps).validate(proxy, dataset_id=plan.dataset_id, dataset_version_id=plan.dataset_version_id,
-        columns={}, permissions=permissions, columns_by_input=columns_by_input)
+        columns={}, permissions=permissions, columns_by_input=columns_by_input,
+        semantic_snapshot=plan.semantic_snapshot, metadata_by_input=metadata_by_input,
+        versions_by_input={alias:binding.dataset_version_id for alias,binding in bindings.items()})
     return plan.model_copy(update={'status': 'READY'}, deep=True)
