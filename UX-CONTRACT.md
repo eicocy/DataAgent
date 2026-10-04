@@ -146,8 +146,10 @@
 ### Task 6 review round 1: 真实 DTO 与预览边界
 
 - AnalysisResult 只在存在完整类型化字段时进入 ForecastResult/BusinessResult/DataQualityWorkbench；仅有 kind/columns/rows 的 normalized report table 不构成完整证据。成功 call 记录只有摘要和来源，不读取不存在的 call.result。
-- 当前 raw tool_result 通过最后成功非图表步骤的 step_id/artifact_id 关联 normalized 表；同一来源只展示一次，其他来源的表格保留。缺少完整 typed 数据时明确显示“当前仅提供结果表，完整计算信息未提供”，只展示实际表行及已提供单位/区间/限制；表行数不当作数据集行数，空结果表不当作空数据或无质量问题。
+- 当前 raw tool_result 使用明确 artifact/已知步骤来源，或计划最终成功计算的 result_ref 与完整载荷匹配关联结果表；没有计划时仅采用唯一完整载荷匹配，不按并行 call 完成顺序或 kind 猜测。来源歧义时保留结果；dataset/primary 是输入上下文，不能作为步骤身份。旧 normalized-only 表仅在单一成功计算来源且逐值投影相符时关联；同一来源只展示一次，其他来源的表格保留。缺少完整 typed 数据时明确显示“当前仅提供结果表，完整计算信息未提供”，只展示实际表行及已提供单位/区间/限制；表行数不当作数据集行数，空结果表不当作空数据或无质量问题。
 - Join 使用最多10行显式左右键对，每行逐一配对并在预览前显示映射；提交顺序由键对行顺序决定，与源 Schema/下拉选项顺序无关。重复键/未选完整键对禁止预览。
 - DatasetDetail 保存 loadedPreviewVersion；版本切换马上隐藏上一版行，加载或失败时不借用旧行；成功且响应版本仍被选中时才展示，失败保留选择并提供版本预览重试。
 - kind quality 单项检查与 quality_score 评分结果分开。旧结果显示实际 count/rate/status/lower/upper/row_refs，不虚构 issue/severity/suggestion/score；只有 quality_score.status=empty 才标为空数据评分未定义。
 - 覆盖：frontend/tests/upgrade-phase3-review.test.js、frontend/tests/e2e/phase3-workspace.spec.js 的真实 normalized-only 与 raw+normalized fixture、反序复合键、慢/失败/过期版本响应和 legacy quality 分支。
+
+- 预测 MAPE 列明确标注 (%)，直接展示后端百分数值，不再次乘以 100。

@@ -1,0 +1,2121 @@
+{
+  "tool_result": {
+    "kind": "forecast",
+    "unit": "yuan",
+    "folds": [
+      {
+        "fold_id": 0,
+        "test_end": "2026-03-01T00:00:00",
+        "test_size": 3,
+        "train_end": "2025-12-01T00:00:00",
+        "test_start": "2026-01-01T00:00:00",
+        "train_size": 15,
+        "train_start": "2024-10-01T00:00:00"
+      },
+      {
+        "fold_id": 1,
+        "test_end": "2026-06-01T00:00:00",
+        "test_size": 3,
+        "train_end": "2026-03-01T00:00:00",
+        "test_start": "2026-04-01T00:00:00",
+        "train_size": 18,
+        "train_start": "2024-10-01T00:00:00"
+      },
+      {
+        "fold_id": 2,
+        "test_end": "2026-09-01T00:00:00",
+        "test_size": 3,
+        "train_end": "2026-06-01T00:00:00",
+        "test_start": "2026-07-01T00:00:00",
+        "train_size": 21,
+        "train_start": "2024-10-01T00:00:00"
+      }
+    ],
+    "points": [
+      {
+        "time": "2026-10-01T00:00:00",
+        "lower": 2288.1999990463255,
+        "upper": 2552.1999997615812,
+        "value": 2420.199999403954
+      },
+      {
+        "time": "2026-11-01T00:00:00",
+        "lower": 2288.1999990463255,
+        "upper": 2552.1999997615812,
+        "value": 2420.199999403954
+      },
+      {
+        "time": "2026-12-01T00:00:00",
+        "lower": 2288.1999990463255,
+        "upper": 2552.1999997615812,
+        "value": 2420.199999403954
+      }
+    ],
+    "horizon": 3,
+    "metrics": {
+      "mae": 86.66666564014223,
+      "mape": 3.594354477737491,
+      "rmse": 97.29679585617964,
+      "mape_coverage": 1.0,
+      "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+    },
+    "baseline": {
+      "folds": [
+        {
+          "fold_id": 0,
+          "metrics": {
+            "mae": 80.0,
+            "mape": 3.26108902712339,
+            "rmse": 86.40987597877147,
+            "mape_coverage": 1.0,
+            "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+          },
+          "predictions": [
+            2360.2,
+            2360.2,
+            2360.2
+          ]
+        },
+        {
+          "fold_id": 1,
+          "metrics": {
+            "mae": 100.0,
+            "mape": 4.179112661940649,
+            "rmse": 116.04596790352808,
+            "mape_coverage": 1.0,
+            "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+          },
+          "predictions": [
+            2480.2,
+            2480.2,
+            2480.2
+          ]
+        },
+        {
+          "fold_id": 2,
+          "metrics": {
+            "mae": 80.0,
+            "mape": 3.342861875514299,
+            "rmse": 86.40987597877147,
+            "mape_coverage": 1.0,
+            "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+          },
+          "predictions": [
+            2300.2,
+            2300.2,
+            2300.2
+          ]
+        }
+      ],
+      "model": "naive",
+      "status": "succeeded",
+      "metrics": {
+        "mae": 86.66666666666667,
+        "mape": 3.594354521526113,
+        "rmse": 97.2967967955095,
+        "mape_coverage": 1.0,
+        "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+      },
+      "error_code": null,
+      "final_fit_error_code": null,
+      "validation_error_code": null
+    },
+    "currency": "CNY",
+    "frequency": "MS",
+    "truncated": false,
+    "candidates": [
+      {
+        "folds": [
+          {
+            "fold_id": 0,
+            "metrics": {
+              "mae": 80.0,
+              "mape": 3.26108902712339,
+              "rmse": 86.40987597877147,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2360.2,
+              2360.2,
+              2360.2
+            ]
+          },
+          {
+            "fold_id": 1,
+            "metrics": {
+              "mae": 100.0,
+              "mape": 4.179112661940649,
+              "rmse": 116.04596790352808,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2480.2,
+              2480.2,
+              2480.2
+            ]
+          },
+          {
+            "fold_id": 2,
+            "metrics": {
+              "mae": 80.0,
+              "mape": 3.342861875514299,
+              "rmse": 86.40987597877147,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2300.2,
+              2300.2,
+              2300.2
+            ]
+          }
+        ],
+        "model": "naive",
+        "status": "succeeded",
+        "metrics": {
+          "mae": 86.66666666666667,
+          "mape": 3.594354521526113,
+          "rmse": 97.2967967955095,
+          "mape_coverage": 1.0,
+          "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+        },
+        "error_code": null,
+        "final_fit_error_code": null,
+        "validation_error_code": null
+      },
+      {
+        "folds": [
+          {
+            "fold_id": 0,
+            "metrics": {
+              "mae": 120.0,
+              "mape": 4.900592645001139,
+              "rmse": 124.3650540411842,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2320.2,
+              2320.2,
+              2320.2
+            ]
+          },
+          {
+            "fold_id": 1,
+            "metrics": {
+              "mae": 113.33333333333331,
+              "mape": 4.649304108943192,
+              "rmse": 116.04596790352808,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2440.2,
+              2440.2,
+              2440.2
+            ]
+          },
+          {
+            "fold_id": 2,
+            "metrics": {
+              "mae": 80.0,
+              "mape": 3.380528307912235,
+              "rmse": 86.40987597877147,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2460.2,
+              2460.2,
+              2460.2
+            ]
+          }
+        ],
+        "model": "moving_average",
+        "status": "succeeded",
+        "metrics": {
+          "mae": 104.44444444444444,
+          "mape": 4.310141687285522,
+          "rmse": 110.15141094572203,
+          "mape_coverage": 1.0,
+          "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+        },
+        "error_code": null,
+        "final_fit_error_code": null,
+        "validation_error_code": null
+      },
+      {
+        "folds": [
+          {
+            "fold_id": 0,
+            "metrics": {
+              "mae": 0.0,
+              "mape": 0.0,
+              "rmse": 0.0,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2400.2,
+              2440.2,
+              2480.2
+            ]
+          },
+          {
+            "fold_id": 1,
+            "metrics": {
+              "mae": 100.00000000000044,
+              "mape": 4.3474480479958455,
+              "rmse": 173.20508075688798,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2520.2000000000003,
+              2560.2000000000003,
+              2600.2000000000003
+            ]
+          },
+          {
+            "fold_id": 2,
+            "metrics": {
+              "mae": 238.96103896103887,
+              "mape": 10.043261301500564,
+              "rmse": 238.9822125006768,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2583.0571428571425,
+              2619.1610389610387,
+              2655.264935064935
+            ]
+          }
+        ],
+        "model": "linear_trend",
+        "status": "succeeded",
+        "metrics": {
+          "mae": 112.9870129870131,
+          "mape": 4.796903116498803,
+          "rmse": 170.40392981747684,
+          "mape_coverage": 1.0,
+          "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+        },
+        "error_code": null,
+        "final_fit_error_code": null,
+        "validation_error_code": null
+      },
+      {
+        "folds": [
+          {
+            "fold_id": 0,
+            "metrics": {
+              "mae": 80.00000059604645,
+              "mape": 3.261089051553898,
+              "rmse": 86.40987653060324,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2360.199999403954,
+              2360.199999403954,
+              2360.199999403954
+            ]
+          },
+          {
+            "fold_id": 1,
+            "metrics": {
+              "mae": 100.00000019868214,
+              "mape": 4.179112668947047,
+              "rmse": 116.04596780080216,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2480.199999403954,
+              2480.199999403954,
+              2480.199999403954
+            ]
+          },
+          {
+            "fold_id": 2,
+            "metrics": {
+              "mae": 79.99999612569809,
+              "mape": 3.3428617127115277,
+              "rmse": 86.4098723918649,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "predictions": [
+              2300.2000038743017,
+              2300.2000038743017,
+              2300.2000038743017
+            ]
+          }
+        ],
+        "model": "exponential_smoothing",
+        "status": "succeeded",
+        "metrics": {
+          "mae": 86.66666564014223,
+          "mape": 3.594354477737491,
+          "rmse": 97.29679585617964,
+          "mape_coverage": 1.0,
+          "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+        },
+        "error_code": null,
+        "final_fit_error_code": null,
+        "validation_error_code": null
+      },
+      {
+        "folds": [],
+        "model": "arima",
+        "status": "failed",
+        "metrics": null,
+        "error_code": "FORECAST_MODEL_NUMERICAL_WARNING",
+        "final_fit_error_code": null,
+        "validation_error_code": "FORECAST_MODEL_NUMERICAL_WARNING"
+      }
+    ],
+    "dataset_id": 21,
+    "source_ref": "dataset",
+    "aggregation": "sum",
+    "granularity": "month",
+    "history_end": "2026-09-01T00:00:00",
+    "limitations": [
+      "Verified monetary buckets aggregate Decimal before approximate floating-point model fitting; forecast values are estimates, not exact financial facts.",
+      "Univariate, nonseasonal forecasts; no external variables or causal claims.",
+      "Calendar periods start on day/Monday/month/quarter/year boundaries; duplicates aggregate by the declared rule; no missing-period imputation.",
+      "Three expanding chronological folds use the requested forecast horizon. MAE selects the model; RMSE breaks ties; near-equal numerical ties retain the simpler candidate.",
+      "Maximum 1000 periods, 24-step horizon, five candidates; fixed ARIMA(1,1,0), at most 50 optimizer iterations; SES at most 100."
+    ],
+    "time_column": "month",
+    "uncertainty": {
+      "method": "held_out_absolute_residual_quantile",
+      "calibrated": false,
+      "limitations": "Symmetric empirical bounds from the selected model held-out absolute residual 90th percentile. Not calibrated confidence or prediction intervals; model selection reuses these folds. Small samples, horizon effects and regime changes can reduce coverage; zero errors can yield zero width.",
+      "residual_count": 9,
+      "residual_quantile": 0.9
+    },
+    "unit_status": "verified",
+    "history_start": "2024-10-01T00:00:00",
+    "target_column": "revenue",
+    "selected_model": "exponential_smoothing",
+    "dataset_version": 17,
+    "input_row_count": 48,
+    "observation_count": 24
+  },
+  "tool_calls": [
+    {
+      "status": "succeeded",
+      "attempt": 1,
+      "call_id": "data_readiness",
+      "step_id": "data_readiness",
+      "tool_name": "dataset_overview",
+      "error_code": null,
+      "parameters": {
+        "limit": 20,
+        "columns": [
+          "month",
+          "region",
+          "revenue",
+          "currency",
+          "unit"
+        ]
+      },
+      "source_ref": "dataset",
+      "started_at": "2026-10-04T10:38:22.645962+00:00",
+      "artifact_id": 5,
+      "duration_ms": 4,
+      "completed_at": "2026-10-04T10:38:22.692193+00:00",
+      "result_summary": "dataset_overview completed",
+      "schema_version": "2.0"
+    },
+    {
+      "status": "succeeded",
+      "attempt": 1,
+      "call_id": "forecast_revenue",
+      "step_id": "forecast_revenue",
+      "tool_name": "forecast",
+      "error_code": null,
+      "parameters": {
+        "horizon": 3,
+        "aggregation": "sum",
+        "granularity": "month",
+        "time_column": "month",
+        "target_column": "revenue"
+      },
+      "source_ref": "dataset",
+      "started_at": "2026-10-04T10:38:22.746518+00:00",
+      "artifact_id": 6,
+      "duration_ms": 1607,
+      "completed_at": "2026-10-04T10:38:24.401371+00:00",
+      "result_summary": "forecast completed",
+      "schema_version": "2.0"
+    },
+    {
+      "status": "succeeded",
+      "attempt": 1,
+      "call_id": "region_contribution",
+      "step_id": "region_contribution",
+      "tool_name": "contribution_analysis",
+      "error_code": null,
+      "parameters": {
+        "end": "2026-07-01",
+        "unit": "yuan",
+        "start": "2026-06-01",
+        "currency": "CNY",
+        "dimension": "region",
+        "comparison": "custom",
+        "value_kind": "money",
+        "date_column": "month",
+        "granularity": "month",
+        "unit_column": "unit",
+        "previous_end": "2026-06-01",
+        "value_column": "revenue",
+        "previous_start": "2026-05-01",
+        "currency_column": "currency"
+      },
+      "source_ref": "dataset",
+      "started_at": "2026-10-04T10:38:24.458051+00:00",
+      "artifact_id": 7,
+      "duration_ms": 10,
+      "completed_at": "2026-10-04T10:38:24.500852+00:00",
+      "result_summary": "contribution_analysis completed",
+      "schema_version": "2.0"
+    },
+    {
+      "status": "succeeded",
+      "attempt": 1,
+      "call_id": "period_compare",
+      "step_id": "period_compare",
+      "tool_name": "period_comparison",
+      "error_code": null,
+      "parameters": {
+        "end": "2026-07-01",
+        "unit": "yuan",
+        "start": "2026-06-01",
+        "currency": "CNY",
+        "comparison": "custom",
+        "value_kind": "money",
+        "date_column": "month",
+        "granularity": "month",
+        "unit_column": "unit",
+        "previous_end": "2026-06-01",
+        "value_column": "revenue",
+        "previous_start": "2026-05-01",
+        "currency_column": "currency"
+      },
+      "source_ref": "dataset",
+      "started_at": "2026-10-04T10:38:24.526718+00:00",
+      "artifact_id": 8,
+      "duration_ms": 7,
+      "completed_at": "2026-10-04T10:38:24.597985+00:00",
+      "result_summary": "period_comparison completed",
+      "schema_version": "2.0"
+    }
+  ],
+  "report": {
+    "answer": "比较区间为 2026-05-01 至 2026-06-01（月度粒度，币种 CNY，单位 yuan）：2026-06-01 销售额 2300.20，2026-05-01 销售额 2560.20，变化 -260.00，变化率 -10.16%。\n\n按地区分解整体变化：South 由 1180.10 变为 900.10，变化 -280.00，占整体变化比例 107.69%；North 由 1380.10 变为 1400.10，变化 20.00，占整体变化比例 -7.69%。地区贡献为对已观察变化的数值归因，可与整体变化量相互核对，但不构成因果结论。\n\n预测使用全部历史月份 2024-10-01T00:00:00 至 2026-09-01T00:00:00 的 24 个月度观测，选定模型 exponential_smoothing，口径为 CNY、单位 yuan：2026-10-01T00:00:00 预测 2420.20，区间 2288.20 至 2552.20；2026-11-01T00:00:00 预测 2420.20，区间 2288.20 至 2552.20；2026-12-01T00:00:00 预测 2420.20，区间 2288.20 至 2552.20。留出误差为 MAE 86.67、RMSE 97.30、MAPE 359.44%，基线 naive 方法的 MAE 为 86.67。预测区间来自留出绝对残差的 90.00% 分位（基于 9 个残差），并未经过置信度校准，应视为不确定性范围而非精确财务事实：模型为单变量、非季节性估计，样本量有限，机制变化可能降低覆盖水平。",
+    "charts": [],
+    "status": "succeeded",
+    "tables": [
+      {
+        "kind": "overview",
+        "rows": [],
+        "total": 0,
+        "columns": [
+          "month",
+          "region",
+          "sku",
+          "revenue",
+          "cost",
+          "quantity",
+          "currency",
+          "unit"
+        ],
+        "row_count": 0,
+        "truncated": false,
+        "source_ref": "data_readiness",
+        "artifact_id": 5,
+        "column_count": 8,
+        "memory_bytes": 12036
+      },
+      {
+        "kind": "forecast",
+        "rows": [
+          {
+            "time": "2026-10-01T00:00:00",
+            "lower": 2288.1999990463255,
+            "upper": 2552.1999997615812,
+            "value": 2420.199999403954
+          },
+          {
+            "time": "2026-11-01T00:00:00",
+            "lower": 2288.1999990463255,
+            "upper": 2552.1999997615812,
+            "value": 2420.199999403954
+          },
+          {
+            "time": "2026-12-01T00:00:00",
+            "lower": 2288.1999990463255,
+            "upper": 2552.1999997615812,
+            "value": 2420.199999403954
+          }
+        ],
+        "unit": "yuan",
+        "folds": [
+          {
+            "fold_id": 0,
+            "test_end": "2026-03-01T00:00:00",
+            "test_size": 3,
+            "train_end": "2025-12-01T00:00:00",
+            "test_start": "2026-01-01T00:00:00",
+            "train_size": 15,
+            "train_start": "2024-10-01T00:00:00"
+          },
+          {
+            "fold_id": 1,
+            "test_end": "2026-06-01T00:00:00",
+            "test_size": 3,
+            "train_end": "2026-03-01T00:00:00",
+            "test_start": "2026-04-01T00:00:00",
+            "train_size": 18,
+            "train_start": "2024-10-01T00:00:00"
+          },
+          {
+            "fold_id": 2,
+            "test_end": "2026-09-01T00:00:00",
+            "test_size": 3,
+            "train_end": "2026-06-01T00:00:00",
+            "test_start": "2026-07-01T00:00:00",
+            "train_size": 21,
+            "train_start": "2024-10-01T00:00:00"
+          }
+        ],
+        "total": 0,
+        "points": [
+          {
+            "time": "2026-10-01T00:00:00",
+            "lower": 2288.1999990463255,
+            "upper": 2552.1999997615812,
+            "value": 2420.199999403954
+          },
+          {
+            "time": "2026-11-01T00:00:00",
+            "lower": 2288.1999990463255,
+            "upper": 2552.1999997615812,
+            "value": 2420.199999403954
+          },
+          {
+            "time": "2026-12-01T00:00:00",
+            "lower": 2288.1999990463255,
+            "upper": 2552.1999997615812,
+            "value": 2420.199999403954
+          }
+        ],
+        "columns": [
+          "time",
+          "value",
+          "lower",
+          "upper"
+        ],
+        "horizon": 3,
+        "metrics": {
+          "mae": 86.66666564014223,
+          "mape": 3.594354477737491,
+          "rmse": 97.29679585617964,
+          "mape_coverage": 1.0,
+          "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+        },
+        "baseline": {
+          "folds": [
+            {
+              "fold_id": 0,
+              "metrics": {
+                "mae": 80.0,
+                "mape": 3.26108902712339,
+                "rmse": 86.40987597877147,
+                "mape_coverage": 1.0,
+                "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+              },
+              "predictions": [
+                2360.2,
+                2360.2,
+                2360.2
+              ]
+            },
+            {
+              "fold_id": 1,
+              "metrics": {
+                "mae": 100.0,
+                "mape": 4.179112661940649,
+                "rmse": 116.04596790352808,
+                "mape_coverage": 1.0,
+                "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+              },
+              "predictions": [
+                2480.2,
+                2480.2,
+                2480.2
+              ]
+            },
+            {
+              "fold_id": 2,
+              "metrics": {
+                "mae": 80.0,
+                "mape": 3.342861875514299,
+                "rmse": 86.40987597877147,
+                "mape_coverage": 1.0,
+                "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+              },
+              "predictions": [
+                2300.2,
+                2300.2,
+                2300.2
+              ]
+            }
+          ],
+          "model": "naive",
+          "status": "succeeded",
+          "metrics": {
+            "mae": 86.66666666666667,
+            "mape": 3.594354521526113,
+            "rmse": 97.2967967955095,
+            "mape_coverage": 1.0,
+            "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+          },
+          "error_code": null,
+          "final_fit_error_code": null,
+          "validation_error_code": null
+        },
+        "currency": "CNY",
+        "frequency": "MS",
+        "row_count": 3,
+        "truncated": false,
+        "candidates": [
+          {
+            "folds": [
+              {
+                "fold_id": 0,
+                "metrics": {
+                  "mae": 80.0,
+                  "mape": 3.26108902712339,
+                  "rmse": 86.40987597877147,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2360.2,
+                  2360.2,
+                  2360.2
+                ]
+              },
+              {
+                "fold_id": 1,
+                "metrics": {
+                  "mae": 100.0,
+                  "mape": 4.179112661940649,
+                  "rmse": 116.04596790352808,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2480.2,
+                  2480.2,
+                  2480.2
+                ]
+              },
+              {
+                "fold_id": 2,
+                "metrics": {
+                  "mae": 80.0,
+                  "mape": 3.342861875514299,
+                  "rmse": 86.40987597877147,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2300.2,
+                  2300.2,
+                  2300.2
+                ]
+              }
+            ],
+            "model": "naive",
+            "status": "succeeded",
+            "metrics": {
+              "mae": 86.66666666666667,
+              "mape": 3.594354521526113,
+              "rmse": 97.2967967955095,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "error_code": null,
+            "final_fit_error_code": null,
+            "validation_error_code": null
+          },
+          {
+            "folds": [
+              {
+                "fold_id": 0,
+                "metrics": {
+                  "mae": 120.0,
+                  "mape": 4.900592645001139,
+                  "rmse": 124.3650540411842,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2320.2,
+                  2320.2,
+                  2320.2
+                ]
+              },
+              {
+                "fold_id": 1,
+                "metrics": {
+                  "mae": 113.33333333333331,
+                  "mape": 4.649304108943192,
+                  "rmse": 116.04596790352808,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2440.2,
+                  2440.2,
+                  2440.2
+                ]
+              },
+              {
+                "fold_id": 2,
+                "metrics": {
+                  "mae": 80.0,
+                  "mape": 3.380528307912235,
+                  "rmse": 86.40987597877147,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2460.2,
+                  2460.2,
+                  2460.2
+                ]
+              }
+            ],
+            "model": "moving_average",
+            "status": "succeeded",
+            "metrics": {
+              "mae": 104.44444444444444,
+              "mape": 4.310141687285522,
+              "rmse": 110.15141094572203,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "error_code": null,
+            "final_fit_error_code": null,
+            "validation_error_code": null
+          },
+          {
+            "folds": [
+              {
+                "fold_id": 0,
+                "metrics": {
+                  "mae": 0.0,
+                  "mape": 0.0,
+                  "rmse": 0.0,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2400.2,
+                  2440.2,
+                  2480.2
+                ]
+              },
+              {
+                "fold_id": 1,
+                "metrics": {
+                  "mae": 100.00000000000044,
+                  "mape": 4.3474480479958455,
+                  "rmse": 173.20508075688798,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2520.2000000000003,
+                  2560.2000000000003,
+                  2600.2000000000003
+                ]
+              },
+              {
+                "fold_id": 2,
+                "metrics": {
+                  "mae": 238.96103896103887,
+                  "mape": 10.043261301500564,
+                  "rmse": 238.9822125006768,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2583.0571428571425,
+                  2619.1610389610387,
+                  2655.264935064935
+                ]
+              }
+            ],
+            "model": "linear_trend",
+            "status": "succeeded",
+            "metrics": {
+              "mae": 112.9870129870131,
+              "mape": 4.796903116498803,
+              "rmse": 170.40392981747684,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "error_code": null,
+            "final_fit_error_code": null,
+            "validation_error_code": null
+          },
+          {
+            "folds": [
+              {
+                "fold_id": 0,
+                "metrics": {
+                  "mae": 80.00000059604645,
+                  "mape": 3.261089051553898,
+                  "rmse": 86.40987653060324,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2360.199999403954,
+                  2360.199999403954,
+                  2360.199999403954
+                ]
+              },
+              {
+                "fold_id": 1,
+                "metrics": {
+                  "mae": 100.00000019868214,
+                  "mape": 4.179112668947047,
+                  "rmse": 116.04596780080216,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2480.199999403954,
+                  2480.199999403954,
+                  2480.199999403954
+                ]
+              },
+              {
+                "fold_id": 2,
+                "metrics": {
+                  "mae": 79.99999612569809,
+                  "mape": 3.3428617127115277,
+                  "rmse": 86.4098723918649,
+                  "mape_coverage": 1.0,
+                  "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+                },
+                "predictions": [
+                  2300.2000038743017,
+                  2300.2000038743017,
+                  2300.2000038743017
+                ]
+              }
+            ],
+            "model": "exponential_smoothing",
+            "status": "succeeded",
+            "metrics": {
+              "mae": 86.66666564014223,
+              "mape": 3.594354477737491,
+              "rmse": 97.29679585617964,
+              "mape_coverage": 1.0,
+              "mape_explanation": "MAPE uses nonzero held-out actuals only; zero targets are excluded. Null means no nonzero held-out actuals. Coverage is the included fraction."
+            },
+            "error_code": null,
+            "final_fit_error_code": null,
+            "validation_error_code": null
+          },
+          {
+            "folds": [],
+            "model": "arima",
+            "status": "failed",
+            "metrics": null,
+            "error_code": "FORECAST_MODEL_NUMERICAL_WARNING",
+            "final_fit_error_code": null,
+            "validation_error_code": "FORECAST_MODEL_NUMERICAL_WARNING"
+          }
+        ],
+        "dataset_id": 21,
+        "source_ref": "forecast_revenue",
+        "aggregation": "sum",
+        "artifact_id": 6,
+        "granularity": "month",
+        "history_end": "2026-09-01T00:00:00",
+        "limitations": [
+          "Verified monetary buckets aggregate Decimal before approximate floating-point model fitting; forecast values are estimates, not exact financial facts.",
+          "Univariate, nonseasonal forecasts; no external variables or causal claims.",
+          "Calendar periods start on day/Monday/month/quarter/year boundaries; duplicates aggregate by the declared rule; no missing-period imputation.",
+          "Three expanding chronological folds use the requested forecast horizon. MAE selects the model; RMSE breaks ties; near-equal numerical ties retain the simpler candidate.",
+          "Maximum 1000 periods, 24-step horizon, five candidates; fixed ARIMA(1,1,0), at most 50 optimizer iterations; SES at most 100."
+        ],
+        "time_column": "month",
+        "uncertainty": {
+          "method": "held_out_absolute_residual_quantile",
+          "calibrated": false,
+          "limitations": "Symmetric empirical bounds from the selected model held-out absolute residual 90th percentile. Not calibrated confidence or prediction intervals; model selection reuses these folds. Small samples, horizon effects and regime changes can reduce coverage; zero errors can yield zero width.",
+          "residual_count": 9,
+          "residual_quantile": 0.9
+        },
+        "unit_status": "verified",
+        "history_start": "2024-10-01T00:00:00",
+        "target_column": "revenue",
+        "selected_model": "exponential_smoothing",
+        "dataset_version": 17,
+        "input_row_count": 48,
+        "observation_count": 24
+      },
+      {
+        "kind": "contribution",
+        "rows": [
+          {
+            "delta": "20.00000000",
+            "current": "1400.10000000",
+            "previous": "1380.10000000",
+            "dimension": "North",
+            "contribution_share": "-0.07692307692307692307692307692"
+          },
+          {
+            "delta": "-280.00000000",
+            "current": "900.10000000",
+            "previous": "1180.10000000",
+            "dimension": "South",
+            "contribution_share": "1.076923076923076923076923077"
+          }
+        ],
+        "unit": "yuan",
+        "delta": {
+          "value": "-260.00000000",
+          "status": "valid",
+          "explanation": null
+        },
+        "total": 0,
+        "groups": [
+          {
+            "delta": "20.00000000",
+            "current": "1400.10000000",
+            "previous": "1380.10000000",
+            "dimension": "North",
+            "contribution_share": "-0.07692307692307692307692307692"
+          },
+          {
+            "delta": "-280.00000000",
+            "current": "900.10000000",
+            "previous": "1180.10000000",
+            "dimension": "South",
+            "contribution_share": "1.076923076923076923076923077"
+          }
+        ],
+        "status": "valid",
+        "columns": [
+          "dimension",
+          "current",
+          "previous",
+          "delta",
+          "contribution_share"
+        ],
+        "current": {
+          "value": "2300.20000000",
+          "status": "valid",
+          "explanation": null
+        },
+        "currency": "CNY",
+        "previous": {
+          "value": "2560.20000000",
+          "status": "valid",
+          "explanation": null
+        },
+        "dimension": "region",
+        "row_count": 2,
+        "truncated": false,
+        "comparison": "custom",
+        "dataset_id": 21,
+        "source_ref": "region_contribution",
+        "value_kind": "money",
+        "artifact_id": 7,
+        "date_column": "month",
+        "granularity": "month",
+        "growth_rate": {
+          "value": "-0.1015545660495273806733848918",
+          "status": "valid",
+          "explanation": null
+        },
+        "limitations": [
+          "Ratios are decimal fractions, rounded to 28 significant digits; sums and differences are exact.",
+          "Observed rows do not prove transaction completeness; no missing monetary values are imputed.",
+          "Exact calculations preserve stored projection values; historical CSV/Excel float parsing and Numeric(24,8) projection approximation cannot be recovered.",
+          "Numeric contributions reconcile the change; they are not causal proof."
+        ],
+        "value_column": "revenue",
+        "current_range": {
+          "end": "2026-07-01",
+          "start": "2026-06-01",
+          "expected_periods": 1,
+          "observed_periods": 1
+        },
+        "previous_range": {
+          "end": "2026-06-01",
+          "start": "2026-05-01",
+          "expected_periods": 1,
+          "observed_periods": 1
+        },
+        "dataset_version": 17
+      },
+      {
+        "kind": "period_comparison",
+        "rows": [
+          {
+            "value": "2300.20000000",
+            "metric": "current",
+            "status": "valid",
+            "explanation": null
+          },
+          {
+            "value": "2560.20000000",
+            "metric": "previous",
+            "status": "valid",
+            "explanation": null
+          },
+          {
+            "value": "-260.00000000",
+            "metric": "delta",
+            "status": "valid",
+            "explanation": null
+          },
+          {
+            "value": "-0.1015545660495273806733848918",
+            "metric": "growth_rate",
+            "status": "valid",
+            "explanation": null
+          }
+        ],
+        "unit": "yuan",
+        "delta": {
+          "value": "-260.00000000",
+          "status": "valid",
+          "explanation": null
+        },
+        "total": 0,
+        "status": "valid",
+        "columns": [
+          "metric",
+          "value",
+          "status",
+          "explanation"
+        ],
+        "current": {
+          "value": "2300.20000000",
+          "status": "valid",
+          "explanation": null
+        },
+        "currency": "CNY",
+        "previous": {
+          "value": "2560.20000000",
+          "status": "valid",
+          "explanation": null
+        },
+        "row_count": 4,
+        "truncated": false,
+        "comparison": "custom",
+        "dataset_id": 21,
+        "source_ref": "period_compare",
+        "value_kind": "money",
+        "artifact_id": 8,
+        "date_column": "month",
+        "granularity": "month",
+        "growth_rate": {
+          "value": "-0.1015545660495273806733848918",
+          "status": "valid",
+          "explanation": null
+        },
+        "limitations": [
+          "Ratios are decimal fractions, rounded to 28 significant digits; sums and differences are exact.",
+          "Observed rows do not prove transaction completeness; no missing monetary values are imputed.",
+          "Exact calculations preserve stored projection values; historical CSV/Excel float parsing and Numeric(24,8) projection approximation cannot be recovered."
+        ],
+        "value_column": "revenue",
+        "current_range": {
+          "end": "2026-07-01",
+          "start": "2026-06-01",
+          "expected_periods": 1,
+          "observed_periods": 1
+        },
+        "previous_range": {
+          "end": "2026-06-01",
+          "start": "2026-05-01",
+          "expected_periods": 1,
+          "observed_periods": 1
+        },
+        "dataset_version": 17
+      }
+    ],
+    "version": "1.0",
+    "findings": [
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "currency",
+          "path": [
+            "currency"
+          ],
+          "format": "text",
+          "step_id": "period_compare",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "unit",
+          "path": [
+            "unit"
+          ],
+          "format": "text",
+          "step_id": "period_compare",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "previous_month",
+          "path": [
+            "previous_range",
+            "start"
+          ],
+          "format": "text",
+          "step_id": "period_compare",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "current_month",
+          "path": [
+            "current_range",
+            "start"
+          ],
+          "format": "text",
+          "step_id": "period_compare",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "current_revenue",
+          "path": [
+            "current",
+            "value"
+          ],
+          "format": "number",
+          "step_id": "period_compare",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "previous_revenue",
+          "path": [
+            "previous",
+            "value"
+          ],
+          "format": "number",
+          "step_id": "period_compare",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "delta",
+          "path": [
+            "delta",
+            "value"
+          ],
+          "format": "number",
+          "step_id": "period_compare",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "growth_rate",
+          "path": [
+            "growth_rate",
+            "value"
+          ],
+          "format": "percent",
+          "step_id": "period_compare",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "south",
+          "path": [
+            "groups",
+            1,
+            "dimension"
+          ],
+          "format": "text",
+          "step_id": "region_contribution",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "south_previous",
+          "path": [
+            "groups",
+            1,
+            "previous"
+          ],
+          "format": "number",
+          "step_id": "region_contribution",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "south_current",
+          "path": [
+            "groups",
+            1,
+            "current"
+          ],
+          "format": "number",
+          "step_id": "region_contribution",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "south_delta",
+          "path": [
+            "groups",
+            1,
+            "delta"
+          ],
+          "format": "number",
+          "step_id": "region_contribution",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "south_share",
+          "path": [
+            "groups",
+            1,
+            "contribution_share"
+          ],
+          "format": "percent",
+          "step_id": "region_contribution",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "north",
+          "path": [
+            "groups",
+            0,
+            "dimension"
+          ],
+          "format": "text",
+          "step_id": "region_contribution",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "north_previous",
+          "path": [
+            "groups",
+            0,
+            "previous"
+          ],
+          "format": "number",
+          "step_id": "region_contribution",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "north_current",
+          "path": [
+            "groups",
+            0,
+            "current"
+          ],
+          "format": "number",
+          "step_id": "region_contribution",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "north_delta",
+          "path": [
+            "groups",
+            0,
+            "delta"
+          ],
+          "format": "number",
+          "step_id": "region_contribution",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "north_share",
+          "path": [
+            "groups",
+            0,
+            "contribution_share"
+          ],
+          "format": "percent",
+          "step_id": "region_contribution",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "history_start",
+          "path": [
+            "history_start"
+          ],
+          "format": "text",
+          "step_id": "forecast_revenue",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "history_end",
+          "path": [
+            "history_end"
+          ],
+          "format": "text",
+          "step_id": "forecast_revenue",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "observation_count",
+          "path": [
+            "observation_count"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 0
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "model",
+          "path": [
+            "selected_model"
+          ],
+          "format": "text",
+          "step_id": "forecast_revenue",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f1_month",
+          "path": [
+            "points",
+            0,
+            "time"
+          ],
+          "format": "text",
+          "step_id": "forecast_revenue",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f1_value",
+          "path": [
+            "points",
+            0,
+            "value"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f1_lower",
+          "path": [
+            "points",
+            0,
+            "lower"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f1_upper",
+          "path": [
+            "points",
+            0,
+            "upper"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f2_month",
+          "path": [
+            "points",
+            1,
+            "time"
+          ],
+          "format": "text",
+          "step_id": "forecast_revenue",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f2_value",
+          "path": [
+            "points",
+            1,
+            "value"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f2_lower",
+          "path": [
+            "points",
+            1,
+            "lower"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f2_upper",
+          "path": [
+            "points",
+            1,
+            "upper"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f3_month",
+          "path": [
+            "points",
+            2,
+            "time"
+          ],
+          "format": "text",
+          "step_id": "forecast_revenue",
+          "decimals": null
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f3_value",
+          "path": [
+            "points",
+            2,
+            "value"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f3_lower",
+          "path": [
+            "points",
+            2,
+            "lower"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "f3_upper",
+          "path": [
+            "points",
+            2,
+            "upper"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "mae",
+          "path": [
+            "metrics",
+            "mae"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "rmse",
+          "path": [
+            "metrics",
+            "rmse"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "mape",
+          "path": [
+            "metrics",
+            "mape"
+          ],
+          "format": "percent",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "baseline_mae",
+          "path": [
+            "baseline",
+            "metrics",
+            "mae"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "residual_quantile",
+          "path": [
+            "uncertainty",
+            "residual_quantile"
+          ],
+          "format": "percent",
+          "step_id": "forecast_revenue",
+          "decimals": 2
+        }
+      },
+      {
+        "kind": "bound_fact",
+        "reference": {
+          "key": "residual_count",
+          "path": [
+            "uncertainty",
+            "residual_count"
+          ],
+          "format": "number",
+          "step_id": "forecast_revenue",
+          "decimals": 0
+        }
+      }
+    ],
+    "warnings": [
+      "结果包含缺失或无法定义的统计值，未补零",
+      "结果包含缺失或无法定义的统计值，未补零",
+      "结果包含缺失或无法定义的统计值，未补零"
+    ],
+    "evidence_refs": [
+      "data_readiness",
+      "forecast_revenue",
+      "region_contribution",
+      "period_compare"
+    ],
+    "incomplete_steps": []
+  },
+  "plan": {
+    "goal": "比较 2026 年 6 月与 5 月销售额（revenue，CNY/yuan）下降，按 region 分解各地区变化贡献，并基于全部历史月份预测未来 3 个月销售额，说明比较区间、历史范围、误差、基线与预测不确定性，仅给出数据支持的结论。",
+    "depth": "STANDARD",
+    "steps": [
+      {
+        "name": "数据结构与覆盖检查",
+        "error": null,
+        "status": "COMPLETED",
+        "step_id": "data_readiness",
+        "priority": 10,
+        "required": false,
+        "arguments": {
+          "limit": 20,
+          "columns": [
+            "month",
+            "region",
+            "revenue",
+            "currency",
+            "unit"
+          ]
+        },
+        "tool_name": "dataset_overview",
+        "depends_on": [],
+        "result_ref": "artifact:5",
+        "source_ref": "dataset",
+        "started_at": "2026-10-04T10:38:22.639742+00:00",
+        "description": "最小化核对 month/region/revenue/currency/unit 字段与日期覆盖，确认 2026-05、2026-06 是否落在数据范围内，作为后续三个计算任务的口径校验，不做额外探索。",
+        "finished_at": "2026-10-04T10:38:22.737707+00:00",
+        "input_alias": "sales",
+        "retry_count": 0,
+        "exploration_depth": 0,
+        "exploration_parent": null
+      },
+      {
+        "name": "2026年6月 vs 5月销售额周期比较",
+        "error": null,
+        "status": "COMPLETED",
+        "step_id": "period_compare",
+        "priority": 20,
+        "required": true,
+        "arguments": {
+          "end": "2026-07-01",
+          "unit": "yuan",
+          "start": "2026-06-01",
+          "currency": "CNY",
+          "comparison": "custom",
+          "value_kind": "money",
+          "date_column": "month",
+          "granularity": "month",
+          "unit_column": "unit",
+          "previous_end": "2026-06-01",
+          "value_column": "revenue",
+          "previous_start": "2026-05-01",
+          "currency_column": "currency"
+        },
+        "tool_name": "period_comparison",
+        "depends_on": [
+          "data_readiness"
+        ],
+        "result_ref": "artifact:8",
+        "source_ref": "dataset",
+        "started_at": "2026-10-04T10:38:24.520625+00:00",
+        "description": "按月度粒度比较 revenue：当期 2026-06-01 至 2026-07-01（6 月），基期 2026-05-01 至 2026-06-01（5 月），输出变化额与变化率及区间覆盖情况。",
+        "finished_at": "2026-10-04T10:38:24.615370+00:00",
+        "input_alias": "sales",
+        "retry_count": 0,
+        "exploration_depth": 0,
+        "exploration_parent": null
+      },
+      {
+        "name": "各地区销售额变化贡献",
+        "error": null,
+        "status": "COMPLETED",
+        "step_id": "region_contribution",
+        "priority": 30,
+        "required": true,
+        "arguments": {
+          "end": "2026-07-01",
+          "unit": "yuan",
+          "start": "2026-06-01",
+          "currency": "CNY",
+          "dimension": "region",
+          "comparison": "custom",
+          "value_kind": "money",
+          "date_column": "month",
+          "granularity": "month",
+          "unit_column": "unit",
+          "previous_end": "2026-06-01",
+          "value_column": "revenue",
+          "previous_start": "2026-05-01",
+          "currency_column": "currency"
+        },
+        "tool_name": "contribution_analysis",
+        "depends_on": [
+          "data_readiness"
+        ],
+        "result_ref": "artifact:7",
+        "source_ref": "dataset",
+        "started_at": "2026-10-04T10:38:24.452479+00:00",
+        "description": "以 region 为维度，在 2026-06 与 2026-05 同一区间口径下分解 revenue 变化，输出各地区变化额、贡献占比，识别贡献方向与量级（结构性分解，不等同于原因）。",
+        "finished_at": "2026-10-04T10:38:24.517620+00:00",
+        "input_alias": "sales",
+        "retry_count": 0,
+        "exploration_depth": 0,
+        "exploration_parent": null
+      },
+      {
+        "name": "未来3个月销售额预测",
+        "error": null,
+        "status": "COMPLETED",
+        "step_id": "forecast_revenue",
+        "priority": 40,
+        "required": true,
+        "arguments": {
+          "horizon": 3,
+          "aggregation": "sum",
+          "granularity": "month",
+          "time_column": "month",
+          "target_column": "revenue"
+        },
+        "tool_name": "forecast",
+        "depends_on": [
+          "data_readiness"
+        ],
+        "result_ref": "artifact:6",
+        "source_ref": "dataset",
+        "started_at": "2026-10-04T10:38:22.739840+00:00",
+        "description": "基于全部历史月份（month 为时间列，revenue 求和聚合，月度粒度）做规则单变量时间序列预测，horizon=3，输出预测值、滚动验证误差与基线对比及不确定性信息。",
+        "finished_at": "2026-10-04T10:38:24.449413+00:00",
+        "input_alias": "sales",
+        "retry_count": 0,
+        "exploration_depth": 0,
+        "exploration_parent": null
+      }
+    ],
+    "budget": {
+      "depth": "STANDARD",
+      "max_depth": 0,
+      "max_tasks": 16,
+      "model_calls": 2,
+      "max_model_calls": 10,
+      "max_token_usage": 60000,
+      "tokens_reserved": 16080,
+      "max_execution_time": 180
+    },
+    "inputs": [
+      {
+        "alias": "sales",
+        "dataset_id": 21,
+        "dataset_version_id": 17
+      }
+    ],
+    "intent": "TREND_ANALYSIS",
+    "status": "COMPLETED",
+    "plan_id": "plan_5_trend_analysis",
+    "task_id": "5",
+    "version": "3.0",
+    "profiles": [
+      {
+        "id": "sales-decline",
+        "name": "销售下滑原因分析",
+        "depth": "STANDARD",
+        "source": "system",
+        "version": "2.0",
+        "category": "sales",
+        "created_at": "2026-10-03",
+        "constraints": [
+          "仅根据计算结果描述发现；相关性不代表因果。",
+          "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+          "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。"
+        ],
+        "description": "销售趋势、结构与贡献：销售下滑原因分析。",
+        "availability": "limited",
+        "analysis_steps": [
+          "核对数据结构与口径",
+          "分析与验证",
+          "解释发现和限制"
+        ],
+        "prompt_context": "",
+        "intent_keywords": [
+          "销售下滑原因分析"
+        ],
+        "preferred_tools": [
+          "group_by_analysis",
+          "time_group_analysis",
+          "kpi_analysis",
+          "period_comparison",
+          "contribution_analysis"
+        ],
+        "recommended_for": [
+          "销售趋势、结构与贡献"
+        ],
+        "report_sections": [
+          "数据概览",
+          "关键发现",
+          "方法与限制"
+        ],
+        "expected_metrics": [],
+        "output_artifacts": [
+          "table",
+          "chart"
+        ],
+        "preferred_charts": [],
+        "recommended_data": [
+          "日期、销售金额、地区、商品；订单指标需订单 ID"
+        ],
+        "supported_depths": [
+          "FAST",
+          "STANDARD",
+          "DEEP"
+        ],
+        "example_questions": [
+          "分析销售下降的时间、地区与商品，说明数据支持的发现。"
+        ],
+        "expected_dimensions": [],
+        "required_capabilities": [
+          "kpi_analysis",
+          "period_comparison",
+          "contribution_analysis"
+        ]
+      },
+      {
+        "id": "forecast-revenue",
+        "name": "销售额预测",
+        "depth": "STANDARD",
+        "source": "system",
+        "version": "2.0",
+        "category": "forecast",
+        "created_at": "2026-10-03",
+        "constraints": [
+          "仅根据计算结果描述发现；相关性不代表因果。",
+          "金额须由用户确认币种和单位或实际元数据列验证；区间覆盖、时间粒度和字段由工具验证。",
+          "模板仅提供策略，Planner 按问题及数据选择工具；清洗需预览和显式确认。",
+          "仅规则单变量时间序列；滚动验证和基线选择；无季节性或自动机器学习。"
+        ],
+        "description": "时间序列与不确定性：销售额预测。",
+        "availability": "limited",
+        "analysis_steps": [
+          "核对数据结构与口径",
+          "分析与验证",
+          "解释发现和限制"
+        ],
+        "prompt_context": "",
+        "intent_keywords": [
+          "销售额预测"
+        ],
+        "preferred_tools": [
+          "forecast"
+        ],
+        "recommended_for": [
+          "时间序列与不确定性"
+        ],
+        "report_sections": [
+          "数据概览",
+          "关键发现",
+          "方法与限制"
+        ],
+        "expected_metrics": [],
+        "output_artifacts": [],
+        "preferred_charts": [],
+        "recommended_data": [
+          "规则时间序列、目标字段；至少 12 个时间点"
+        ],
+        "supported_depths": [
+          "FAST",
+          "STANDARD",
+          "DEEP"
+        ],
+        "example_questions": [
+          "帮我做销售额预测，并说明分析限制。"
+        ],
+        "expected_dimensions": [],
+        "required_capabilities": [
+          "forecast"
+        ]
+      }
+    ],
+    "warnings": [
+      "数据集仅 48 行、region 唯一值为 2，历史月度点数较少，预测误差与区间可能较宽，预测结论只作方向性参考。",
+      "若 2026-05 或 2026-06 区间未被数据覆盖，period_comparison/contribution_analysis 会返回不可用；不做补零、不用其他年份替代，并在结论中标注不可比。",
+      "cost、quantity、currency、unit 中除 currency/unit 已验证取值外，成本与数量的币种单位未确认，本次不使用，也不做金额与数量混合汇总。",
+      "数据中未见订单 ID 字段，本次不涉及订单量/去重客户指标，任何计数只能表述为记录数。",
+      "地区贡献只说明变化在地区间的分布，不能据此推断下滑原因；相关性与结构分解均不构成因果证据。",
+      "用户明确要求本次不绘图、不增加其他探索，因此计划仅含 1 个可选口径校验 + 3 个必需计算步骤，未安排 generate_chart 或清洗/导出类动作（后者亦不在可用工具能力范围内）。",
+      "比较区间的销售额下降可能与该地区某个月份缺失、口径或数据质量相关，需结合工具返回的覆盖与质量信息解释。"
+    ],
+    "dataset_id": 21,
+    "assumptions": [
+      "revenue 语义由用户确认：概念 revenue、聚合 sum、币种 CNY、单位 yuan，且与 datasets.business_metadata 已验证列（currency=CNY、unit=yuan）一致，因此可跨月汇总与比较。",
+      "比较使用完整月区间且左闭右开 [start,end)：2026 年 6 月 = 2026-06-01~2026-07-01，基期 2026 年 5 月 = 2026-05-01~2026-06-01，两期天数一致（各为完整自然月），保证可比。",
+      "period_comparison 与 contribution_analysis 使用同一时间列 month、同一数值列 revenue、同一 granularity=month 与同一区间，只有维度不同（总体 vs region），确保贡献可加总回总体变化。",
+      "地区贡献为对已实现变化的算术分解（变化额与贡献占比），体现结构性来源，不代表因果归因。",
+      "forecast 使用数据集全部历史月份训练，月度粒度、聚合方式 sum，horizon=3，即预测比较区间之后（数据末月之后）的 3 个自然月；训练输入范围与真实值均由工具输出确认。",
+      "预测为规则单变量时间序列方法（含滚动验证与基线比较），不包含季节性分解或自动机器学习模型，不确定性以工具给出的误差/区间为依据。"
+    ],
+    "expected_outputs": [
+      "period_compare",
+      "region_contribution",
+      "forecast_revenue"
+    ],
+    "semantic_version": 2,
+    "semantic_snapshot": [
+      {
+        "role": "dimension",
+        "unit": null,
+        "column": "month",
+        "reason": "用户明确修正",
+        "source": "user",
+        "concept": "time",
+        "currency": null,
+        "confidence": 1.0,
+        "aggregation": "none",
+        "dataset_version_id": 17
+      },
+      {
+        "role": "dimension",
+        "unit": null,
+        "column": "region",
+        "reason": "字段名称、类型 string、唯一值 2；未确认币种和单位",
+        "source": "candidate",
+        "concept": "region",
+        "currency": null,
+        "confidence": 0.75,
+        "aggregation": "none",
+        "dataset_version_id": 17
+      },
+      {
+        "role": "dimension",
+        "unit": null,
+        "column": "sku",
+        "reason": "字段名称、类型 string、唯一值 2；未确认币种和单位",
+        "source": "candidate",
+        "concept": "product",
+        "currency": null,
+        "confidence": 0.75,
+        "aggregation": "none",
+        "dataset_version_id": 17
+      },
+      {
+        "role": "metric",
+        "unit": "yuan",
+        "column": "revenue",
+        "reason": "用户在问题中明确修正字段含义或单位",
+        "source": "user",
+        "concept": "revenue",
+        "currency": "CNY",
+        "confidence": 1.0,
+        "aggregation": "sum",
+        "dataset_version_id": 17
+      },
+      {
+        "role": "metric",
+        "unit": null,
+        "column": "cost",
+        "reason": "字段名称、类型 Float64、唯一值 34；未确认币种和单位",
+        "source": "candidate",
+        "concept": "cost",
+        "currency": null,
+        "confidence": 0.9,
+        "aggregation": "sum",
+        "dataset_version_id": 17
+      },
+      {
+        "role": "metric",
+        "unit": null,
+        "column": "quantity",
+        "reason": "字段名称、类型 Int64、唯一值 34；未确认币种和单位",
+        "source": "candidate",
+        "concept": "quantity",
+        "currency": null,
+        "confidence": 0.9,
+        "aggregation": "sum",
+        "dataset_version_id": 17
+      },
+      {
+        "role": "dimension",
+        "unit": null,
+        "column": "currency",
+        "reason": "字段名称、类型 string、唯一值 1；未确认币种和单位",
+        "source": "candidate",
+        "concept": "category",
+        "currency": null,
+        "confidence": 0.75,
+        "aggregation": "none",
+        "dataset_version_id": 17
+      },
+      {
+        "role": "dimension",
+        "unit": null,
+        "column": "unit",
+        "reason": "字段名称、类型 string、唯一值 1；未确认币种和单位",
+        "source": "candidate",
+        "concept": "category",
+        "currency": null,
+        "confidence": 0.75,
+        "aggregation": "none",
+        "dataset_version_id": 17
+      }
+    ],
+    "dataset_version_id": 17
+  },
+  "record_id": 5,
+  "status": "succeeded"
+}

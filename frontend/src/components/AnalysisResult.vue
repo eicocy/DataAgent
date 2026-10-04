@@ -4,7 +4,7 @@ import ForecastResult from './ForecastResult.vue'
 import BusinessResult from './BusinessResult.vue'
 import DataQualityWorkbench from './DataQualityWorkbench.vue'
 import { analysisApi } from '../api/analysis'
-import { hasTypedDetails, sameResultSource, structuredKinds } from '../utils/resultShape'
+import { hasTypedDetails, rawResultSource, sameResultSource, structuredKinds } from '../utils/resultShape'
 
 export default {
   name: 'AnalysisResult',
@@ -18,16 +18,7 @@ export default {
       const entries = []
       const raw = this.evidence.tool_result
       if (hasTypedDetails(raw)) {
-        // 当前 tool_result 是最后一次成功的非图表结果；call 只提供来源关联与摘要。
-        const producer = [...(this.evidence.tool_calls || [])].reverse().find(call =>
-          call.status === 'succeeded' && call.tool_name !== 'generate_chart')
-        entries.push({
-          result: raw,
-          source: {
-            source_ref: producer?.step_id || raw.source_ref,
-            artifact_id: producer?.artifact_id || raw.artifact_id,
-          },
-        })
+        entries.push({ result: raw, source: rawResultSource(this.evidence) })
       }
       for (const result of this.evidence.report?.tables || []) {
         if (!hasTypedDetails(result)) continue
