@@ -5,7 +5,7 @@ from numbers import Integral, Real
 from typing import Mapping
 
 import pandas as pd
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 
 class ResultValidationError(ValueError):
@@ -59,11 +59,51 @@ def validate_value(value: object, *, allow_missing: bool = True) -> int:
     return 0
 
 
+def _typed_missing_statistics(data: dict) -> int | None:
+    """Count statistical nulls only for complete, validated Phase 3 contracts.
+
+    Optional provenance/diagnostics are not statistics. Unrecognized or invalid
+    direct-call shapes retain the generic recursive missing-value behavior.
+    """
+    from app.analysis.models import ForecastResult, KPIResult, PeriodComparisonResult, ContributionResult
+    if not isinstance(data.get('kind'), str):
+        return None
+    schema = {'forecast': ForecastResult, 'kpi': KPIResult,
+              'period_comparison': PeriodComparisonResult, 'contribution': ContributionResult}.get(data.get('kind'))
+    if schema is None:
+        return None
+    try:
+        result = schema.model_validate(data)
+    except ValidationError:
+        return None
+    if isinstance(result, ForecastResult):
+        missing = validate_value(result.metrics.model_dump())
+        for candidate in [result.baseline, *result.candidates]:
+            # Failed/skipped models have no score by contract, not a missing
+            # selected statistic. Any available fold scores still participate.
+            if candidate.metrics is not None:
+                missing += validate_value(candidate.metrics.model_dump())
+            for fold in candidate.folds:
+                missing += validate_value(fold.metrics.model_dump())
+                missing += validate_value(fold.predictions)
+        return missing + validate_value([point.model_dump() for point in result.points])
+    if isinstance(result, KPIResult):
+        return sum(validate_value(metric.value) for metric in result.metrics.values())
+    missing = sum(validate_value(getattr(result, key).value)
+                  for key in ('current', 'previous', 'delta', 'growth_rate'))
+    if isinstance(result, ContributionResult):
+        missing += validate_value([group.model_dump() for group in result.groups])
+    return missing
+
+
 def validate_result(data: dict, frame: pd.DataFrame | None = None, *, result_type: str | None = None, parameters: dict | None = None) -> list[ResultWarning]:
     """Validate structured results and full frames before they are published."""
     if not isinstance(data, dict):
         raise ResultValidationError('RESULT_SCHEMA_INVALID')
     missing = validate_value(data)
+    statistical_missing = _typed_missing_statistics(data)
+    if statistical_missing is not None:
+        missing = statistical_missing
     if frame is not None:
         for column in frame.columns:
             validate_numeric_series(frame[column])

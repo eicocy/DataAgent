@@ -66,3 +66,35 @@ def test_business_fraction_percentage_contract_unchanged(data,path):
 @pytest.mark.parametrize('bad',['NaN','Infinity','1e1000000','9'*1001,'not numeric'])
 def test_percent_point_route_does_not_relax_decimal_guards(bad):
     with pytest.raises(ValueError):display({'kind':'forecast','metrics':{'mape':bad}},['metrics','mape'])
+
+
+from test_analysis_api import analysis_context
+
+
+def test_fast_quality_summary_stays_within_existing_budget(analysis_context,monkeypatch,tmp_path):
+    from app.agent.budget import BudgetProvider
+    from test_upgrade_phase2 import test_fake_provider_v3_runs_compute_and_persist_evidence
+    trace=[];original=BudgetProvider._call
+    def observed(self,name,payload,call):
+        before=self.budget.snapshot()
+        try:return original(self,name,payload,call)
+        except Exception as exc:
+            trace.append({'prompt':name,'before':before,'exception':str(exc)})
+            raise
+        finally:
+            trace.append({'prompt':name,'after':self.budget.snapshot()})
+    monkeypatch.setattr(BudgetProvider,'_call',observed)
+    try:
+        test_fake_provider_v3_runs_compute_and_persist_evidence(analysis_context,'FAST',True,monkeypatch,tmp_path)
+    except AssertionError as exc:
+        from app.models import AnalysisRecord
+        from sqlalchemy import select
+        with analysis_context[1]() as db:
+            record=db.scalar(select(AnalysisRecord).order_by(AnalysisRecord.id.desc()))
+            receipt={'trace':trace,'record_report':record.report_json,'usage':record.usage_json}
+        raise AssertionError(receipt) from exc
+    assert trace[-1]['after']['max_token_usage']==20000
+    assert trace[-1]['after']['max_model_calls']==6
+    assert trace[-1]['after']['max_execution_time']==60
+    assert trace[-1]['after']['model_calls']==3
+    assert trace[-1]['after']['tokens_reserved']<=20000
