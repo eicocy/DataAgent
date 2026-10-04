@@ -72,3 +72,31 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+  sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: sqlite:///./sandbox-ci.sqlite
+      SECRET_KEY: ci_only_secret_at_least_32_characters
+      TASK_EXECUTOR_ENABLED: "false"
+      DEEPSEEK_API_KEY: ""
+      OPENAI_API_KEY: ""
+      SANDBOX_ENABLED: "false"
+      TEST_SANDBOX_DOCKER: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-lock.txt
+      - run: pip install -r backend/requirements-lock.txt docker==7.1.0
+      - name: Build isolated execution image
+        run: docker build -f deploy/sandbox/Dockerfile -t datalens-sandbox:2.0.5 .
+      - name: Build trusted broker image
+        run: docker build -f deploy/sandbox/Dockerfile.broker -t datalens-sandbox-broker:2.0.5 .
+      - name: Verify real isolation and lifecycle
+        working-directory: backend
+        run: python -m pytest -o addopts= -q tests/test_upgrade_phase5_docker.py
+      - name: Verify Nginx SSE proxy configuration
+        run: docker run --rm --add-host backend:127.0.0.1 --mount "type=bind,source=$PWD/frontend/nginx.conf,target=/etc/nginx/conf.d/default.conf,readonly" nginx:alpine nginx -t

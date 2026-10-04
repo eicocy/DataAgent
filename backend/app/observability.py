@@ -14,7 +14,7 @@ class SafeFormatter(logging.Formatter):
 
     def format(self, record):
         message = record.getMessage()
-        if any(marker in message.lower() for marker in ("[sql:", "[parameters:", "password", "api_key", "://", "authorization", "prompt")):
+        if any(marker in message.lower() for marker in ("[sql:", "[parameters:", "password", "api_key", "://", "authorization", "prompt", "bearer", "broker_token", "generated_code")):
             record = logging.makeLogRecord(dict(record.__dict__, msg="[sensitive log message omitted]", args=()))
         return super().format(record)
 

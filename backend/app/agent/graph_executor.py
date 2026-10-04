@@ -37,6 +37,11 @@ class InputWorkspace:
         self.active.deadline = self.deadline
 
     def execute(self, *args, **kwargs):
+        if args and args[0] == 'python_sandbox':
+            if kwargs.get('source_ref', 'dataset') != 'dataset':
+                raise ValueError('SANDBOX_SOURCE_DENIED')
+            from app.sandbox.agent import execute_sandbox
+            return execute_sandbox(self, args[1], kwargs.get('call_id',''))
         return self.active.execute(*args, **kwargs)
 
 
@@ -74,6 +79,7 @@ class GraphExecutor(WorkflowExecutor):
         tools.deadline = self.deadline
 
     def _safe_parallel(self, step):
+        if step.tool_name == 'python_sandbox': return False
         metadata = self.tools.registry.get(step.tool_name).metadata
         if not (metadata.parallel_safe and not metadata.modifies_dataset and metadata.chat_enabled and metadata.permissions <= self.tools.permissions):
             return False
@@ -212,6 +218,7 @@ class GraphExecutor(WorkflowExecutor):
             self.emit('stage', {'stage': 'idle'})
 
     def _explore(self, plan):
+        if getattr(self.tools,'sandbox_authorization',None): return False
         if not self.adapter or plan.depth != 'DEEP' or not self.results or not self._budget_available():
             return False
         delivery = (getattr(self.tools, 'configuration', None) or {}).get('delivery')

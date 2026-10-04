@@ -17,7 +17,7 @@ class LLMProvider(Protocol):
 
 def load_prompt(name: str) -> tuple[str, str, str]:
     allowed = {'intent_router', 'analysis_planner', 'replanner', 'result_interpreter',
-               'conversation_summarizer', 'general_chat', 'step_correction', 'workspace_planner', 'exploration_planner'}
+               'conversation_summarizer', 'general_chat', 'step_correction', 'workspace_planner', 'exploration_planner', 'sandbox_planner'}
     if name not in allowed:
         raise ValueError('PROMPT_NOT_FOUND')
     version = {'intent_router': 'v2', 'analysis_planner': 'v3', 'result_interpreter': 'v3'}.get(name, 'v1')

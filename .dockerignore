@@ -1,0 +1,10 @@
+**
+!backend/
+!backend/app/
+!backend/app/sandbox/
+!backend/app/sandbox/**
+!deploy/
+!deploy/sandbox/
+!deploy/sandbox/**
+**/__pycache__/
+**/*.pyc

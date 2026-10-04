@@ -173,6 +173,16 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
             if not job or job.status != "running" or job.lease_token != lease_token or job.cancel_requested:
                 raise WorkerLeaseLost()
 
+    def check_sandbox_lease():
+        # Fresh short transaction during a long container wait. Do not retain a
+        # FOR UPDATE lock that would block cancellation or supervisor heartbeat.
+        if lease_token:
+            from sqlalchemy.orm import Session
+            with Session(bind=db.get_bind()) as current_db:
+                current=current_db.get(BackgroundJob,job_id)
+                if not current or current.status!='running' or current.lease_token!=lease_token or current.cancel_requested:
+                    raise WorkerLeaseLost()
+
     active_execution=None
 
     def event(kind, payload):
@@ -237,6 +247,10 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
                     'tool_name': payload.get('tool_name')})
         elif kind=='tool_parameters' and active_execution:
             active_execution.parameters_json=payload['parameters']
+        elif kind == 'sandbox_images':
+            from app.sandbox.artifacts import persist_images
+            rows=persist_images(db,record,payload['step_id'],payload['images'],payload['dataset_id'],payload['dataset_version_id'],check_lease)
+            append_event(db,record,'sandbox_images_created',{'step_id':payload['step_id'],'artifact_ids':[row.id for row in rows]})
         elif kind == "result":
             artifact_name=uuid.uuid4().hex+'.json'
             cleanup=CleanupTask(payload_json={'artifacts':[artifact_name],'analysis_record_id':record.id},status='reserved',created_at=datetime.now(UTC))
@@ -384,6 +398,9 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
                 from app.services.input_workspace import load_workspace
                 from copy import deepcopy
                 tools = load_workspace(db, record.user_id, deepcopy(record.request_config_json), tools, business_bind, projection_bind, readonly_bind, event, check_lease)
+                from app.sandbox.client import owner_key
+                tools.sandbox_owner=owner_key(job_id or record.id,lease_token or record.request_id)
+                tools.sandbox_lease_check=check_sandbox_lease
             outcome = agent.analyze(record.question, tools)
             if getattr(tools, 'configuration', None):
                 record.request_config_json = tools.configuration

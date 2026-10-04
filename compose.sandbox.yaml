@@ -1,0 +1,49 @@
+# Optional overlay: docker compose -f compose.yaml -f compose.sandbox.yaml --profile sandbox up --build -d
+services:
+  sandbox-image:
+    profiles: [sandbox]
+    image: datalens-sandbox:2.0.5
+    build:
+      context: .
+      dockerfile: deploy/sandbox/Dockerfile
+    command: [python, -c, "print('sandbox image ready')"]
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: "no"
+  sandbox-broker:
+    profiles: [sandbox]
+    build:
+      context: .
+      dockerfile: deploy/sandbox/Dockerfile.broker
+    environment:
+      SANDBOX_BROKER_TOKEN: ${SANDBOX_BROKER_TOKEN:?Configure a separate random sandbox token of at least 32 characters}
+      SANDBOX_IMAGE: datalens-sandbox:2.0.5
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [sandbox-control]
+    read_only: true
+    tmpfs: [/tmp:rw,noexec,nosuid,nodev,size=32m]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 1
+    mem_limit: 1g
+    pids_limit: 64
+    stop_grace_period: 15s
+    depends_on:
+      sandbox-image:
+        condition: service_completed_successfully
+    restart: unless-stopped
+  backend:
+    environment:
+      SANDBOX_ENABLED: "true"
+      SANDBOX_BROKER_URL: http://sandbox-broker:8090
+      SANDBOX_BROKER_TOKEN: ${SANDBOX_BROKER_TOKEN:?Configure SANDBOX_BROKER_TOKEN}
+    networks: [default, sandbox-control]
+    depends_on:
+      sandbox-broker:
+        condition: service_started
+networks:
+  sandbox-control:
+    internal: true

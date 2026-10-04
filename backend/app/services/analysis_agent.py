@@ -154,12 +154,21 @@ class DeepSeekAgent:
         except BudgetExceeded:
             return AgentOutcome([], {}, '分析规划已达到本次预算，请缩小问题范围或选择更高分析深度。', None, 'waiting', usage=provider.usage)
         except ValueError as exc:
-            cause=exc
-            while cause.__cause__ is not None: cause=cause.__cause__
-            if str(cause).startswith(('BUSINESS_METADATA','BUSINESS_METRIC','BUSINESS_PERIOD','BUSINESS_PREVIOUS')):
-                answer='请确认金额字段的币种和单位、指标含义以及完整且不重叠的比较区间；现有数据需覆盖这些区间。'
-                return AgentOutcome([],{},answer,None,'waiting',report={'version':'1.0','status':'waiting','answer':answer,'warnings':[str(cause)],'tables':[],'charts':[],'evidence_refs':[],'incomplete_steps':[]},usage=provider.usage)
-            raise AnalysisFailure('PLAN_INVALID', '模型未能生成有效分析计划，请调整问题重试', True) from exc
+            from app.sandbox.agent import UnknownToolCapability, propose_plan
+            if isinstance(exc, UnknownToolCapability):
+                try:
+                    plan, tools.sandbox_authorization = propose_plan(question, provider, config, tools.metadata_by_input,
+                        str(tools.record_id), decision.intent, exc)
+                except ValueError as sandbox_error:
+                    code = getattr(sandbox_error, 'code', 'SANDBOX_PROPOSAL_INVALID')
+                    raise AnalysisFailure(code, '当前注册工具无法完成该方法，受限沙箱未启用、不可用或代码未通过校验。请调整分析方法。', False) from sandbox_error
+            else:
+                cause=exc
+                while cause.__cause__ is not None: cause=cause.__cause__
+                if str(cause).startswith(('BUSINESS_METADATA','BUSINESS_METRIC','BUSINESS_PERIOD','BUSINESS_PREVIOUS')):
+                    answer='请确认金额字段的币种和单位、指标含义以及完整且不重叠的比较区间；现有数据需覆盖这些区间。'
+                    return AgentOutcome([],{},answer,None,'waiting',report={'version':'1.0','status':'waiting','answer':answer,'warnings':[str(cause)],'tables':[],'charts':[],'evidence_refs':[],'incomplete_steps':[]},usage=provider.usage)
+                raise AnalysisFailure('PLAN_INVALID', '模型未能生成有效分析计划，请调整问题重试', True) from exc
         event('plan', plan.model_dump())
         event('plan_validated', {'plan_id': plan.plan_id, 'steps': len(plan.steps)})
         settings = self.settings.model_copy(update={'max_tool_attempts': provider.budget.max_tasks * (self.settings.max_retries_per_step + 1), 'analysis_timeout_seconds': provider.budget.seconds})

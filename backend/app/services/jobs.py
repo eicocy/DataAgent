@@ -166,6 +166,9 @@ def terminate_job(factory, job_id, code="TASK_INTERRUPTED"):
                 for task in db.scalars(select(CleanupTask).where(CleanupTask.status=='reserved')):
                     if task.payload_json.get('tool_execution_id')==record.id: task.status='pending'
         db.commit()
+        lease_token = job.lease_token
+    from app.sandbox.client import cancel_job_sandbox
+    cancel_job_sandbox(job_id, lease_token)
 
 
 def recover_expired_jobs(factory):
@@ -269,6 +272,8 @@ class TaskSupervisor:
                 self.stop_event.wait(0.25)
         finally:
             # Temporary DB faults must never leave a worker outside supervision.
+            from app.sandbox.client import cancel_job_sandbox
+            cancel_job_sandbox(job_id, token)
             if process.poll() is None:
                 process.terminate()
                 try:

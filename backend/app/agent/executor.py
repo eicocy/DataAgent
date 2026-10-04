@@ -246,7 +246,7 @@ class WorkflowExecutor:
                     self.tables.append(table)
             except Exception as exc:
                 error = exc
-                if computed or (isinstance(exc, ResultValidationError) and not exc.recoverable) or isinstance(exc,ToolError) and not isinstance(exc,ToolInputError) or not isinstance(exc, (ValueError, KeyError, TypeError)):
+                if step.tool_name == 'python_sandbox' or computed or (isinstance(exc, ResultValidationError) and not exc.recoverable) or isinstance(exc,ToolError) and not isinstance(exc,ToolInputError) or not isinstance(exc, (ValueError, KeyError, TypeError)):
                     self.unrecoverable_steps.add(step.step_id)
                 call.update(status='failed', error_code=getattr(exc, 'code', 'TOOL_EXECUTION_FAILED'), result_summary='工具参数、数据或执行结果未通过校验', duration_ms=int((time.monotonic() - started) * 1000))
                 transition_step(step, 'FAILED')

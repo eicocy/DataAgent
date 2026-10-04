@@ -1,0 +1,5 @@
+仅在服务器确认注册工具无法覆盖所列 unsupported_capabilities 时提出受限 Python 分析代码。优先考虑 registered_tools；不得用代码绕过工具权限、数据写入、预算或已存在工具的参数错误。
+只选择一个服务器给出的 input_alias，inputs[input_alias] 是该授权固定版本的完整 pandas DataFrame。不自行生成或猜测输入数据。只在内存计算，不读写文件、不访问系统/网络/进程、不动态导入、不 eval/exec、不反射、不 pickle。
+允许 import pandas as pd, numpy as np, math, statistics, decimal, matplotlib.pyplot as plt。可使用常见统计和分组、排序、rolling、numpy 数值函数；禁止 read_*/to_* 文件方法、query/eval、属性下划线、getattr、type、globals 等。to_dict/to_list/tolist/to_frame 可用于内存结果。
+最终必须设置 result={"columns":[字段名],"rows":[每行字段值]}，或 result={指标名:标量}。值只允许有限数值、字符串、布尔或 null；不得提供说明文字当作计算结果。最多 50,000 行、256 列。Decimal 金额结果转字符串保留精度。可通过 emit_image(figure) 输出最多四幅 PNG，不指定文件名或路径。
+missing_capability 必须来自 unsupported_capabilities；reason 说明现有工具无法完成的具体方法。代码将再次经过 AST 校验并在无网络、只读、非 root 容器执行，最多 60 秒/512 MiB，失败不会回退宿主或伪造结果。

@@ -33,6 +33,10 @@ def export_plan(plan,format,title,inputs=None):
     registry = build_registry(include_legacy=True)
     rejected = []
     for step in steps:
+        if step['tool_name']=='python_sandbox':
+            from app.sandbox.validator import validate_code
+            validate_code((step.get('arguments') or {}).get('code'))
+            continue
         tool = registry.get(step['tool_name'])
         if tool.metadata.modifies_dataset or step['tool_name'] in {'sql_query'} or step['tool_name'] in {
             'get_dataset_info','preview_data','aggregate_data','group_by_analysis','sort_data',
@@ -45,7 +49,8 @@ def export_plan(plan,format,title,inputs=None):
         'dataset_id':plan.get('dataset_id'), 'dataset_version_id':plan.get('dataset_version_id')}
     encoded = json.dumps(payload,ensure_ascii=False,allow_nan=False)
     script = '''"""Reproduce a saved DataAgent plan against explicitly supplied fixed CSV snapshots.
-Run from backend with its requirements installed; no network/model/DB credentials.
+Run from backend with its requirements installed; no model/DB credentials.
+Registered tools run locally; custom code requires the configured isolated broker.
 """
 import argparse
 import json
@@ -106,6 +111,22 @@ def main():
         frame = base.frame if source_ref == 'dataset' else frames[source_ref]
         from app.semantic.business_validation import validate_business_arguments, metadata_evidence
         parameters = resolve(step.get('arguments', {}), results)
+        if step['tool_name'] == 'python_sandbox':
+            import hashlib
+            from app.sandbox.client import SandboxClient
+            from app.sandbox.results import validate_output
+            from app.analysis.serialization import records
+            binding = next(item for item in bindings if item['alias'] == alias)
+            dtypes = {c['name']: c['storage_type'] for c in binding.get('schema',{}).get('columns',[])
+                      if c.get('storage_type') in {'integer','decimal','float','boolean','string','datetime','date'}}
+            output = SandboxClient().run({'code':parameters['code'],
+                'owner':hashlib.sha256(('export:'+step['step_id']).encode()).hexdigest(),
+                'inputs':[{'alias':alias,'dataset_id':base.dataset_id,'dataset_version_id':base.dataset_version,
+                           'columns':list(frame.columns),'rows':records(frame),'dtypes':dtypes}]})
+            table, output_frame, images = validate_output(output['result'],output['images'])
+            results[step['step_id']] = table.model_dump(mode='json')
+            frames[step['step_id']] = output_frame
+            continue
         monetary = validate_business_arguments(step['tool_name'], parameters, PLAN['semantic_snapshot'], base.dataset_version, metadata_evidence(frame))
         context = DatasetContext.from_frame(frame.copy(deep=True), dataset_id=base.dataset_id,
             dataset_version=base.dataset_version, source_ref=source_ref, registry=registry,
@@ -125,5 +146,7 @@ if __name__ == '__main__': main()
     readme += '输入必须为报告所记录的固定版本完整 CSV 明细；参数 --input primary=path.csv，其他输入按 alias 补齐。\n'
     readme += '输出为计算结果 JSON；不调用模型，不含凭据，不在服务器执行。原始解析精度和预测不确定性限制继续适用。\n'
     if rejected: readme += '受限步骤：'+', '.join(rejected)+'；脚本会明确停止，请在原应用读取其已保存结果。\n'
+    if any(step['tool_name']=='python_sandbox' for step in steps):
+        readme += '自定义代码始终交给已配置的独立沙箱 broker；需要启用 SANDBOX_ENABLED 并在环境配置 broker 地址和专用令牌。不可用时停止，不回退宿主执行代码。\n'
     return [ExportFile(LocalArtifactStorage.safe_file_name(title,'py'),'text/x-python',script.encode()),
         ExportFile(LocalArtifactStorage.safe_file_name(title+'_依赖说明','md'),'text/markdown; charset=utf-8',readme.encode())]

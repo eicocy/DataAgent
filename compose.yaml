@@ -13,6 +13,7 @@ x-backend: &backend
     FRONTEND_ORIGIN: http://localhost:${FRONTEND_PORT:-8080}
     ARTIFACT_DIR: /data/artifacts
     UPLOAD_DIR: /data/uploads
+    SANDBOX_ENABLED: "false"
   volumes:
     - app-data:/data
 services:

@@ -1,0 +1,7 @@
+FROM python:3.12-slim
+RUN pip install --no-cache-dir docker==7.1.0 pandas==2.2.3 numpy==2.2.6 pillow==11.1.0 pydantic==2.11.1
+COPY backend/app/sandbox /opt/app/sandbox
+COPY deploy/sandbox/broker.py /opt/broker.py
+ENV PYTHONPATH=/opt PYTHONDONTWRITEBYTECODE=1
+WORKDIR /opt
+CMD ["python", "/opt/broker.py"]
