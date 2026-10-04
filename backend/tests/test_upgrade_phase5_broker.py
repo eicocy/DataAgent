@@ -50,6 +50,38 @@ def test_reaper_retries_failed_container_removal():
     assert len(attempts) == 2 and job.container is None and job.id not in broker.jobs
 
 
+def test_successful_delete_releases_result_and_memory():
+    import time
+    module=broker_module(); broker=module.Broker(Engine(),'trusted-image')
+    job=module.Job('a'*32,'b'*64,0,0); job.status='succeeded'; job.finished=time.monotonic()
+    job.output={'result':{'x':1},'images':[]}; broker.jobs[job.id]=job
+    broker.cancel(job.id)
+    assert job.output is None and job.id not in broker.jobs
+
+
+def test_broker_bounds_total_resident_outputs(monkeypatch):
+    module=broker_module(); broker=module.Broker(Engine(),'trusted-image')
+    monkeypatch.setattr(module,'MAX_RESIDENT_OUTPUT_BYTES',100)
+    with pytest.raises(ValueError,match='SANDBOX_OUTPUT_LIMIT'):
+        broker.store_output(module.Job('a'*32,'b'*64,0,0),{'result':{'x':'a'*500},'images':[]})
+
+
+def test_http_output_preserves_utf8_without_ascii_expansion():
+    import http.client,threading,time
+    module=broker_module(); broker=module.Broker(Engine(),'trusted-image')
+    broker.engine.ping=lambda:True
+    job=module.Job('a'*32,'b'*64,0,0); job.status='succeeded'; job.finished=time.monotonic()
+    job.output={'result':{'label':'中文'},'images':[]}; broker.jobs[job.id]=job
+    server=module.server_for(broker,'t'*32,('127.0.0.1',0)); threading.Thread(target=server.serve_forever,daemon=True).start()
+    try:
+        connection=http.client.HTTPConnection('127.0.0.1',server.server_port)
+        connection.request('GET','/jobs/'+job.id,headers={'Authorization':'Bearer '+'t'*32})
+        content=connection.getresponse().read()
+        assert '中文'.encode() in content and b'\\u4e2d' not in content
+        connection.close()
+    finally: server.shutdown(); server.server_close(); broker.close()
+
+
 def test_broker_cancel_and_expired_lease_destroy_active_container():
     module = broker_module(); broker = module.Broker(Engine(), 'trusted-image',scope='phase5-test')
     removed = []
@@ -91,3 +123,20 @@ def test_broker_collects_tmpfs_output_before_container_stops():
     assert removed
     engine = Engine(); engine.images = SimpleNamespace(get=lambda _:SimpleNamespace(id='sha256:wrong',labels={}))
     with pytest.raises(ValueError): module.Broker(engine,'trusted-image')
+
+
+def test_oom_during_ready_probe_keeps_kernel_failure_code():
+    import time
+    module=broker_module(); engine=Engine()
+    container=SimpleNamespace(attach_socket=lambda **kw:SimpleNamespace(_sock=SimpleNamespace(sendall=lambda body:None),close=lambda:None),
+        start=lambda:None,reload=lambda:None,attrs={'State':{'Running':True}},remove=lambda **kw:None)
+    def probe(*args,**kwargs):
+        container.attrs['State']={'Running':False,'OOMKilled':True,'ExitCode':137}
+        return 137,b''
+    container.exec_run=probe; engine.containers.create=lambda **kw:container
+    broker=module.Broker(engine,'trusted-image'); now=time.monotonic()
+    job=module.Job('a'*32,'b'*64,now+10,now+10); broker.jobs[job.id]=job
+    from app.sandbox.protocol import RunRequest
+    request=RunRequest.model_validate({'code':'result={"x":2}','owner':'b'*64,'inputs':[{'alias':'primary','dataset_id':1,'dataset_version_id':2,'columns':['x'],'rows':[{'x':1}]}]})
+    broker.run(job,request)
+    assert job.error_code=='SANDBOX_OOM'

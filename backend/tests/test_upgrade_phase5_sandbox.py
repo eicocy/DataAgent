@@ -28,6 +28,9 @@ def test_sandbox_is_disabled_by_default(monkeypatch):
     'inputs["primary"].query("x > 1")',
     'import numpy as np\nnp.ctypeslib.load_library("x", "/tmp")',
     'import pandas as pd\npd.set_option("io.excel.xlsx.writer", "x")',
+    'inputs["primary"].apply("to_pickle", args=("/tmp/probe.pkl",))',
+    'inputs["primary"].agg(["eval"])',
+    'method="query"\ninputs["primary"].transform(method)',
 ])
 def test_ast_rejects_escape_and_io(code):
     validate, error = api()

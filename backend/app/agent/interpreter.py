@@ -7,7 +7,7 @@ class ResultInterpreter:
         self.provider = provider
         self.emit = emit or getattr(provider, 'emit', lambda *args: None)
 
-    def interpret(self, *, question: str, goal: str, results: dict, incomplete_steps: list[str]):
+    def interpret(self, *, question: str, goal: str, results: dict, incomplete_steps: list[str], binding_results: dict | None = None):
         from app.agent.executor import clip_context
         payload = clip_context({'question': question[:2000], 'goal': goal[:500],
                                 'results': results, 'incomplete_steps': incomplete_steps})
@@ -16,7 +16,7 @@ class ResultInterpreter:
             try:
                 raw = self.provider.generate_structured('result_interpreter', payload, ReportContent)
                 content = ReportContent.model_validate(raw)
-                answer = render_report(content, payload['results'])
+                answer = render_report(content, binding_results if binding_results is not None else payload['results'])
                 findings = [{'kind': 'bound_fact', 'reference': fact.model_dump()} for fact in content.facts]
                 return answer, findings
             except ValueError as exc:

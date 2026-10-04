@@ -18,6 +18,16 @@ subplots figure plot scatter bar hist boxplot imshow title xlabel ylabel legend 
 to_datetime to_numeric dt year month day date weekday days total_seconds str contains len
 pi e inf nan'''.split())
 FORBIDDEN_NAMES = {'eval','exec','compile','open','input','globals','locals','vars','dir','getattr','setattr','delattr','type','object','super','help','breakpoint','exit','quit','memoryview','__builtins__'}
+DISPATCH_METHODS = {'apply','agg','aggregate','map','transform'}
+SAFE_REDUCTIONS = {'sum','mean','median','std','var','min','max','count','size','nunique','first','last','prod','all','any'}
+
+
+def safe_dispatch(node):
+    if isinstance(node, ast.Lambda): return True
+    if isinstance(node, ast.Constant): return isinstance(node.value,str) and node.value in SAFE_REDUCTIONS
+    if isinstance(node, (ast.List,ast.Tuple)): return bool(node.elts) and all(safe_dispatch(item) for item in node.elts)
+    if isinstance(node, ast.Dict): return bool(node.values) and all(safe_dispatch(item) for item in node.values)
+    return False
 
 
 class SandboxError(ValueError):
@@ -34,6 +44,7 @@ def validate_code(code):
     except (SyntaxError, RecursionError, ValueError):
         raise SandboxError('SANDBOX_SYNTAX_INVALID') from None
     nodes = list(ast.walk(tree))
+    parents = {child:parent for parent in nodes for child in ast.iter_child_nodes(parent)}
     if len(nodes) > 5000:
         raise SandboxError('SANDBOX_CODE_LIMIT')
     for node in nodes:
@@ -45,6 +56,12 @@ def validate_code(code):
             raise SandboxError('SANDBOX_NAME_DENIED')
         if isinstance(node, ast.Attribute) and node.attr not in ATTRIBUTES:
             raise SandboxError('SANDBOX_ATTRIBUTE_DENIED')
+        if isinstance(node, ast.Attribute) and node.attr in DISPATCH_METHODS:
+            call = parents.get(node)
+            if not isinstance(call,ast.Call) or call.func is not node:
+                raise SandboxError('SANDBOX_DISPATCH_DENIED')
+            function = call.args[0] if call.args else next((k.value for k in call.keywords if k.arg in {'func','function'}),None)
+            if not safe_dispatch(function): raise SandboxError('SANDBOX_DISPATCH_DENIED')
         if isinstance(node, ast.keyword) and node.arg in {'engine','backend','storage_options','path','path_or_buf','buf'}:
             raise SandboxError('SANDBOX_IO_DENIED')
         if isinstance(node, ast.Import):

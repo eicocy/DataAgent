@@ -6,12 +6,14 @@ import re
 import threading
 import time
 import uuid
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from app.sandbox.protocol import RunRequest, MAX_INPUT_BYTES, MAX_OUTPUT_BYTES
 from app.sandbox.results import read_output_archive
 
 LABEL = 'datalens.sandbox.scope'
 LEASE_SECONDS = 5
+MAX_RESIDENT_OUTPUT_BYTES = 128 * 1024 * 1024
 
 
 class Job:
@@ -21,6 +23,7 @@ class Job:
         self.status, self.error_code = 'running', None
         self.container, self.output = None, None
         self.finished = None
+        self.output_bytes = 0
 
 
 class Broker:
@@ -98,7 +101,25 @@ class Broker:
     def cancel(self, job_id):
         with self.lock:
             job = self.jobs.get(job_id)
-            if job: self.fail(job,'SANDBOX_CANCELLED')
+            if job:
+                self.fail(job,'SANDBOX_CANCELLED')
+                if job.finished:
+                    job.output, job.output_bytes = None, 0
+                    if not job.container: self.jobs.pop(job.id,None)
+
+    def store_output(self, job, output):
+        # Count Python objects, not just serialized bytes; table cells and JSON
+        # containers consume significantly more resident memory than their wire form.
+        pending=[output]; seen=set(); size=0
+        occupied=sum(item.output_bytes for item in self.jobs.values() if item is not job)
+        while pending:
+            item=pending.pop()
+            if id(item) in seen: continue
+            seen.add(id(item)); size+=sys.getsizeof(item)
+            if size+occupied>MAX_RESIDENT_OUTPUT_BYTES: raise ValueError('SANDBOX_OUTPUT_LIMIT')
+            if isinstance(item,dict): pending.extend(item.keys()); pending.extend(item.values())
+            elif isinstance(item,(list,tuple)): pending.extend(item)
+        job.output, job.output_bytes = output, size
 
     def cancel_owner(self, owner):
         with self.lock:
@@ -143,16 +164,27 @@ class Broker:
                     raise ValueError('SANDBOX_EXECUTION_FAILED')
                 # Docker's archive API cannot read tmpfs mounts. Only these
                 # trusted, immutable commands can export the fixed output dir.
-                ready, _ = container.exec_run(['python','-I','/opt/export_output.py','ready'])
+                try:
+                    ready, _ = container.exec_run(['python','-I','/opt/export_output.py','ready'])
+                except Exception:
+                    container.reload()
+                    if container.attrs['State'].get('OOMKilled'): raise ValueError('SANDBOX_OOM') from None
+                    if container.attrs['State'].get('ExitCode') == 3: raise ValueError('SANDBOX_OUTPUT_LIMIT') from None
+                    raise
                 if ready == 3: continue
-                if ready != 0: raise ValueError('SANDBOX_OUTPUT_INVALID')
+                if ready != 0:
+                    container.reload()
+                    if container.attrs['State'].get('OOMKilled'): raise ValueError('SANDBOX_OOM')
+                    if container.attrs['State'].get('ExitCode') == 3: raise ValueError('SANDBOX_OUTPUT_LIMIT')
+                    raise ValueError('SANDBOX_OUTPUT_INVALID')
                 exported = container.exec_run(['python','-I','/opt/export_output.py','archive'],stream=True)
                 chunks = exported.output
                 output = read_output_archive(chunks)
                 with self.lock:
                     self.reap()
                     if job.status != 'running': return
-                    job.output, job.status, job.finished = output, 'succeeded', time.monotonic()
+                    self.store_output(job,output)
+                    job.status, job.finished = 'succeeded', time.monotonic()
                 return
         except Exception as exc:
             code = getattr(exc,'code',str(exc))
@@ -179,7 +211,7 @@ def server_for(broker, token, address=('0.0.0.0',8090)):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*args): pass
         def response(self,status,value):
-            body=json.dumps(value,allow_nan=False).encode()
+            body=json.dumps(value,allow_nan=False,ensure_ascii=False,separators=(',',':')).encode('utf-8')
             self.send_response(status); self.send_header('Content-Type','application/json')
             self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)
         def handle_request(self):

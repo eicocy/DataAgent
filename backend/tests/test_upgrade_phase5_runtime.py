@@ -63,3 +63,20 @@ def test_validated_sandbox_image_uses_owned_artifact_download(analysis_context):
     assert result.status_code==200 and result.content.startswith(b'\x89PNG')
     preview=client.get(f'/api/v1/artifacts/{aid}/preview').json()['data']
     assert preview['artifact']['type']=='image' and preview['preview']['kind']=='document'
+
+
+def test_report_binds_facts_from_complete_frame_artifact(analysis_context):
+    from test_upgrade_phase4_api import setup_source
+    from app.models import AnalysisRecord
+    from app.reports.service import create_report
+    from app.reports.schemas import ReportSpec
+    client,sessions,_=analysis_context
+    rid,sid,aid,did,vid=setup_source(client,sessions)
+    with sessions() as db:
+        record=db.get(AnalysisRecord,rid)
+        import pandas as pd
+        from app.services.artifacts import ArtifactStore
+        ArtifactStore(db).write(record,'frame_bound',{'columns':['x'],'rows':[{'x':0}]},frame=pd.DataFrame({'x':[0]}))
+        record.report_json={'findings':[{'kind':'bound_fact','reference':{'key':'x','step_id':'frame_bound','path':['rows',0,'x']}}]}
+        _,version=create_report(db,record.user_id,sid,ReportSpec(title='Frame evidence',dataset_id=did,dataset_version_id=vid),[rid])
+        assert version.document_json['evidence'][0]['value']==0

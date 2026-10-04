@@ -33,7 +33,12 @@ def test_registered_planner_fallback_persists_fixed_evidence_and_image(analysis_
         vid=db.get(Dataset,did).current_version_id
         unsupported={'task_id':str(rid),'goal':'Gini','intent':'DATA_ANALYSIS','dataset_id':did,'dataset_version_id':vid,
             'inputs':[{'alias':'primary','dataset_id':did,'dataset_version_id':vid}],'steps':[],'unsupported_capabilities':['custom_gini']}
-        provider=FakeLLMProvider([{'intent':'DATA_ANALYSIS','confidence':.99,'requires_dataset':True,'requires_analysis':True},
+        class CapturedProvider(FakeLLMProvider):
+            def generate_structured(self,name,payload,schema):
+                if name=='result_interpreter':
+                    assert 'rows' not in payload['results']['sandbox']
+                return super().generate_structured(name,payload,schema)
+        provider=CapturedProvider([{'intent':'DATA_ANALYSIS','confidence':.99,'requires_dataset':True,'requires_analysis':True},
             unsupported,unsupported,{'missing_capability':'custom_gini','reason':'No registered Gini method','input_alias':'primary',
                 'code':'result={"gini":0.25}'},
             {'template':'模拟样例 Gini 系数为 {gini}。','facts':[{'key':'gini','step_id':'sandbox','path':['rows',0,'gini']}],'evidence_refs':['sandbox']}])

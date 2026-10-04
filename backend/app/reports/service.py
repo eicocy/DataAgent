@@ -133,7 +133,9 @@ def _source_rows(db: Session, user_id: int, session_id: int, spec: ReportSpec,
                 execution = next((e for e in db.scalars(select(ToolExecutionRecord).where(
                     ToolExecutionRecord.analysis_record_id.in_([row.id,owner_artifact.record_id])).order_by(ToolExecutionRecord.id.desc()))
                     if (e.result_json or {}).get('artifact_ref')==owner_artifact.id),None)
-                value = ArtifactStore(db).read(owner_artifact).get('data') or {}
+                payload = ArtifactStore(db).read(owner_artifact)
+                value = payload.get('data') or {}
+                if 'rows' in payload: value = {**value, 'rows':payload['rows']}
                 try:
                     for part in ref.get('path',[]): value = value[part]
                 except (KeyError,IndexError,TypeError): raise ReportError('REPORT_EVIDENCE_INVALID',422) from None

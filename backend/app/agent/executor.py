@@ -161,6 +161,10 @@ class WorkflowExecutor:
                 output[key] = dict(value)
                 if frame is not None:
                     output[key]['rows'] = [dict(row, **{column: raw for column, raw in frame.iloc[index].items() if isinstance(raw, Decimal)}) for index, row in enumerate(value.get('rows', []))]
+            elif tools.get(key) == 'python_sandbox':
+                output[key] = {field:item for field,item in value.items() if field not in {'rows','sorted_rows','preview_rows'}}
+                output[key]['available_fact_paths'] = [['rows',index,column] for index,row in enumerate(value.get('rows',[])[:20])
+                    for column,item in row.items() if type(item) in (int,float,bool)][:100]
             elif tools.get(key) in registry and registry[tools[key]].metadata.exposes_rows:
                 output[key] = {field: item for field, item in value.items() if field not in {'rows', 'sorted_rows', 'preview_rows'}}
             elif tools.get(key) == 'get_dataset_info':
@@ -370,7 +374,8 @@ class WorkflowExecutor:
                     from app.agent.interpreter import ResultInterpreter
                     answer, findings = ResultInterpreter(self.adapter, self.emit).interpret(
                         question=question, goal=self.final_plan.goal, results=self._model_results(),
-                        incomplete_steps=incomplete)
+                        incomplete_steps=incomplete, binding_results={**self._model_results(), **{key:value for key,value in self.results.items()
+                            if any(c['step_id']==key and c['tool_name']=='python_sandbox' for c in self.calls)}})
                     content = None
                 else:
                     response = self.adapter.invoke(REPORT, json.dumps(payload, ensure_ascii=False, default=str), ReportContent, "submit_final_report")
