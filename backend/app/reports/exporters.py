@@ -46,6 +46,7 @@ def _register_cjk_font() -> str:
         pass
     candidates = [
         Path("C:/Windows/Fonts/msyh.ttc"), Path("C:/Windows/Fonts/msyh.ttf"),
+        Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),
         Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
         Path("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"),
     ]
