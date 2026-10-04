@@ -3,6 +3,13 @@ import io
 import json
 import zipfile
 from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
+import reportlab
+from reportlab.lib import fonts as font_mappings
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 from openpyxl import load_workbook
 from pypdf import PdfReader
@@ -10,6 +17,37 @@ from PIL import Image
 
 from app.reports.exporters import ExportOptions, exporter_registry
 from app.reports.schemas import DocumentSection, ReportDocument
+from app.reports import exporters
+
+
+@pytest.fixture
+def isolated_font_candidates(monkeypatch, tmp_path):
+    # Keep registration and font-family mappings independent of test order.
+    monkeypatch.setattr(pdfmetrics, "_fonts", {
+        name: font for name, font in pdfmetrics._fonts.items() if name != "DataLensCJK"
+    })
+    monkeypatch.setattr(pdfmetrics, "_dynFaceNames", {})
+    monkeypatch.setattr(font_mappings, "_tt2ps_map", font_mappings._tt2ps_map.copy())
+    monkeypatch.setattr(font_mappings, "_ps2tt_map", font_mappings._ps2tt_map.copy())
+    monkeypatch.setattr(exporters, "Path", lambda path: tmp_path / Path(path).name)
+    return tmp_path, (Path(reportlab.__file__).parent / "fonts" / "Vera.ttf").read_bytes()
+
+
+def test_pdf_registers_embeddable_linux_font_without_windows_fonts(isolated_font_candidates):
+    directory, true_type_bytes = isolated_font_candidates
+    (directory / "wqy-zenhei.ttc").write_bytes(true_type_bytes)
+
+    assert exporters._register_cjk_font() == "DataLensCJK"
+    assert isinstance(pdfmetrics.getFont("DataLensCJK"), TTFont)
+
+
+def test_pdf_tries_next_font_when_linux_font_cannot_load(isolated_font_candidates):
+    directory, true_type_bytes = isolated_font_candidates
+    (directory / "wqy-zenhei.ttc").write_bytes(b"invalid font")
+    (directory / "NotoSansCJK-Regular.ttc").write_bytes(true_type_bytes)
+
+    assert exporters._register_cjk_font() == "DataLensCJK"
+    assert isinstance(pdfmetrics.getFont("DataLensCJK"), TTFont)
 
 
 def document():

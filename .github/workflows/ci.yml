@@ -32,6 +32,16 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements-lock.txt
       - run: pip install -r requirements-lock.txt cryptography
+      - name: Install embeddable Chinese PDF font
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei
+      - name: Verify Chinese PDF font registration
+        run: |
+          python - <<'PY'
+          from app.reports.exporters import _register_cjk_font
+          font_name = _register_cjk_font()
+          assert font_name == "DataLensCJK", f"Embeddable Chinese font unavailable: {font_name}"
+          print(f"Registered embeddable Chinese PDF font: {font_name}")
+          PY
       - name: Provision dedicated integration reader
         env:
           MYSQL_PWD: ci_root_password
