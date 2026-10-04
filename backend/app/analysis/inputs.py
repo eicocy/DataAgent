@@ -155,3 +155,59 @@ class PeriodComparisonInput(BusinessInput):
 
 class ContributionInput(PeriodComparisonInput):
     dimension: str=Field(min_length=1)
+
+
+class JoinInput(StrictModel):
+    right_alias: str=Field(min_length=1, max_length=64)
+    left_on: list[str]=Field(min_length=1,max_length=10)
+    right_on: list[str]=Field(min_length=1,max_length=10)
+    how: Literal['inner','left']
+    relationship: Literal['one_to_one','many_to_one','one_to_many']
+    @model_validator(mode='after')
+    def keys(self):
+        if len(self.left_on)!=len(self.right_on) or len(set(self.left_on))!=len(self.left_on) or len(set(self.right_on))!=len(self.right_on):
+            raise ValueError('join keys must be aligned and unique')
+        return self
+
+
+class PublishJoinInput(JoinInput):
+    right_alias: Literal['right']='right'
+    right_dataset_id: int=Field(gt=0,strict=True)
+    right_version_id: int=Field(gt=0,strict=True)
+
+
+class FieldRule(StrictModel):
+    type: Literal['numeric','datetime']
+    minimum: float | None=None
+    maximum: float | None=None
+    datetime_format: str | None=None
+    @model_validator(mode='after')
+    def bounds(self):
+        if self.minimum is not None and self.maximum is not None and self.minimum>self.maximum:
+            raise ValueError('minimum exceeds maximum')
+        if self.type!='numeric' and (self.minimum is not None or self.maximum is not None):
+            raise ValueError('range requires numeric type')
+        return self
+
+
+class QualityScoreInput(StrictModel):
+    field_rules: dict[str,FieldRule]=Field(default_factory=dict,max_length=200)
+    limit: int=Field(default=20,ge=1,le=100)
+
+
+class CleaningStep(StrictModel):
+    tool: Literal['rename_columns','remove_duplicates','drop_missing_rows','fill_missing_values','convert_dtype','parse_datetime','replace_values','normalize_text','outlier_treatment']
+    parameters: dict
+    @model_validator(mode='after')
+    def explicit_arguments(self):
+        parsed=CleaningInput.model_validate(self.parameters)
+        requirements={'remove_duplicates':['keep'],'drop_missing_rows':['how'],'fill_missing_values':['strategy'], 'outlier_treatment':['strategy','method'],'normalize_text':['text_operations'],'replace_values':['replacements'],'rename_columns':['names'],'convert_dtype':['dtype']}
+        if any(key not in self.parameters for key in requirements.get(self.tool,[])):
+            raise ValueError('explicit operation parameters required')
+        if self.tool=='fill_missing_values' and parsed.strategy=='constant' and 'value' not in self.parameters:
+            raise ValueError('explicit fill value required')
+        return self
+
+
+class CleaningPlanInput(StrictModel):
+    operations: list[CleaningStep]=Field(min_length=1,max_length=8)

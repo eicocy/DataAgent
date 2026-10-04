@@ -9,7 +9,7 @@ from app.analysis import data_tools as data, aggregation_tools as aggregate, sta
 def build_registry(include_legacy=False):
     registry=ToolRegistry()
     def register(name,category,schema,output,function,raw=False,**metadata):
-        metadata['provides_frame'] = output in {TableResult, AggregationResult}
+        metadata['provides_frame'] = issubclass(output,TableResult)
         if name in {'dataset_overview', 'column_summary', 'aggregate', 'multi_aggregate', 'groupby_aggregate', 'descriptive_statistics', 'missing_value_analysis', 'duplicate_analysis', 'constant_column_analysis', 'cardinality_analysis'}:
             metadata['parallel_safe'] = True
         registry.register(FunctionTool(ToolMetadata(name=name,description=name.replace('_',' '),category=category,capabilities=(category.value,name),exposes_rows=raw,**metadata),schema,output,function))
@@ -51,6 +51,15 @@ def build_registry(include_legacy=False):
         register(name,ToolCategory.DATA if name!='outlier_analysis' else ToolCategory.EDA,QualityInput,DataQualityResult,partial(quality,operation=name))
     for name in ('fill_missing_values','drop_missing_rows','remove_duplicates','convert_dtype','parse_datetime','replace_values','normalize_text','rename_columns','outlier_treatment'):
         register(name,ToolCategory.CLEANING,CleaningInput,CleaningResult,partial(clean,operation=name),permissions=frozenset({Permission.READ_DATA,Permission.TRANSFORM_DATA}),modifies_dataset=True,chat_enabled=False,risk_level='transform')
+    from app.analysis.inputs import JoinInput,PublishJoinInput,QualityScoreInput,CleaningPlanInput
+    from app.analysis.models import JoinResult,QualityScoreResult,CleaningPlanResult
+    from app.analysis.join_tools import join_data
+    from app.analysis.quality_tools import data_quality_score
+    from app.analysis.transformation_tools import cleaning_plan
+    register('join_data',ToolCategory.DATA,JoinInput,JoinResult,join_data,True)
+    register('publish_join',ToolCategory.CLEANING,PublishJoinInput,JoinResult,join_data,True,permissions=frozenset({Permission.READ_DATA,Permission.TRANSFORM_DATA}),modifies_dataset=True,chat_enabled=False,risk_level='transform')
+    register('data_quality_score',ToolCategory.DATA,QualityScoreInput,QualityScoreResult,data_quality_score,parallel_safe=True)
+    register('cleaning_plan',ToolCategory.CLEANING,CleaningPlanInput,CleaningPlanResult,cleaning_plan,permissions=frozenset({Permission.READ_DATA,Permission.TRANSFORM_DATA}),modifies_dataset=True,chat_enabled=False,risk_level='transform',timeout_seconds=30)
     from app.analysis.models import ChartResult,RecommendationResult,EDAResult
     from app.analysis.inputs import ChartInput
     from app.analysis.chart_tools import chart,recommend

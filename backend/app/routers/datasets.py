@@ -322,6 +322,9 @@ def delete_dataset(dataset_id: int, user: User = Depends(current_user), db: Sess
     db.scalar(select(Dataset).where(Dataset.id == dataset_id).with_for_update())
     if db.scalar(select(BackgroundJob.id).where(BackgroundJob.dataset_id==dataset_id,BackgroundJob.kind=='tool',BackgroundJob.status.in_(('pending','running'))).limit(1)):
         raise _error(409,'DATASET_BUSY','数据集正在执行工具任务')
+    from app.models import ToolExecutionRecord
+    if any(record.parameters_json.get('right_dataset_id')==dataset_id for record in db.scalars(select(ToolExecutionRecord).where(ToolExecutionRecord.tool_name=='publish_join',ToolExecutionRecord.status.in_(('pending','running'))))):
+        raise _error(409,'DATASET_BUSY','数据集正在作为关联任务的输入')
     if db.scalar(select(AnalysisRecord.id).where(AnalysisRecord.dataset_id == dataset_id, AnalysisRecord.status.in_(("pending", "running"))).limit(1)):
         raise _error(409, "DATASET_BUSY", "数据集正在分析，请稍后删除")
     stored_name = dataset.stored_name

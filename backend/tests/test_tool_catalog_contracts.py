@@ -7,6 +7,10 @@ from app.analysis.models import Permission
 from app.analysis.errors import ToolError
 
 PARAMETERS={
+    'join_data':{'right_alias':'r','left_on':['id'],'right_on':['key'],'how':'left','relationship':'many_to_one'},
+    'publish_join':{'right_dataset_id':2,'right_version_id':2,'left_on':['id'],'right_on':['key'],'how':'left','relationship':'many_to_one'},
+    'data_quality_score':{'field_rules':{'x':{'type':'numeric'}}},
+    'cleaning_plan':{'operations':[{'tool':'rename_columns','parameters':{'columns':['x'],'names':{'x':'measurement'}}}]},
     'kpi_analysis':{'metrics':{'revenue':'x'},'currency':'USD','unit':'dollar'},
     'period_comparison':{'date_column':'time','value_column':'x','granularity':'month','start':'2024-03-01','end':'2024-04-01','comparison':'mom','currency':'USD','unit':'dollar'},
     'contribution_analysis':{'date_column':'time','value_column':'x','granularity':'month','start':'2024-03-01','end':'2024-04-01','comparison':'mom','currency':'USD','unit':'dollar','dimension':'label'},
@@ -42,7 +46,11 @@ def test_each_available_tool_has_real_typed_output_and_preserves_input(name):
     if name in {'kpi_analysis','period_comparison','contribution_analysis'}:
         frame=pd.DataFrame({'time':['2024-02-01','2024-03-01'],'x':['0.1','0.2'],'label':['A','B']})
     original=frame.copy(deep=True)
-    output=registry.calculate(name,DatasetContext.from_frame(frame),PARAMETERS[name],frozenset({Permission.READ_DATA,Permission.TRANSFORM_DATA}))
+    related={}
+    if name in {'join_data','publish_join'}:
+        frame=pd.DataFrame({'id':[1,2,3],'left_value':['a','b','c']});original=frame.copy(deep=True)
+        related={'r' if name=='join_data' else 'right':DatasetContext.from_frame(pd.DataFrame({'key':[1,2],'right_value':['x','y']}),dataset_id=2,dataset_version=2)}
+    output=registry.calculate(name,DatasetContext.from_frame(frame,related_inputs=related),PARAMETERS[name],frozenset({Permission.READ_DATA,Permission.TRANSFORM_DATA}))
     output.data.model_dump_json()
     pd.testing.assert_frame_equal(frame,original)
 

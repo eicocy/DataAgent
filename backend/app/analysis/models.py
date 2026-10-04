@@ -193,6 +193,53 @@ class CleaningResult(StrictModel):
     added_missing: int=0
 
 
+class JoinResult(TableResult):
+    kind: Literal['join']='join'
+    output_version: int | None=None
+    preview_truncated_count: int=Field(ge=0)
+    left_rows: int=Field(ge=0)
+    right_rows: int=Field(ge=0)
+    left_key_cardinality: int=Field(ge=0)
+    right_key_cardinality: int=Field(ge=0)
+    matched_left_rows: int=Field(ge=0)
+    unmatched_left_rows: int=Field(ge=0)
+    matched_right_rows: int=Field(ge=0)
+    unmatched_right_rows: int=Field(ge=0)
+    source_versions: dict[str,int | None]
+    limitations: list[str]
+
+
+class ScoreFinding(StrictModel):
+    issue: str
+    column: str | None=None
+    count: int=Field(ge=0)
+    penalty: float=Field(ge=0)
+    severity: Literal['warning','error']
+    suggestion: str
+    row_refs: list[int]=Field(default_factory=list,max_length=100)
+
+
+class QualityScoreResult(StrictModel):
+    kind: Literal['quality_score']='quality_score'
+    rule_version: Literal['quality-score-v1']='quality-score-v1'
+    status: Literal['valid','empty']
+    score: float | None=Field(default=None,ge=0,le=100)
+    row_count: int=Field(ge=0)
+    findings: list[ScoreFinding]
+    unique_counts: dict[str,int]
+    key_candidates: list[str]
+    configured_rules: dict
+    explanation: str
+
+
+class CleaningPlanResult(CleaningResult):
+    kind: Literal['cleaning_plan']='cleaning_plan'
+    before_rows: int
+    before_quality: QualityScoreResult
+    after_quality: QualityScoreResult
+    steps: list[CleaningResult]
+
+
 class ChartPoint(StrictModel):
     x: Scalar=None
     y: float | None=None
@@ -410,7 +457,7 @@ class ContributionResult(PeriodComparisonResult):
     groups: list[ContributionGroup]
 
 
-SimpleResult = TableResult | AggregationResult | StatisticsResult | CorrelationResult | DataQualityResult | CleaningResult | ChartResult | RecommendationResult | OverviewResult | LegacyResult | LegacyChartResult | ForecastResult | KPIResult | PeriodComparisonResult | ContributionResult
+SimpleResult = TableResult | AggregationResult | StatisticsResult | CorrelationResult | DataQualityResult | CleaningResult | ChartResult | RecommendationResult | OverviewResult | LegacyResult | LegacyChartResult | ForecastResult | KPIResult | PeriodComparisonResult | ContributionResult | JoinResult | QualityScoreResult | CleaningPlanResult
 
 
 class EDASection(StrictModel):

@@ -22,6 +22,7 @@ class DatasetContext:
     max_bytes: int=256*1024*1024
     registry: object | None=field(default=None, compare=False)
     legacy_calculator: object | None=field(default=None, compare=False)
+    related_inputs: dict[str, 'DatasetContext']=field(default_factory=dict, compare=False)
 
     @classmethod
     def from_frame(cls, frame, dataset_id=1, dataset_version=None, **kwargs):

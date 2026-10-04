@@ -49,10 +49,20 @@ class ToolExecutionService:
             if existing.dataset_id!=request.dataset_id or existing.tool_name!=request.tool_name or existing.parameters_json!=parameters or request.dataset_version not in (None,existing.dataset_version_id):
                 raise ToolInputError('TOOL_REQUEST_ID_CONFLICT')
             return existing,False
+        if request.tool_name=='publish_join':
+            # Lock both inputs in a stable order; never trust a client ID as a
+            # context or storage location.
+            for identifier in sorted({request.dataset_id,typed.right_dataset_id}):
+                owned=db.scalar(select(Dataset).where(Dataset.id==identifier,Dataset.user_id==user_id).with_for_update().execution_options(populate_existing=True))
+                if not owned or owned.status!='ready': raise ToolInputError('JOIN_INPUT_UNAVAILABLE')
+            right=db.get(Dataset,typed.right_dataset_id)
+            DatasetService(db).get_version(right,typed.right_version_id)
         dataset=db.scalar(select(Dataset).where(Dataset.id==request.dataset_id,Dataset.user_id==user_id).with_for_update())
         if not dataset or dataset.status!='ready': raise ToolInputError('DATASET_UNAVAILABLE')
         service=DatasetService(db,select_projection_bind(dataset,self.business_bind,self.projection_bind))
         version=service.get_version(dataset,request.dataset_version)
+        if tool.metadata.modifies_dataset and request.dataset_version is not None and dataset.current_version_id!=request.dataset_version:
+            raise ToolInputError('DATASET_VERSION_CONFLICT')
         if tool.metadata.modifies_dataset and version is None:
             from app.datasets.versions import backfill_dataset
             backfill_dataset(db,dataset,service.projection_bind,self.settings.upload_dir,True)
@@ -104,6 +114,12 @@ class ToolExecutionService:
             bind=select_projection_bind(location,self.business_bind,self.projection_bind)
             service=DatasetService(db,bind)
             context=context_for(service,dataset,columns,record.dataset_version_id)
+            if record.tool_name=='publish_join':
+                right_id=record.parameters_json['right_dataset_id'];right_version_id=record.parameters_json['right_version_id']
+                right,right_columns=DatasetService(db).get(right_id,record.user_id)
+                right_version=DatasetService(db).get_version(right,right_version_id)
+                right_service=DatasetService(db,select_projection_bind(right_version,self.business_bind,self.projection_bind))
+                context=replace(context,related_inputs={'right':context_for(right_service,right,right_columns,right_version_id)})
             if self.engine.registry.get(record.tool_name).output_schema.__name__ in {'LegacyResult','LegacyChartResult'}:
                 from app.services.analysis_tools import DatasetTools
                 from app.datasets.schemas import column_storage_type
@@ -123,17 +139,36 @@ class ToolExecutionService:
                     job.active_stage='tool';job.stage_started_at=datetime.now(UTC).replace(tzinfo=None);job.stage_timeout_seconds=budget;db.commit()
             def publish(frame,parameters,operation):
                 nonlocal staging_task
+                if operation=='publish_join':
+                    for source_id in sorted({dataset.id,parameters['right_dataset_id']}):
+                        owned=db.scalar(select(Dataset).where(Dataset.id==source_id,Dataset.user_id==record.user_id).with_for_update().execution_options(populate_existing=True))
+                        if not owned or owned.status!='ready': raise ToolExecutionError('JOIN_INPUT_UNAVAILABLE')
+                    for source_id,version_id in sorted([(dataset.id,record.dataset_version_id),(parameters['right_dataset_id'],parameters['right_version_id'])]):
+                        source=db.scalar(select(DatasetVersion).where(DatasetVersion.id==version_id,DatasetVersion.dataset_id==source_id,DatasetVersion.status=='ready').with_for_update().execution_options(populate_existing=True))
+                        if source is None: raise ToolExecutionError('JOIN_INPUT_UNAVAILABLE')
                 name=f'dataset_{dataset.id}_v_{uuid.uuid4().hex}'
                 record.staging_projection=name
                 staging_task=CleanupTask(payload_json={'projections':[{'table':name,'schema':location.projection_schema}],'tool_execution_id':record.id},status='reserved',created_at=datetime.now(UTC))
                 db.add(staging_task);db.commit()
                 write_projection(frame,dataset.id,bind,name)
                 check()
+                if operation=='publish_join':
+                    # The reservation commit released the earlier locks.
+                    # Acquire all datasets and versions in stable order again.
+                    for source_id in sorted({dataset.id,parameters['right_dataset_id']}):
+                        source_dataset=db.scalar(select(Dataset).where(Dataset.id==source_id,Dataset.user_id==record.user_id).with_for_update().execution_options(populate_existing=True))
+                        if source_dataset is None or source_dataset.status!='ready': raise ToolExecutionError('JOIN_INPUT_UNAVAILABLE')
+                    for source_id,version_id in sorted([(dataset.id,record.dataset_version_id),(parameters['right_dataset_id'],parameters['right_version_id'])]):
+                        source=db.scalar(select(DatasetVersion).where(DatasetVersion.id==version_id,DatasetVersion.dataset_id==source_id,DatasetVersion.status=='ready').with_for_update().execution_options(populate_existing=True))
+                        if source is None: raise ToolExecutionError('JOIN_INPUT_UNAVAILABLE')
                 current=db.scalar(select(Dataset).where(Dataset.id==dataset.id,Dataset.user_id==record.user_id).with_for_update().execution_options(populate_existing=True))
                 if not current or current.current_version_id!=record.dataset_version_id: raise ToolExecutionError('DATASET_VERSION_CONFLICT')
                 schema,profile=build_profile(frame)
                 number=(db.scalar(select(func.max(DatasetVersion.version_number)).where(DatasetVersion.dataset_id==dataset.id)) or 0)+1
-                output=DatasetVersion(dataset_id=dataset.id,version_number=number,parent_version_id=record.dataset_version_id,status='ready',source_kind='tool_transform',projection_schema=location.projection_schema,projection_table=name,schema_json=schema.model_dump(mode='json'),profile_json=profile.model_dump(mode='json'),transformations_json=[{'operation':operation,'parameters':parameters,'source_version':record.dataset_version_id,'created_at':datetime.now(UTC).isoformat()}],original_available=version.original_available,source_checksum=version.source_checksum,created_at=datetime.now(UTC))
+                lineage={'operation':operation,'parameters':parameters,'source_version':record.dataset_version_id,'created_at':datetime.now(UTC).isoformat()}
+                if operation=='publish_join':
+                    lineage['source_versions']=[{'dataset_id':dataset.id,'version_id':record.dataset_version_id},{'dataset_id':parameters['right_dataset_id'],'version_id':parameters['right_version_id']}]
+                output=DatasetVersion(dataset_id=dataset.id,version_number=number,parent_version_id=record.dataset_version_id,status='ready',source_kind='tool_transform',projection_schema=location.projection_schema,projection_table=name,schema_json=schema.model_dump(mode='json'),profile_json=profile.model_dump(mode='json'),transformations_json=[lineage],original_available=version.original_available if operation!='publish_join' else False,source_checksum=version.source_checksum if operation!='publish_join' else None,created_at=datetime.now(UTC))
                 db.add(output);db.flush()
                 current.current_version_id=output.id;current.projection_table=name;current.projection_schema=location.projection_schema
                 current.row_count=len(frame);current.column_count=len(frame.columns);current.quality_warnings_json=profile.warnings;current.updated_at=datetime.now(UTC)
