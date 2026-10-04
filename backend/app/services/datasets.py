@@ -266,6 +266,7 @@ def parse_file(path: Path, file_type: str, sheet_name: str | None = None) -> pd.
         "csv": lambda: _read_csv(path),
         "tsv": lambda: _read_csv(path, delimiter="\t", source_format="tsv"),
         "json": lambda: _read_json(path),
+        "jsonl": lambda: _read_json(path),
         "xlsx": lambda: _read_xlsx(path, sheet_name),
         "xls": lambda: _read_xls(path, sheet_name),
         "parquet": lambda: _read_parquet(path),

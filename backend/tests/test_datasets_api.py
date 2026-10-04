@@ -107,7 +107,7 @@ def test_rejects_unsupported_and_oversized_files(dataset_context, monkeypatch):
 def test_rejects_malformed_csv_and_duplicate_columns(dataset_context):
     client, _, _ = dataset_context
 
-    malformed = client.post("/api/v1/datasets/upload", files={"file": ("bad.csv", b"\xff\xfe\x00", "text/csv")})
+    malformed = client.post("/api/v1/datasets/upload", files={"file": ("bad.csv", b"\xff\xfe", "text/csv")})
     assert malformed.status_code == 202
     assert client.get(f"/api/v1/datasets/{malformed.json()['data']['id']}").json()["data"]["status"] == "failed"
 

@@ -54,6 +54,10 @@ def main():
         elif job.kind == "report":
             from app.reports.service import execute_report_task
             execute_report_task(db, job.resource_id, job.id, args.lease)
+        elif job.kind == 'file_parse':
+            from app.files.service import process_document
+            from app.config import get_settings
+            process_document(job.resource_id, SessionLocal, get_settings().upload_dir, job.id, args.lease)
         elif job.kind == "parse":
             resource_id = job.resource_id
             def parse_lease(db, lock):

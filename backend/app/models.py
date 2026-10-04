@@ -22,12 +22,32 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class UploadedFile(Base):
+    __tablename__ = 'uploaded_files'
+    id: Mapped[int] = id_column()
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    original_name: Mapped[str] = mapped_column(String(255))
+    stored_name: Mapped[str] = mapped_column(String(255), unique=True)
+    file_type: Mapped[str] = mapped_column(String(10))
+    file_size: Mapped[int] = mapped_column(BigInteger)
+    mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default='parsing')
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    parsed_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Dataset(Base):
     __tablename__ = "datasets"
     __table_args__ = (Index("ix_datasets_owner_created", "user_id", "created_at"),)
 
     id: Mapped[int] = id_column()
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    uploaded_file_id: Mapped[int | None] = mapped_column(ForeignKey('uploaded_files.id', ondelete='SET NULL'), nullable=True)
+    origin_metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     original_name: Mapped[str] = mapped_column(String(255))
     stored_name: Mapped[str] = mapped_column(String(255), unique=True)
     file_type: Mapped[str] = mapped_column(String(10))

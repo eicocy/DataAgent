@@ -46,6 +46,8 @@ def _iso(value: datetime | None) -> str | None:
 def _summary(dataset: Dataset) -> dict:
     return {
         "id": dataset.id,
+        "uploaded_file_id": dataset.uploaded_file_id,
+        "origin_metadata": dataset.origin_metadata_json,
         "original_name": dataset.original_name,
         "file_type": dataset.file_type,
         "file_size": dataset.file_size,
@@ -130,10 +132,11 @@ def upload_dataset(
     sheet_name: str | None = Form(default=None, max_length=128),
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
+    session_id: int | None = Form(default=None),
 ):
     original_name = _safe_original_name(file.filename)
     extension = Path(original_name).suffix.lower().lstrip(".")
-    if extension not in {"csv", "tsv", "json", "xlsx", "xls", "parquet"}:
+    if extension not in {"csv", "tsv", "json", "jsonl", "xlsx", "xls", "parquet"}:
         raise _error(415, "DATASET_TYPE_NOT_SUPPORTED", "支持 CSV、TSV、JSON、XLS、XLSX 和 Parquet 文件")
 
     upload_dir = Path(settings.upload_dir)
@@ -151,6 +154,12 @@ def upload_dataset(
                 output.write(chunk)
         if file_size == 0:
             raise _error(400, "DATASET_EMPTY", "请选择非空文件")
+        if extension in {'csv', 'tsv', 'json', 'jsonl'}:
+            from app.files.parsers import validate_signature, FileParseError
+            try:
+                validate_signature(temporary_path, extension)
+            except FileParseError as exc:
+                raise _error(400, exc.code, exc.message) from None
         if extension in {"xlsx", "parquet"}:
             with temporary_path.open("rb") as source:
                 signature = source.read(4)
@@ -177,8 +186,12 @@ def upload_dataset(
         )
         from app.services.analysis import resource_lock
         with resource_lock:
+            from app.files.service import register_dataset_file
+            register_dataset_file(db, dataset, final_path, file.content_type)
             db.add(dataset)
             db.flush()
+            from app.files.service import bind_session
+            bind_session(db, session_id, user.id, dataset.uploaded_file_id, dataset.id)
             if getattr(request.app.state, "task_supervisor", None):
                 from app.database import projection_engine
                 dataset.projection_schema = projection_engine.url.database
@@ -322,6 +335,20 @@ def delete_dataset(dataset_id: int, user: User = Depends(current_user), db: Sess
         status="pending", created_at=datetime.now(UTC))
     db.add(cleanup)
     cleanup.payload_json=dict(cleanup.payload_json,projections=projections)
+    # Legacy table uploads are one source per dataset. Document extractions own
+    # a separate generated CSV, so their shared original remains registered.
+    from app.models import UploadedFile
+    source = db.get(UploadedFile, dataset.uploaded_file_id) if dataset.uploaded_file_id else None
+    if source and source.stored_name == stored_name and not db.scalar(select(Dataset.id).where(Dataset.uploaded_file_id == source.id, Dataset.id != dataset_id).limit(1)):
+        from app.models import AnalysisSession
+        for session in db.scalars(select(AnalysisSession).where(AnalysisSession.user_id == user.id).with_for_update()):
+            context = dict(session.context_json or {})
+            if source.id in context.get('uploaded_file_ids', []):
+                context['uploaded_file_ids'] = [fid for fid in context['uploaded_file_ids'] if fid != source.id]
+                session.context_json = context
+        dataset.uploaded_file_id = None
+        db.flush()
+        db.delete(source)
     db.delete(dataset)
     db.commit()
     from app.services.jobs import perform_cleanup

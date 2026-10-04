@@ -32,10 +32,19 @@ def perform_cleanup(db, task, business_bind, projection_bind):
             if inspect(bind).has_table(name): Table(name,MetaData(),autoload_with=bind).drop(bind)
         if payload.get("stored_name"):
             name = payload["stored_name"]
-            if not re.fullmatch(r"[a-f0-9]{32}\.(csv|tsv|json|parquet|xls|xlsx)", name):
+            if not re.fullmatch(r"[a-f0-9]{32}\.(csv|tsv|json|jsonl|parquet|xls|xlsx)", name):
                 raise ValueError("Invalid server upload name")
-            (Path(get_settings().upload_dir).resolve() / name).unlink(missing_ok=True)
+            from app.models import UploadedFile
+            if not db.scalar(select(UploadedFile.id).where(UploadedFile.stored_name == name)):
+                (Path(get_settings().upload_dir).resolve() / name).unlink(missing_ok=True)
         store = ArtifactStore(db)
+        if payload.get('file_stored_name'):
+            from app.models import UploadedFile
+            name=payload['file_stored_name']
+            if not re.fullmatch(r'[a-f0-9]{32}\.(txt|pdf|docx|csv|tsv|json|jsonl|xls|xlsx|parquet)',name):
+                raise ValueError('Invalid server file name')
+            if not db.scalar(select(UploadedFile.id).where(UploadedFile.stored_name==name)):
+                (Path(get_settings().upload_dir).resolve()/name).unlink(missing_ok=True)
         for name in payload.get("artifacts", []):
             store._path(name).unlink(missing_ok=True)
         from app.artifacts.storage import LocalArtifactStorage
@@ -138,6 +147,11 @@ def terminate_job(factory, job_id, code="TASK_INTERRUPTED"):
                 from app.services.analysis import append_event
                 append_event(db, record, "analysis_cancelled" if cancelled else "analysis_failed",
                              {"status": record.status, "error_code": code})
+        elif job.kind == 'file_parse':
+            from app.models import UploadedFile
+            file = db.get(UploadedFile, job.resource_id)
+            if file and file.status == 'parsing':
+                file.status, file.error_code, file.error_message = 'failed', code, '文档解析中断或超时，请重新上传'
         elif job.kind == "parse":
             dataset = db.get(Dataset, job.resource_id)
             if dataset and dataset.status in {"uploading", "parsing"}:
@@ -224,7 +238,7 @@ class TaskSupervisor:
         env["UPLOAD_DIR"], env["ARTIFACT_DIR"] = str(Path(self.settings.upload_dir).resolve()), str(Path(self.settings.artifact_dir).resolve())
         with self.factory() as db:
             job = db.get(BackgroundJob, job_id)
-            budget = self.settings.parse_timeout_seconds if job.kind == "parse" else self.settings.report_timeout_seconds if job.kind == "report" else self.settings.analysis_timeout_seconds
+            budget = self.settings.parse_timeout_seconds if job.kind in {"parse", "file_parse"} else self.settings.report_timeout_seconds if job.kind == "report" else self.settings.analysis_timeout_seconds
             if job.kind == 'analysis':
                 record = db.get(AnalysisRecord, job.resource_id)
                 if record and record.request_config_json and record.request_config_json.get('inputs'):
