@@ -80,3 +80,13 @@ def test_report_binds_facts_from_complete_frame_artifact(analysis_context):
         record.report_json={'findings':[{'kind':'bound_fact','reference':{'key':'x','step_id':'frame_bound','path':['rows',0,'x']}}]}
         _,version=create_report(db,record.user_id,sid,ReportSpec(title='Frame evidence',dataset_id=did,dataset_version_id=vid),[rid])
         assert version.document_json['evidence'][0]['value']==0
+
+
+def test_overview_preview_preserves_dataset_row_count(analysis_context):
+    from test_upgrade_phase4_artifacts import source
+    from app.models import AnalysisRecord
+    from app.services.artifacts import ArtifactStore
+    client,sessions,_=analysis_context; rid,_=source(client,sessions)
+    with sessions() as db:
+        preview=ArtifactStore(db).write(db.get(AnalysisRecord,rid),'overview',{'kind':'overview','row_count':2,'column_count':1})
+        assert preview['row_count']==2 and preview['total']==0

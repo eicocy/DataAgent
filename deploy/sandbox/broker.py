@@ -102,10 +102,11 @@ class Broker:
         with self.lock:
             job = self.jobs.get(job_id)
             if job:
+                was_successful = job.status == 'succeeded'
                 self.fail(job,'SANDBOX_CANCELLED')
                 if job.finished:
                     job.output, job.output_bytes = None, 0
-                    if not job.container: self.jobs.pop(job.id,None)
+                    if was_successful and not job.container: self.jobs.pop(job.id,None)
 
     def store_output(self, job, output):
         # Count Python objects, not just serialized bytes; table cells and JSON

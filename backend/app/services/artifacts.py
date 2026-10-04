@@ -57,7 +57,11 @@ class ArtifactStore:
             raise
         from app.agent.executor import clip_context
         preview = clip_context(dict(data, columns=columns, rows=rows[:100]), max_rows=100)
-        return dict(preview, artifact_id=artifact.id, row_count=len(rows), total=len(rows))
+        # An overview's row_count describes the dataset, while total describes
+        # result-table rows. Empty result rows must not overwrite that fact.
+        if frame is not None: preview['row_count'] = len(rows)
+        else: preview.setdefault('row_count',len(rows))
+        return dict(preview, artifact_id=artifact.id, total=len(rows))
 
     def read(self, artifact):
         if artifact.purged_at or (artifact.expires_at is not None and artifact.expires_at <= datetime.now(UTC).replace(tzinfo=None)):
