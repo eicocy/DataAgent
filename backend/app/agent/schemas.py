@@ -58,6 +58,9 @@ class AnalysisPlanV3(AnalysisPlan):
     semantic_version: int = Field(default=0, ge=0)
     depth: Literal['FAST', 'STANDARD', 'DEEP'] = 'STANDARD'
     budget: dict[str, Any] = Field(default_factory=dict)
+
+
+class SandboxPlanningResponse(AnalysisPlanV3):
     unsupported_capabilities: list[str] = Field(default_factory=list, max_length=3)
 
 

@@ -221,21 +221,26 @@ def export_report_version(db: Session, report: AnalysisReport, version: Analysis
     if document.artifacts and version.source_records_json:
         source_rows = db.scalars(select(AnalysisArtifact).where(
             AnalysisArtifact.user_id == report.user_id,
-            AnalysisArtifact.id.in_(document.artifacts), AnalysisArtifact.kind == "chart")).all()
-        source_rows = [item for item in source_rows if ArtifactManager(db).session_id(item)==report.session_id and not item.storage_key]
+            AnalysisArtifact.id.in_(document.artifacts), AnalysisArtifact.kind.in_(["chart", "image"]))).all()
+        source_rows = [item for item in source_rows if ArtifactManager(db).session_id(item)==report.session_id and ArtifactManager(db).available(item)]
         chart_ids = {artifact.id for artifact in source_rows}
         for source_artifact in source_rows:
             try:
+                if source_artifact.kind == 'image':
+                    import base64
+                    from app.sandbox.results import safe_png
+                    chart_files[source_artifact.id] = safe_png(base64.b64encode(storage.read(source_artifact.storage_key)).decode())
+                    continue
                 payload = ArtifactStore(db).read(source_artifact).get("data") or {}
                 spec_payload = chart_spec_from_legacy(payload)
                 chart_files[source_artifact.id] = ChartRenderer().render(spec_payload).png
-            except (LookupError, ValueError):
+            except (LookupError, ValueError, OSError):
                 raise ValueError("REPORT_CHART_SOURCE_EXPIRED") from None
         expected_chart_ids = {
             item["artifact_id"]
             for section in document.sections
             for item in section.data.get("artifacts", [])
-            if item.get("kind") == "chart" and type(item.get("artifact_id")) is int
+            if item.get("kind") in {"chart", "image"} and type(item.get("artifact_id")) is int
         }
         if expected_chart_ids - chart_ids:
             raise ValueError("REPORT_CHART_SOURCE_EXPIRED")

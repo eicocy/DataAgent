@@ -48,7 +48,7 @@ class Broker:
             tmpfs={'/tmp':'rw,noexec,nosuid,nodev,size=32m,mode=1777',
                    '/output':'rw,noexec,nosuid,nodev,size=64m,mode=1777'},
             ulimits=[{'Name':'fsize','Soft':MAX_OUTPUT_BYTES,'Hard':MAX_OUTPUT_BYTES},{'Name':'nofile','Soft':128,'Hard':128}],
-            log_config={'Type':'local','Config':{'max-size':'64k','max-file':'1'}})
+            log_config={'Type':'local','Config':{'max-size':'64k','max-file':'1','compress':'false'}})
 
     def submit(self, request):
         request = RunRequest.model_validate(request)
@@ -85,9 +85,15 @@ class Broker:
         if job.status != 'running':
             return
         job.status, job.error_code, job.finished = 'failed', code, time.monotonic()
+        self.remove_container(job)
+
+    def remove_container(self, job):
         if job.container:
-            try: job.container.remove(force=True)
-            except Exception: pass  # retry removal in runner finally and reaper
+            try:
+                job.container.remove(force=True)
+                job.container = None
+            except Exception as exc:
+                if exc.__class__.__name__ == 'NotFound': job.container = None
 
     def cancel(self, job_id):
         with self.lock:
@@ -107,7 +113,8 @@ class Broker:
                     self.fail(job,'SANDBOX_TIMEOUT')
                 elif job.status == 'running' and now >= job.lease_until:
                     self.fail(job,'SANDBOX_LEASE_EXPIRED')
-                if job.finished and now-job.finished > 60:
+                if job.finished: self.remove_container(job)
+                if job.finished and not job.container and now-job.finished > 60:
                     self.jobs.pop(job.id,None)
 
     def run(self, job, request):
@@ -158,14 +165,14 @@ class Broker:
             if stream:
                 try: stream.close()
                 except Exception: pass
-            if container:
-                try: container.remove(force=True)
-                except Exception: pass
+            with self.lock: self.remove_container(job)
 
     def close(self):
         self.stopping.set()
         with self.lock:
-            for job in self.jobs.values(): self.fail(job,'SANDBOX_INTERRUPTED')
+            for job in self.jobs.values():
+                self.fail(job,'SANDBOX_INTERRUPTED')
+                self.remove_container(job)
 
 
 def server_for(broker, token, address=('0.0.0.0',8090)):

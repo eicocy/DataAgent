@@ -29,13 +29,14 @@ def template_sections(spec, evidence_ids, artifacts, sources):
     summary = next((s.get('answer') for s in reversed(sources) if s.get('answer') and s.get('evidence')), None)
     limitations = list(dict.fromkeys(str(item) for source in sources for result in source.get('results', [])
         for item in result.get('limitations', [])))
+    limitations.extend(str(item) for source in sources for item in (source.get('report') or {}).get('warnings', []) if str(item) not in limitations)
     if any(source.get('status') == 'partial' for source in sources): limitations.append('分析部分完成；未完成的步骤不构成已验证结论。')
     rows = []
     for identifier,title,kind in TEMPLATES[name]:
         narrative = summary or '当前分析没有可引用的事实结论。' if identifier == 'executive_summary' else None
         if kind == 'insights' and identifier != 'executive_summary':
             narrative = '\n'.join(limitations) or '详见已计算结果与证据；相关性和贡献不能证明因果关系。'
-        refs = [aid for aid,item in artifacts.items() if item.get('kind')=='chart' and not item.get('expired')] if kind=='chart' else []
+        refs = [aid for aid,item in artifacts.items() if item.get('kind') in {'chart','image'} and not item.get('expired')] if kind=='chart' else []
         if kind == 'chart' and not refs: narrative = '当前结果未生成适用图表。'
         rows.append(ReportSection(section_id=identifier,title=title,content_type=kind,narrative=narrative,
             evidence_ids=evidence_ids[:100] if kind in {'insights','methods','metrics'} else [],artifact_refs=refs[:30]))

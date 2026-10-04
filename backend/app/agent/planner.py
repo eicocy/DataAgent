@@ -86,8 +86,11 @@ class Planner:
         payload = {'question': question[:2000], 'task_id': task_id, 'intent': intent, 'inputs': config['inputs'],
             'datasets': metadata_by_input, 'dataset': metadata_by_input.get(config['inputs'][0]['alias'], {}),
             'profiles': [{k:p[k] for k in ('id','version','name','category','description','expected_metrics','expected_dimensions','preferred_tools','analysis_steps','constraints','prompt_context') if k in p} for p in config['profiles']], 'semantics': config['semantic_snapshot'], 'semantic_version': config['semantic_version'],
-            'depth': config['depth'], 'budget': budget.snapshot(), 'tools': tools, 'tool_parameter_schemas': schemas,
-            'registered_capabilities': [t.metadata.name for t in registry.list_tools() if t.metadata.chat_enabled and not t.metadata.modifies_dataset]}
+            'depth': config['depth'], 'budget': budget.snapshot(), 'tools': tools, 'tool_parameter_schemas': schemas}
+        from app.sandbox.settings import get_sandbox_settings
+        sandbox_enabled = get_sandbox_settings().enabled
+        if sandbox_enabled:
+            payload['registered_capabilities'] = ','.join(t.metadata.name for t in registry.list_tools() if t.metadata.chat_enabled and not t.metadata.modifies_dataset)
         if delivery_tasks:
             payload['budget'].update(max_analysis_tasks=analysis_task_limit, reserved_delivery_tasks=delivery_tasks)
         if config.get('artifact_references'):
@@ -105,11 +108,15 @@ class Planner:
         for attempt in range(2):
             unmet = []
             try:
-                raw = self.adapter.generate_structured('workspace_planner', payload, AnalysisPlanV3)
-                plan = AnalysisPlanV3.model_validate(raw)
+                from app.agent.schemas import SandboxPlanningResponse
+                schema = SandboxPlanningResponse if sandbox_enabled else AnalysisPlanV3
+                raw = self.adapter.generate_structured('workspace_sandbox_planner' if sandbox_enabled else 'workspace_planner', payload, schema)
+                response = schema.model_validate(raw)
+                missing = getattr(response, 'unsupported_capabilities', [])
+                plan = AnalysisPlanV3.model_validate(response.model_dump(exclude={'unsupported_capabilities'}))
                 if plan.task_id != task_id or plan.intent != intent or [i.model_dump() for i in plan.inputs] != config['inputs']:
                     raise ValueError('PLAN_TASK_INPUT_MISMATCH')
-                unmet = plan.unsupported_capabilities or [s.tool_name for s in plan.steps if not registry.exists(s.tool_name)]
+                unmet = missing or [s.tool_name for s in plan.steps if not registry.exists(s.tool_name)]
                 if unmet:
                     raise ValueError('REGISTERED_TOOLS_INSUFFICIENT')
                 if len(plan.steps) > analysis_task_limit:

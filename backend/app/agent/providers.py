@@ -17,11 +17,14 @@ class LLMProvider(Protocol):
 
 def load_prompt(name: str) -> tuple[str, str, str]:
     allowed = {'intent_router', 'analysis_planner', 'replanner', 'result_interpreter',
-               'conversation_summarizer', 'general_chat', 'step_correction', 'workspace_planner', 'exploration_planner', 'sandbox_planner'}
+               'conversation_summarizer', 'general_chat', 'step_correction', 'workspace_planner', 'exploration_planner', 'sandbox_planner', 'workspace_sandbox_planner'}
     if name not in allowed:
         raise ValueError('PROMPT_NOT_FOUND')
     version = {'intent_router': 'v2', 'analysis_planner': 'v3', 'result_interpreter': 'v3'}.get(name, 'v1')
-    return name, version, (Path(__file__).parent / 'prompt_templates' / f'{name}.{version}.txt').read_text(encoding='utf-8')
+    path = Path(__file__).parent / 'prompt_templates'
+    if name == 'workspace_sandbox_planner':
+        return name, version, (path / 'workspace_planner.v1.txt').read_text(encoding='utf-8') + '\n优先 registered_capabilities 注册方法。方法缺失时 unsupported_capabilities 填英文方法名，steps 为空；写入、IO、权限或参数错误不算缺失；禁止输出代码。'
+    return name, version, (path / f'{name}.{version}.txt').read_text(encoding='utf-8')
 
 
 class FakeLLMProvider:

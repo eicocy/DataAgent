@@ -42,8 +42,23 @@ def test_validated_sandbox_image_uses_owned_artifact_download(analysis_context):
     stream=io.BytesIO(); Image.new('RGB',(20,10),'white').save(stream,format='PNG')
     with sessions() as db:
         record=db.get(AnalysisRecord,rid)
+        from app.models import Dataset
+        record.dataset_version_id=db.get(Dataset,record.dataset_id).current_version_id
         rows=persist_images(db,record,'sandbox',[stream.getvalue()],record.dataset_id,record.dataset_version_id)
         aid=rows[0].id
+        from app.reports.service import create_report
+        from app.reports.schemas import ReportSpec
+        report,version=create_report(db,record.user_id,sid,ReportSpec(title='Sandbox image report',template='technical',
+            dataset_id=record.dataset_id,dataset_version_id=record.dataset_version_id),[rid])
+        assert aid in version.document_json['artifacts']
+        from app.reports.service import export_report_version
+        from app.artifacts.storage import LocalArtifactStorage
+        from app.config import get_settings
+        import zipfile
+        exports = export_report_version(db, report, version, 'docx')
+        content = LocalArtifactStorage(get_settings().artifact_dir).read(exports[0].storage_key)
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            assert any(name.startswith('word/media/') for name in archive.namelist())
     result=client.get(f'/api/v1/artifacts/{aid}/download')
     assert result.status_code==200 and result.content.startswith(b'\x89PNG')
     preview=client.get(f'/api/v1/artifacts/{aid}/preview').json()['data']

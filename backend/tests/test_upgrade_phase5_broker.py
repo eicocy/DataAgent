@@ -31,6 +31,23 @@ def test_broker_uses_fixed_isolation_and_removes_its_orphans():
     assert options['mem_limit'] == options['memswap_limit'] == 512 * 1024 * 1024
     assert options['nano_cpus'] == 1000000000 and options['pids_limit'] == 64
     assert not options.get('volumes') and not options.get('environment')
+    assert options['log_config']['Config']['compress'] == 'false'
+
+
+def test_reaper_retries_failed_container_removal():
+    import time
+    module = broker_module(); broker = module.Broker(Engine(), 'trusted-image')
+    attempts = []
+    def remove(**kwargs):
+        attempts.append(True)
+        if len(attempts) == 1: raise OSError('temporarily unavailable')
+    job = module.Job('a'*32, 'b'*64, 0, 0)
+    job.container = SimpleNamespace(remove=remove)
+    broker.jobs[job.id] = job
+    broker.fail(job, 'SANDBOX_CANCELLED')
+    job.finished = time.monotonic() - 61
+    broker.reap()
+    assert len(attempts) == 2 and job.container is None and job.id not in broker.jobs
 
 
 def test_broker_cancel_and_expired_lease_destroy_active_container():
