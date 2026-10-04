@@ -17,7 +17,7 @@ export default {
     options: { immediate: true, deep: true, handler(value) { this.category = value.category || ''; this.templateId = value.profile_ids?.[0] || ''; this.depth = value.depth || 'STANDARD'; this.modelId = value.model_id || '' } },
   },
   computed: {
-    accept() { return (this.capabilities.file_formats || []).map(ext => `.${ext}`).join(',') },
+    accept() { return [...(this.capabilities.file_formats || []), ...(this.capabilities.document_formats || [])].map(ext => `.${ext}`).join(',') },
     templates() { return (this.catalog.items || []).filter(item => !this.category || item.category === this.category) },
     selectedTemplate() { return this.templates.find(item => item.id === this.templateId) },
   },

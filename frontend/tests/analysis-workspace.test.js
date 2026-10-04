@@ -13,6 +13,7 @@ vi.mock('../src/api/datasets', () => ({
   datasetApi: { detail: vi.fn(), list: vi.fn(), columns: vi.fn(), preview: vi.fn(), upload: vi.fn(), remove: vi.fn() },
 }))
 vi.mock('../src/api/workspace', () => ({ workspaceApi: { capabilities: vi.fn(async () => ({})), profiles: vi.fn(async () => ({ categories: [], items: [] })) } }))
+vi.mock('../src/api/files', () => ({ filesApi: { list: vi.fn(async () => ({ items: [], total: 0 })) } }))
 
 describe('analysis workspace', () => {
   beforeEach(() => {

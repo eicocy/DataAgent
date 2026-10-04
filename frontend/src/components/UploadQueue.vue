@@ -9,8 +9,9 @@ export default {
     formats: { type: Array, default: () => ['csv', 'tsv', 'json', 'xlsx', 'xls', 'parquet'] },
     maxFiles: { type: Number, default: 10 }, maxBytes: { type: Number, default: 20 * 1024 * 1024 },
     attachedIds: { type: Array, default: () => [] },
+    sessionId: Number, prepareSession: Function,
   },
-  emits: ['ready', 'busy', 'started', 'removed'],
+  emits: ['ready', 'document', 'document-hidden', 'busy', 'started', 'removed'],
   data() { return { items: [], processing: false, alive: true, queueError: '' } },
   computed: { busy() { return this.items.some(item => working.has(item.status)) } },
   watch: { busy(value) { if (this.alive) this.$emit('busy', value) } },
@@ -25,7 +26,7 @@ export default {
       for (const file of files) {
         const extension = file.name.split('.').pop().toLowerCase()
         const error = !this.formats.includes(extension) ? '暂不支持此格式，请选择表格或记录文件。' : file.size > this.maxBytes ? `文件不能超过 ${this.maxBytes / 1024 / 1024} MB。` : !file.size ? '文件为空，请选择有内容的文件。' : ''
-        this.items.push({ id: crypto.randomUUID(), file, status: error ? 'invalid' : 'queued', error, percent: 0, sheets: [], sheet: '', inspected: false, datasetId: null, controller: null })
+        this.items.push({ id: crypto.randomUUID(), file, status: error ? 'invalid' : 'queued', error, percent: 0, sheets: [], sheet: '', inspected: false, datasetId: null, fileId: null, controller: null })
       }
       return this.processQueue()
     },
@@ -49,6 +50,12 @@ export default {
             }
             item.status = item.datasetId ? 'parsing' : 'uploading'
             this.$emit('started')
+            if (/\.(txt|pdf|docx)$/i.test(item.file.name)) {
+              const sessionId = this.prepareSession ? await this.prepareSession() : this.sessionId
+              const document = await useDatasetStore().uploadDocument(item.file, { fileId: item.fileId, sessionId, signal: controller.signal, onAccepted: accepted => { item.fileId = accepted.id; item.status = 'parsing' }, onUploadProgress: event => { if (event.total) item.percent = Math.round(event.loaded / event.total * 100) } })
+              if (!this.alive || controller.signal.aborted) continue
+              item.status = 'ready'; item.error = ''; this.$emit('document', document); continue
+            }
             const dataset = await useDatasetStore().upload(item.file, {
               signal: controller.signal, sheetName: item.sheet, datasetId: item.datasetId,
               onAccepted: accepted => { item.datasetId = accepted.id; item.status = 'parsing' },
@@ -71,7 +78,7 @@ export default {
     },
     retry(item) { if (working.has(item.status)) return; item.error = ''; item.status = 'queued'; return this.processQueue() },
     cancel(item) { item.controller?.abort(); item.status = 'cancelled'; item.error = '已停止等待；已受理的解析仍可在数据集页面查看。' },
-    remove(item) { this.cancel(item); this.items = this.items.filter(entry => entry.id !== item.id); this.$emit('removed', item.datasetId) },
+    remove(item) { this.cancel(item); this.items = this.items.filter(entry => entry.id !== item.id); if (item.fileId) this.$emit('document-hidden', item.fileId); else this.$emit('removed', item.datasetId) },
     label(item) { return ({ queued: '等待上传', inspecting: '读取工作表', sheet: '请选择工作表', uploading: `上传 ${item.percent}%`, parsing: '正在解析', ready: '已就绪', failed: '失败', invalid: '无法上传', cancelled: '已停止' })[item.status] },
   },
 }
@@ -85,7 +92,7 @@ export default {
       <label v-if="item.status === 'sheet'" class="sheet-choice">工作表<select v-model="item.sheet" :aria-label="`${item.file.name} 工作表`"><option v-for="sheet in item.sheets" :key="sheet" :value="sheet">{{ sheet }}</option></select><button type="button" @click="retry(item)">上传此工作表</button></label>
       <button v-if="['failed', 'cancelled'].includes(item.status)" type="button" @click="retry(item)">重试</button>
       <button v-if="busy && ['queued','inspecting','uploading','parsing'].includes(item.status)" type="button" @click="cancel(item)">停止等待</button>
-      <button type="button" :aria-label="`移除 ${item.file.name}`" @click="remove(item)">移除</button>
+      <button type="button" :aria-label="`${item.fileId ? '收起附件预览' : '移除'} ${item.file.name}`" @click="remove(item)">{{ item.fileId ? '收起附件预览' : '移除' }}</button>
     </li></ul>
   </section>
 </template>

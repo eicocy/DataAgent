@@ -22,7 +22,7 @@ export default {
       this.inspectingSheets = false
       this.errorMessage = ''
       if (!file) return
-      if (!/\.(csv|tsv|json|parquet|xls|xlsx)$/i.test(file.name)) { this.errorMessage = '支持 CSV、TSV、JSON、XLS、XLSX 和 Parquet 文件'; return }
+      if (!/\.(csv|tsv|json|jsonl|parquet|xls|xlsx)$/i.test(file.name)) { this.errorMessage = '支持 CSV、TSV、JSON、JSONL、XLS、XLSX 和 Parquet 文件'; return }
       if (file.size > 20 * 1024 * 1024) { this.errorMessage = '文件不能超过 20 MB'; return }
       this.selectedFile = file
       this.sheetNames = []
@@ -66,9 +66,9 @@ export default {
     <section class="upload-layout">
       <article class="panel upload-main">
         <div class="panel-title"><h2>选择文件</h2><span>单文件最大 20 MB</span></div>
-        <input id="dataset-file" ref="fileInput" class="visually-hidden" type="file" aria-label="选择 CSV、TSV、JSON、XLS、XLSX 或 Parquet 文件" accept=".csv,.tsv,.json,.parquet,.xls,.xlsx" @change="handleInput" />
+        <input id="dataset-file" ref="fileInput" class="visually-hidden" type="file" aria-label="选择 CSV、TSV、JSON、JSONL、XLS、XLSX 或 Parquet 文件" accept=".csv,.tsv,.json,.jsonl,.parquet,.xls,.xlsx" @change="handleInput" />
         <div class="drop-zone" :class="{ 'is-dragging': dragging, 'has-file': selectedFile }" role="button" tabindex="0" aria-controls="dataset-file" @click="$refs.fileInput.click()" @keydown.enter.prevent="$refs.fileInput.click()" @keydown.space.prevent="$refs.fileInput.click()" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="handleDrop">
-          <span class="drop-icon"><el-icon><UploadFilled v-if="!selectedFile" /><DocumentAdd v-else /></el-icon></span><strong>{{ selectedFile ? selectedFile.name : '拖放文件到这里，或点击选择' }}</strong><small>{{ selectedFile ? formatSize(selectedFile.size) : '支持 CSV、TSV、JSON、XLS、XLSX、Parquet' }}</small><span v-if="!selectedFile" class="browse-button">浏览文件</span>
+          <span class="drop-icon"><el-icon><UploadFilled v-if="!selectedFile" /><DocumentAdd v-else /></el-icon></span><strong>{{ selectedFile ? selectedFile.name : '拖放文件到这里，或点击选择' }}</strong><small>{{ selectedFile ? formatSize(selectedFile.size) : '支持 CSV、TSV、JSON、JSONL、XLS、XLSX、Parquet' }}</small><span v-if="!selectedFile" class="browse-button">浏览文件</span>
         </div>
         <div v-if="sheetNames.length" class="sheet-picker"><label for="dataset-sheet">选择工作表</label><el-select id="dataset-sheet" v-model="selectedSheet" :disabled="uploading || inspectingSheets"><el-option v-for="sheet in sheetNames" :key="sheet" :label="sheet" :value="sheet" /></el-select><small>默认选择第一个非空工作表</small></div>
         <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>

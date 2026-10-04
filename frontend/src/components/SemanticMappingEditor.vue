@@ -37,7 +37,7 @@ export default {
       const controller = this.controller
       this.saving = true; this.error = ''; this.notice = ''
       try {
-        await analysisApi.updateSemantics(this.sessionId, { mappings }, { signal: controller.signal })
+        await analysisApi.updateSemantics(this.sessionId, { mappings: mappings.map(item => ({ ...item, currency: item.currency?.trim() || null, unit: item.unit?.trim() || null })) }, { signal: controller.signal })
         if (this.controller !== controller || controller.signal.aborted) return
         this.original = this.mappings.map(item => ({ ...item }))
         this.notice = '已保存，后续分析使用修正后的字段含义。'
@@ -60,6 +60,8 @@ export default {
         <label>字段用途<select v-model="item.role" :aria-label="`${item.column} 的字段用途`" :disabled="busy || saving"><option value="metric">指标</option><option value="dimension">维度</option></select></label>
         <label>统计口径<select v-model="item.aggregation" :aria-label="`${item.column} 的统计口径`" :disabled="busy || saving"><option value="none">未确认</option><option value="sum">求和</option><option value="mean">平均</option><option value="count">记录数</option><option value="nunique">去重计数</option></select></label>
         <span class="caption">{{ item.source === 'user' ? '已确认' : '待核对' }}</span>
+        <label>币种（可选）<input v-model="item.currency" maxlength="10" :aria-label="`${item.column} 的币种`" placeholder="例如 CNY；混合币种请先处理" :disabled="busy || saving" /></label>
+        <label>单位（可选）<input v-model="item.unit" maxlength="30" :aria-label="`${item.column} 的单位`" placeholder="例如 元、件；未知请留空" :disabled="busy || saving" /></label>
       </div>
     </div>
     <el-button v-if="mappings.length" native-type="button" :disabled="busy || loading" :loading="saving" @click="save">保存字段含义</el-button>

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { datasetApi } from '../api/datasets'
+import { filesApi } from '../api/files'
 
 function delay(milliseconds, signal) {
   return new Promise((resolve, reject) => {
@@ -23,6 +24,19 @@ export const useDatasetStore = defineStore('datasets', {
     loading: false, uploadStatus: 'idle', error: null,
   }),
   actions: {
+    async uploadDocument(file, { fileId, sessionId, signal, onAccepted, onUploadProgress } = {}) {
+      const accepted = fileId ? { id: fileId } : (await filesApi.upload(file, { sessionId, signal, onUploadProgress })).file
+      onAccepted?.(accepted)
+      const deadline = Date.now() + 120000
+      while (Date.now() < deadline) {
+        if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError')
+        const result = await filesApi.detail(accepted.id, { signal })
+        if (result.status === 'ready') return result
+        if (result.status === 'failed') throw new Error(result.error_message || '文档解析失败，请检查源文件。')
+        await delay(1000, signal)
+      }
+      throw new Error('解析仍在处理，请稍后继续等待或到文件页面查看。')
+    },
     reset() {
       this.items = []
       this.currentDataset = null

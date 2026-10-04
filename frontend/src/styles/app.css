@@ -440,3 +440,14 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+/* Phase 3 的只读表格复用合同中的 data-table，滚动只由表面自身承担。 */
+.phase3-table { max-width: 100%; overflow: auto; scrollbar-gutter: stable; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
+.data-table th, .data-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+.data-table th { font-weight: 600; background: var(--canvas); }
+.phase3-workbench { min-width: 0; font-size: 13px; line-height: 1.6; }
+.phase3-workbench p { overflow-wrap: anywhere; }
+.phase3-workbench .summary-warning { font-size: 12px; }
+.phase3-workbench dl { display: grid; grid-template-columns: minmax(90px, auto) minmax(0, 1fr); gap: 8px 16px; }
+.phase3-workbench dd { margin: 0; font-family: var(--font-data); overflow-wrap: anywhere; }

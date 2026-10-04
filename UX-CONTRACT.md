@@ -130,3 +130,24 @@
 - 数据集歧义以 `waiting` 和候选数据集返回；用户选择并重新发送原问题。工作台不自行猜测数据集。
 - 任务状态以服务端记录为准。SSE 使用浏览器自动重连的事件 ID；连接失败回到现有状态查询。刷新或路由离开不取消任务。
 - 用户明确点击“取消任务”调用取消接口。取消后已完成的工件仍可查阅，未执行步骤显示已取消。
+
+
+## 2026-10-04 Phase 3 文档和固定版本工作台
+
+- API 来源：files router + transformations router；候选表内容和预览摘要由服务器维护。DocumentCandidatePreview 为文件页/会话共用确认入口，展示原文位置、可能表头、完整行数与最多20行样例，人工核对后才能创建数据集。未确认文档不进入 Agent 的数据集输入。
+- 文档上传沿用 UploadQueue + Dataset store，已受理 file ID 在重试中继续查询，不重复上传。会话文件由 GET files(session_id) 恢复；原始文件列表每页20个 UploadedFile，同一源文件只显示一次。文档格式来自 document_formats，表格格式来自 file_formats。
+- “收起附件预览”仅关闭当前界面，不解绑或删除文件。现有 SessionPatch 没有文档解绑接口；刷新后可重新打开会话文件。此限制由当前 Task 6 控制器明确决定，不伪造永久移除行为。
+- DatasetDetailView 的版本选择绑定 GET versions 与带 dataset_version_id 的 preview；发布成功刷新版本列表但保留旧版本选择。DataQualityWorkbench 显示 quality-score-v1 的规则、完整问题数量、有限样例及建议；它是描述性评分，不是行业标准。
+- CleaningWorkbench/JoinWorkbench 共用 transformationFlow 的预览失效、幂等提交与任务状态查询。编辑配置使预览失效。确认使用现有 ElMessageBox，中文“保存为新版本 / 返回核对”；保留原版本，网络重试保留 request_id，路由离开停止轮询，409显示版本冲突。
+- 这些表单使用 native input/select（接受系统弹层外观），有标签和可见焦点；读表沿用 .data-table 和内部横向滚动；操作按钮沿用 ElButton。不引入新导航、全局配色或 UI 库。
+- 结构化结果所有权：AnalysisResult 分派到 ForecastResult/BusinessResult/DataQualityWorkbench；ChartView 仍拥有 ECharts。业务数值保留 Decimal 字符串，百分比仅移动十进制字符位置；空值展示服务端原因。预测展示基准/所选模型误差、MAPE覆盖、三次回测、实际预测点和经验上下界，明确“经验误差范围，未经校准”。
+- 验证证据：frontend/tests/upgrade-phase3.test.js、frontend/tests/e2e/phase3-workspace.spec.js。静态审计不替代真实 MySQL/模型/浏览器验收；真实后端由父控制器顺序验收。
+
+### Task 6 review round 1: 真实 DTO 与预览边界
+
+- AnalysisResult 只在存在完整类型化字段时进入 ForecastResult/BusinessResult/DataQualityWorkbench；仅有 kind/columns/rows 的 normalized report table 不构成完整证据。成功 call 记录只有摘要和来源，不读取不存在的 call.result。
+- 当前 raw tool_result 通过最后成功非图表步骤的 step_id/artifact_id 关联 normalized 表；同一来源只展示一次，其他来源的表格保留。缺少完整 typed 数据时明确显示“当前仅提供结果表，完整计算信息未提供”，只展示实际表行及已提供单位/区间/限制；表行数不当作数据集行数，空结果表不当作空数据或无质量问题。
+- Join 使用最多10行显式左右键对，每行逐一配对并在预览前显示映射；提交顺序由键对行顺序决定，与源 Schema/下拉选项顺序无关。重复键/未选完整键对禁止预览。
+- DatasetDetail 保存 loadedPreviewVersion；版本切换马上隐藏上一版行，加载或失败时不借用旧行；成功且响应版本仍被选中时才展示，失败保留选择并提供版本预览重试。
+- kind quality 单项检查与 quality_score 评分结果分开。旧结果显示实际 count/rate/status/lower/upper/row_refs，不虚构 issue/severity/suggestion/score；只有 quality_score.status=empty 才标为空数据评分未定义。
+- 覆盖：frontend/tests/upgrade-phase3-review.test.js、frontend/tests/e2e/phase3-workspace.spec.js 的真实 normalized-only 与 raw+normalized fixture、反序复合键、慢/失败/过期版本响应和 legacy quality 分支。

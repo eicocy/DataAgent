@@ -8,7 +8,7 @@
     "Select/Listbox": "native"
   },
   "evidence": {
-    "crudFullFlow": "产品原型/docs/06-页面流程与跳转关系.md",
-    "failurePaths": "产品原型/pages/states/state-gallery.html"
+    "crudFullFlow": "frontend/tests/e2e/phase3-workspace.spec.js",
+    "failurePaths": "frontend/tests/upgrade-phase3-review.test.js"
   }
 }

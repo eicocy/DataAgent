@@ -7,6 +7,9 @@ import AnalysisResult from '../components/AnalysisResult.vue'
 import ReportWorkbench from '../components/ReportWorkbench.vue'
 import PromptComposer from '../components/PromptComposer.vue'
 import UploadQueue from '../components/UploadQueue.vue'
+import DocumentCandidatePreview from '../components/DocumentCandidatePreview.vue'
+import { filesApi } from '../api/files'
+import { useDatasetStore } from '../stores/datasets'
 import SemanticMappingEditor from '../components/SemanticMappingEditor.vue'
 import { workspaceApi } from '../api/workspace'
 import { mapState } from 'pinia'
@@ -16,7 +19,7 @@ import { datasetApi } from '../api/datasets'
 
 export default {
   name: 'AnalysisWorkspaceView',
-  components: { AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, SemanticMappingEditor, ChatLineRound, DataAnalysis, Refresh, Promotion },
+  components: { AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, DocumentCandidatePreview, SemanticMappingEditor, ChatLineRound, DataAnalysis, Refresh, Promotion },
   data() {
     return {
       dataset: null,
@@ -42,7 +45,7 @@ export default {
       errorMessage: '',
       controller: null,
       sessionCreation: null,
-      attachedDatasets: [],
+      attachedDatasets: [], attachedDocuments: [], documentFileId: null, documentPage: 1, documentTotal: 0,
       uploadBusy: false,
       attachmentBindings: 0,
       attachmentChain: Promise.resolve(),
@@ -127,7 +130,7 @@ export default {
       this.dataset = null
       this.sessionId = null
       this.sessionCreation = null
-      this.attachedDatasets = []
+      this.attachedDatasets = []; this.attachedDocuments = []; this.documentFileId = null; this.documentPage = 1
       this.additionalInputIds = []
       this.runOptions = { depth: 'STANDARD', category: '', profile_ids: [], model_id: null }
       this.attachmentBindings = 0
@@ -156,6 +159,7 @@ export default {
           const attachments = await Promise.all((history.session?.attached_dataset_ids || []).map(id => datasetApi.detail(id, { signal: controller.signal })))
           if (!this.isCurrent(controller)) return
           this.attachedDatasets = attachments
+          await this.loadDocuments(controller)
           const previousOptions = [...history.messages].reverse().find(message => message.analysis_record?.request_options)?.analysis_record.request_options
           if (previousOptions) {
             this.runOptions = { ...this.runOptions, ...previousOptions }
@@ -218,6 +222,11 @@ export default {
       this.sessionCreation = creation
       try { return await creation } finally { if (this.sessionCreation === creation) this.sessionCreation = null }
     },
+    async loadDocuments(controller = this.controller) {
+      try { const value = await filesApi.list({ session_id: this.sessionId, page: this.documentPage, page_size: 20 }, { signal: controller.signal }); if (this.isCurrent(controller)) { this.attachedDocuments = (value.items || []).filter(item => ['txt','pdf','docx'].includes(item.type)); this.documentTotal = value.total || 0 } } catch (error) { if (this.isCurrent(controller)) this.errorMessage = error.message || '文档附件恢复失败' }
+    },
+    documentReady(file) { this.documentFileId = file.id; this.loadDocuments() },
+    async extractedDataset(dataset) { try { const ready = await useDatasetStore().upload(null, { datasetId: dataset.id, signal: this.controller.signal }); await this.attachDataset(ready) } catch (error) { this.errorMessage = error.message || '候选表解析失败，可在数据集页面查看' } },
     startUpload() {
       this.ensureSession().catch(error => { if (error.name !== 'AbortError' && error.code !== 'ERR_CANCELED') this.errorMessage = error.message || '会话创建失败；文件仍保留在数据集页面。' })
     },
@@ -450,7 +459,9 @@ export default {
         </div>
 
         <PromptComposer v-model="question" :busy="loading || choosingDataset" :uploading="uploadBusy || attachmentBindings > 0" :catalog="catalog" :capabilities="capabilities" :options="runOptions" @option-change="runOptions = { ...runOptions, ...$event }" @submit="submitQuestion" @upload="$refs.uploadQueue.addFiles($event)" @templates="$router.push('/templates')">
-          <UploadQueue ref="uploadQueue" :formats="capabilities.file_formats" :attached-ids="attachedDatasets.map(item => item.id)" :max-files="capabilities.max_files || 10" :max-bytes="capabilities.max_upload_bytes || 20971520" @busy="uploadBusy = $event" @started="startUpload" @ready="attachDataset" @removed="removeAttachment" />
+          <UploadQueue ref="uploadQueue" :session-id="Number(sessionId) || undefined" :prepare-session="ensureSession" @document="documentReady" @document-hidden="documentFileId === $event && (documentFileId = null)" :formats="[...(capabilities.file_formats || []), ...(capabilities.document_formats || [])]" :attached-ids="attachedDatasets.map(item => item.id)" :max-files="capabilities.max_files || 10" :max-bytes="capabilities.max_upload_bytes || 20971520" @busy="uploadBusy = $event" @started="startUpload" @ready="attachDataset" @removed="removeAttachment" />
+          <div v-if="attachedDocuments.length" class="session-attachments" aria-label="会话文档附件"><el-button v-for="file in attachedDocuments" :key="file.id" @click="documentFileId = file.id">{{ file.name }} · 文档</el-button><el-button :disabled="documentPage === 1" @click="documentPage--; loadDocuments()">上一页文档</el-button><el-button :disabled="documentPage * 20 >= documentTotal" @click="documentPage++; loadDocuments()">下一页文档</el-button></div>
+          <div v-if="documentFileId"><DocumentCandidatePreview :file-id="documentFileId" :session-id="Number(sessionId)" @ready="extractedDataset" /><el-button @click="documentFileId = null">收起附件预览</el-button><p class="caption">收起只关闭预览，文档仍在会话中，刷新可恢复。</p></div>
           <div v-if="attachedDatasets.length" class="session-attachments" aria-label="会话数据附件"><span v-for="item in attachedDatasets" :key="item.id"><button type="button" :disabled="loading" @click="chooseDataset(item.id)">{{ item.original_name }}{{ dataset?.id === item.id ? ' · 当前' : '' }}</button><button type="button" :disabled="loading || attachmentBindings > 0" :aria-label="`移除附件 ${item.original_name}`" @click="removeAttachment(item.id)">×</button></span></div>
         </PromptComposer>
         <fieldset v-if="capabilities.multi_dataset_execution && dataset && attachedDatasets.some(item => item.id !== dataset.id)" class="analysis-inputs"><legend>同时分析其他附件</legend><label v-for="item in attachedDatasets.filter(item => item.id !== dataset.id)" :key="item.id"><input v-model="additionalInputIds" type="checkbox" :value="item.id" :disabled="loading || choosingDataset" />{{ item.original_name }}</label><p class="caption">每个附件分别分析；跨表关联计算将在后续阶段开放。</p></fieldset>

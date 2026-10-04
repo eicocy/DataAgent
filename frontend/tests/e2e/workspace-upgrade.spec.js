@@ -61,7 +61,8 @@ test('landing, template, multi-file failure/retry, attachments refresh and narro
   await page.getByRole('link', { name: '分析模板', exact: true }).click()
   await expect(page.getByRole('heading', { name: '数据质量分析' })).toBeVisible()
   await page.getByRole('button', { name: '预测分析', exact: true }).click()
-  await expect(page.getByRole('button', { name: '规划中', exact: true }).first()).toBeDisabled()
+  // Phase 3 已接入真实预测工具，目录的受限预测模板可以带问题进入工作区。
+  await expect(page.getByRole('button', { name: '使用这个问题 ↗', exact: true }).first()).toBeEnabled()
   await page.screenshot({ path: '../.superpowers/sdd/upgrade-plan/templates-mobile.png', fullPage: true })
   expect(errors).toEqual([])
 })

@@ -1,16 +1,27 @@
 <script>
 import AppShell from '../components/AppShell.vue'
 import { reportsApi } from '../api/reports'
+import { filesApi } from '../api/files'
+import DocumentCandidatePreview from '../components/DocumentCandidatePreview.vue'
 
 export default {
   name: 'ArtifactsView',
-  components: { AppShell },
+  components: { AppShell, DocumentCandidatePreview },
   data() {
     return { items: [], offset: 0, limit: 30, hasMore: false, loading: false,
-      errorMessage: '', selected: null, preview: null, previewLoading: false }
+      errorMessage: '', selected: null, preview: null, previewLoading: false,
+      files: [], filePage: 1, fileTotal: 0, fileLoading: false, fileError: '', documentId: null, fileToken: 0, previewToken: 0 }
   },
-  created() { this.loadArtifacts() },
+  created() { this.loadArtifacts(); this.loadFiles() },
+  beforeUnmount() { this.fileToken++; this.previewToken++ },
   methods: {
+    async loadFiles() {
+      const token = ++this.fileToken; this.fileLoading = true; this.fileError = ''
+      try { const value = await filesApi.list({ page: this.filePage, page_size: 20 }); if (token !== this.fileToken) return; this.files = value.items || []; this.fileTotal = value.total || 0 }
+      catch (error) { if (token === this.fileToken) this.fileError = error.message || '原始文件列表读取失败' }
+      finally { if (token === this.fileToken) this.fileLoading = false }
+    },
+    openFile(file) { if (['txt','pdf','docx'].includes(file.type)) this.documentId = file.id; else if (file.dataset_ids?.[0]) this.$router.push({ name: 'dataset-detail', params: { datasetId: file.dataset_ids[0] } }) },
     async loadArtifacts() {
       this.loading = true
       this.errorMessage = ''
@@ -22,16 +33,17 @@ export default {
       finally { this.loading = false }
     },
     async openPreview(item) {
+      const token = ++this.previewToken
       this.selected = item
       this.preview = null
       this.previewLoading = true
       try {
         const result = await reportsApi.preview(item.artifact_id, { limit: 100 })
-        this.preview = result.preview
+        if (token === this.previewToken) this.preview = result.preview
       } catch (error) { this.errorMessage = error.message || '文件预览失败' }
-      finally { this.previewLoading = false }
+      finally { if (token === this.previewToken) this.previewLoading = false }
     },
-    closePreview() { this.selected = null; this.preview = null },
+    closePreview() { this.previewToken++; this.selected = null; this.preview = null },
     nextPage() { if (!this.hasMore || this.loading) return; this.offset += this.limit; this.loadArtifacts() },
     previousPage() { if (this.offset <= 0 || this.loading) return; this.offset = Math.max(0, this.offset - this.limit); this.loadArtifacts() },
     sizeLabel(size) { return size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB` },
@@ -44,6 +56,7 @@ export default {
 <template>
   <AppShell>
     <section class="page-heading"><div><p class="eyebrow">Artifact Library</p><h1>文件与工件</h1><p class="page-intro">预览和下载当前账号生成的分析结果与报告文件。</p></div></section>
+    <section class="panel artifact-library phase3-workbench" aria-label="上传原始文件"><h2>上传原始文件</h2><p>每个源文件只列一次；文档在人工确认候选表后才可用于数值分析。</p><el-button :loading="fileLoading" @click="loadFiles">刷新原始文件</el-button><p v-if="fileLoading" role="status">正在加载原始文件…</p><p v-if="fileError" role="alert">{{ fileError }} <el-button @click="loadFiles">重试</el-button></p><p v-if="!fileLoading && !fileError && !files.length">还没有上传文件。<el-button @click="$router.push('/analysis')">上传附件</el-button></p><article v-for="file in files" :key="file.id" class="artifact-row"><el-button :disabled="!['txt','pdf','docx'].includes(file.type) && !file.dataset_ids?.length" @click="openFile(file)">{{ file.name }} · {{ file.type }} · {{ file.status === 'ready' ? '就绪' : file.status === 'failed' ? '解析失败' : '解析中' }}</el-button><p v-if="file.error_message">{{ file.error_message }}</p></article><div class="artifact-pagination"><el-button :disabled="filePage === 1 || fileLoading" @click="filePage--; loadFiles()">上一页原始文件</el-button><span>第 {{ filePage }} 页 · 共 {{ fileTotal }} 个源文件</span><el-button :disabled="filePage * 20 >= fileTotal || fileLoading" @click="filePage++; loadFiles()">下一页原始文件</el-button></div><DocumentCandidatePreview v-if="documentId" :file-id="documentId" @ready="loadFiles" /><el-button v-if="documentId" @click="documentId = null">收起附件预览</el-button></section>
     <section class="panel artifact-library">
       <div class="list-toolbar"><div><h2>最近生成</h2><span>{{ items.length }} 个文件</span></div><el-button plain :loading="loading" @click="loadArtifacts">刷新</el-button></div>
       <p v-if="errorMessage" class="inline-error" role="alert">{{ errorMessage }} <el-button text type="primary" @click="loadArtifacts">重试</el-button></p>
