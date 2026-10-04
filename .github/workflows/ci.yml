@@ -47,6 +47,14 @@ jobs:
           MYSQL_PWD: ci_root_password
         run: mysql -h127.0.0.1 -uroot -e "CREATE DATABASE datalens_test_projection; CREATE USER 'ci_readonly'@'%' IDENTIFIED WITH mysql_native_password BY 'ci_readonly_password'; CREATE USER 'ci_projection'@'%' IDENTIFIED WITH mysql_native_password BY 'ci_projection_password'; GRANT SELECT ON datalens_test_projection.* TO 'ci_readonly'@'%'; GRANT CREATE,DROP,INSERT,SELECT ON datalens_test_projection.* TO 'ci_projection'@'%';"
       - run: python -m pytest -q
+      - name: Build backend image for PDF font verification
+        run: docker build -t datalens-pdf-font-check .
+      - name: Verify PDF exports inside backend image
+        run: |
+          docker run --rm \
+            --mount "type=bind,source=$PWD/tests/test_report_exporters.py,target=/tmp/test_report_exporters.py,readonly" \
+            datalens-pdf-font-check \
+            python -m pytest -q -p no:cacheprovider /tmp/test_report_exporters.py
   frontend:
     runs-on: ubuntu-latest
     defaults:
