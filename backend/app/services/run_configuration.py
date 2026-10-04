@@ -48,7 +48,7 @@ def snapshot_config(db, user_id, session, request, primary, version):
         raise HTTPException(422, detail={'code': 'PRIMARY_INPUT_MISMATCH', 'message': '首个输入必须是当前数据集的固定版本'})
     if public['category'] and public['category'] not in {c['id'] for c in profiles.catalog()['categories']}:
         raise HTTPException(422, detail={'code': 'CATEGORY_INVALID', 'message': '分析方向不存在'})
-    context = ConversationContext.model_validate(session.context_json or {'conversation_id': session.id, 'user_id': user_id})
+    context = ConversationContext.from_session(session)
     versions = {item['dataset_version_id'] for item in pinned}
     from app.semantic.mappings import parse_corrections
     corrections = []
@@ -59,7 +59,9 @@ def snapshot_config(db, user_id, session, request, primary, version):
         changed = {(m['dataset_version_id'], m['column']) for m in corrections}
         context.semantic_mappings = [m for m in context.semantic_mappings if (m['dataset_version_id'], m['column']) not in changed] + corrections
         context.semantic_version += 1
-        session.context_json = context.model_dump(mode='json')
+    # Submission is a write seam: persist trusted identity even when this
+    # question contains no semantic corrections and keeps the same dataset.
+    session.context_json = {**(session.context_json or {}), **context.model_dump(mode='json')}
     return {'version': '3.0', 'public': public, 'depth': public['depth'] or 'STANDARD', 'inputs': pinned,
         'profiles': [p.model_dump() for p in selected], 'catalog': profiles.catalog()['items'],
         'semantic_snapshot': [m for m in context.semantic_mappings if m.get('dataset_version_id') in versions],

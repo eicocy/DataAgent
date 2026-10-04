@@ -30,6 +30,20 @@ class ConversationContext(BaseModel):
     semantic_version: int = 0
     selected_profiles: list[dict[str, Any]] = Field(default_factory=list, max_length=3)
 
+    @classmethod
+    def from_session(cls, session, **defaults) -> ConversationContext:
+        """Recover old partial state using identity from an owned database row.
+
+        Saved/client JSON never chooses the owner or conversation identity.
+        Validation and existing state bounds still apply to all other fields.
+        """
+        state = dict(session.context_json or {})
+        for name, value in defaults.items():
+            state.setdefault(name, value)
+        state.setdefault('active_dataset_id', session.dataset_id)
+        state.update(conversation_id=session.id, user_id=session.user_id)
+        return cls.model_validate(state)
+
     def with_dataset(self, dataset_id: int, version_id: int) -> ConversationContext:
         if (dataset_id, version_id) == (self.active_dataset_id, self.active_dataset_version_id):
             return self.model_copy(deep=True)

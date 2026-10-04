@@ -68,14 +68,20 @@ def main():
                 current = db.scalar(query)
                 return bool(current and current.status == "running" and current.lease_token == args.lease)
             process_dataset(resource_id, SessionLocal, projection_engine, lease_guard=parse_lease)
-            db.expire_all()
-            dataset = db.get(Dataset, resource_id)
+            # process_dataset commits through another Session. Ending this
+            # transaction is essential on MySQL REPEATABLE READ; expiration
+            # alone would keep the pre-parse snapshot and see "parsing".
+            db.rollback()
             from sqlalchemy import select
             job = db.scalar(select(BackgroundJob).where(BackgroundJob.id == args.job_id).with_for_update().execution_options(populate_existing=True))
             if not job or job.lease_token != args.lease or job.status != "running":
                 db.rollback()
                 return
+            dataset = db.scalar(select(Dataset).where(Dataset.id == resource_id)
+                .with_for_update().execution_options(populate_existing=True))
             job.status = "succeeded" if dataset and dataset.status == "ready" else "failed"
+            job.error_code = None if job.status == 'succeeded' else (
+                dataset.parse_error_code if dataset and dataset.parse_error_code else 'DATASET_PARSE_FAILED')
             job.completed_at = datetime.now(UTC).replace(tzinfo=None)
             db.commit()
 

@@ -165,7 +165,8 @@ def test_session_bind_and_context_preservation(dataset_context):
     with sessions() as db:
         context=db.get(AnalysisSession,sid).context_json
         assert context['uploaded_file_ids']==[fid] and context['messages_summary']=='keep'
-        assert ConversationContext(conversation_id=sid,user_id=uid,**context).model_dump()['uploaded_file_ids']==[fid]
+        assert context['conversation_id']==sid and context['user_id']==uid
+        assert ConversationContext.model_validate(context).model_dump()['uploaded_file_ids']==[fid]
     assert client.get(f'/api/v1/files?session_id={sid}').json()['data']['total']==1
 
 

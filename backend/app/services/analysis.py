@@ -75,8 +75,9 @@ def submit_analysis(db, user_id, request, allow_switch=False):
         db.flush()
         if allow_switch and dataset and session.dataset_id != dataset.id:
             from app.agent.context import ConversationContext
-            context = ConversationContext.model_validate(session.context_json or {"conversation_id": session.id, "user_id": user_id})
-            session.context_json = context.with_dataset(dataset.id, version.id).model_dump(mode='json') if version else context.model_dump(mode='json')
+            context = ConversationContext.from_session(session)
+            state = context.with_dataset(dataset.id, version.id) if version else context
+            session.context_json = {**(session.context_json or {}), **state.model_dump(mode='json')}
             session.dataset_id = dataset.id
         record = AnalysisRecord(user_id=user_id, dataset_id=dataset.id if dataset else None, session_id=session.id, request_id=request.request_id,
                                 question=request.question, user_message_id=message.id, status="pending", created_at=now,
@@ -241,10 +242,8 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
         try:
             from app.agent.context import ConversationContext, DatasetCandidate
             session = db.get(AnalysisSession, record.session_id)
-            context = ConversationContext.model_validate(session.context_json or {
-                'conversation_id': session.id, 'user_id': record.user_id,
-                'active_dataset_id': session.dataset_id,
-                'active_dataset_version_id': record.dataset_version_id if session.dataset_id == record.dataset_id else None})
+            context = ConversationContext.from_session(session,
+                active_dataset_version_id=record.dataset_version_id if session.dataset_id == record.dataset_id else None)
             owned = db.scalars(select(Dataset).where(Dataset.user_id == record.user_id,
                                                      Dataset.status == 'ready').order_by(Dataset.id.asc())).all()
             candidates = []
@@ -282,7 +281,7 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
                     session.dataset_id = resolution.dataset_id
                 context = context.with_dataset(resolution.dataset_id, resolution.dataset_version_id)
             context.current_intent = decision.intent
-            session.context_json = context.model_dump(mode='json')
+            session.context_json = {**(session.context_json or {}), **context.model_dump(mode='json')}
             db.commit()
         except Exception as exc:
             preflight_error = exc
@@ -427,8 +426,7 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
     session.updated_at = record.completed_at
     if hasattr(agent, 'prepare'):
         from app.agent.context import ConversationContext
-        context = ConversationContext.model_validate(session.context_json or {
-            'conversation_id': session.id, 'user_id': record.user_id})
+        context = ConversationContext.from_session(session)
         context.current_goal = (record.plan_json or {}).get('goal')
         if record.request_config_json:
             context.selected_profiles = (record.plan_json or {}).get('profiles', context.selected_profiles)
@@ -453,7 +451,7 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
             context.active_metrics = list(dict.fromkeys(metrics))[:20]
         context.messages_summary = (context.messages_summary + '\n用户：' + record.question[:300] +
             '\n助手：' + (record.final_answer or record.error_message or '')[:500])[-4000:]
-        session.context_json = context.model_dump(mode='json')
+        session.context_json = {**(session.context_json or {}), **context.model_dump(mode='json')}
     if session.title == "新分析":
         session.title = record.question[:60]
     if job_id:

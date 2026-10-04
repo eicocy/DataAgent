@@ -31,7 +31,7 @@ def update_semantics(session_id: int, request: SemanticPatch, user: User = Depen
         .with_for_update().execution_options(populate_existing=True))
     if session is None or session.user_id != user.id:
         raise HTTPException(404, detail={'code': 'ANALYSIS_SESSION_NOT_FOUND', 'message': '分析会话不存在'})
-    context = ConversationContext.model_validate(session.context_json or {'conversation_id': session.id, 'user_id': user.id})
+    context = ConversationContext.from_session(session)
     allowed_ids = set(context.attached_dataset_ids) | {session.dataset_id}
     entries = []
     for item in request.mappings:
@@ -47,7 +47,7 @@ def update_semantics(session_id: int, request: SemanticPatch, user: User = Depen
     if len(context.semantic_mappings) > 2000:
         raise HTTPException(422, detail={'code': 'SEMANTIC_LIMIT', 'message': '语义映射达到会话上限'})
     context.semantic_version += 1
-    session.context_json = context.model_dump(mode='json')
+    session.context_json = {**(session.context_json or {}), **context.model_dump(mode='json')}
     db.commit()
     return {'code': 200, 'message': 'success', 'data': {'version': context.semantic_version, 'mappings': entries}}
 
@@ -57,7 +57,7 @@ def get_semantics(session_id: int, dataset_id: int | None = Query(default=None, 
     from app.services.datasets import DatasetService
     from app.semantic.detectors import detect_semantics
     session = _session_or_error(db, session_id, user.id)
-    context = ConversationContext.model_validate(session.context_json or {'conversation_id': session.id, 'user_id': user.id})
+    context = ConversationContext.from_session(session)
     did = dataset_id or session.dataset_id
     if did is None:
         return {'code': 200, 'message': 'success', 'data': {'version': context.semantic_version, 'mappings': []}}

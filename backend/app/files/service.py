@@ -24,7 +24,9 @@ def bind_session(db, session_id, user_id, file_id, dataset_id=None):
     if session_id is None: return
     session=db.scalar(select(AnalysisSession).where(AnalysisSession.id==session_id).with_for_update().execution_options(populate_existing=True))
     if not session or session.user_id!=user_id: raise error(403,'SESSION_FORBIDDEN','无权访问该会话')
+    from app.agent.context import ConversationContext
     context=dict(session.context_json or {})
+    context.update(ConversationContext.from_session(session).model_dump(mode='json'))
     files=list(context.get('uploaded_file_ids',[])); datasets=list(context.get('attached_dataset_ids',[]))
     if file_id not in files: files.append(file_id)
     if dataset_id and dataset_id not in datasets: datasets.append(dataset_id)
