@@ -141,15 +141,13 @@ class Broker:
                     if state.get('OOMKilled'): raise ValueError('SANDBOX_OOM')
                     if state.get('ExitCode')==3: raise ValueError('SANDBOX_OUTPUT_LIMIT')
                     raise ValueError('SANDBOX_EXECUTION_FAILED')
-                try:
-                    marker, _ = container.get_archive('/output/complete')
-                    # Consume the tiny probe so its HTTP connection is closed.
-                    if sum(len(chunk) for chunk in marker) > 16384:
-                        raise ValueError('SANDBOX_OUTPUT_LIMIT')
-                except Exception as probe_error:
-                    if probe_error.__class__.__name__ == 'NotFound': continue
-                    raise
-                chunks, _ = container.get_archive('/output')
+                # Docker's archive API cannot read tmpfs mounts. Only these
+                # trusted, immutable commands can export the fixed output dir.
+                ready, _ = container.exec_run(['python','-I','/opt/export_output.py','ready'])
+                if ready == 3: continue
+                if ready != 0: raise ValueError('SANDBOX_OUTPUT_INVALID')
+                exported = container.exec_run(['python','-I','/opt/export_output.py','archive'],stream=True)
+                chunks = exported.output
                 output = read_output_archive(chunks)
                 with self.lock:
                     self.reap()

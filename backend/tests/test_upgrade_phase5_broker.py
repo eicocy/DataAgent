@@ -80,7 +80,7 @@ def test_broker_collects_tmpfs_output_before_container_stops():
         tar.addfile(info,io.BytesIO(content))
     container=SimpleNamespace(attach_socket=lambda **kw:SimpleNamespace(_sock=SimpleNamespace(sendall=lambda body:None),close=lambda:None),
         start=lambda:None,reload=lambda:None,attrs={'State':{'Running':True}},
-        get_archive=lambda path:([stream.getvalue()],{}),remove=lambda **kw:removed.append(True))
+        exec_run=lambda command,**kw:SimpleNamespace(output=[stream.getvalue()]) if kw.get('stream') else (0,b''),remove=lambda **kw:removed.append(True))
     engine.containers.create=lambda **kw:container
     broker=module.Broker(engine,'trusted-image',scope='phase5-test')
     now=time.monotonic(); job=module.Job('a'*32,'b'*64,now+.7,now+2); broker.jobs[job.id]=job
