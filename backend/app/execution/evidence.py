@@ -35,6 +35,18 @@ def _has_unbound_number(literal: str) -> bool:
     return bool(re.search(f'[{numerals}]', literal))
 
 
+def _percent_multiplier(result, path):
+    """Units belong to trusted tool result paths, never a model-authored label."""
+    if not isinstance(result,dict) or result.get('kind')!='forecast':return 100
+    parts=tuple(path)
+    if parts in {('metrics','mape'),('baseline','metrics','mape')}:return 1
+    if len(parts)==4 and parts[0]=='candidates' and type(parts[1]) is int and parts[2:]==('metrics','mape'):return 1
+    if len(parts)==5 and parts[:2]==('baseline','folds') and type(parts[2]) is int and parts[3:]==('metrics','mape'):return 1
+    if (len(parts)==6 and parts[0]=='candidates' and type(parts[1]) is int
+            and parts[2]=='folds' and type(parts[3]) is int and parts[4:]==('metrics','mape')):return 1
+    return 100
+
+
 def render_report(content: ReportContent, results: dict) -> str:
     if not set(content.evidence_refs) <= results.keys():
         raise ValueError("Unknown evidence step")
@@ -42,7 +54,10 @@ def render_report(content: ReportContent, results: dict) -> str:
     for fact in content.facts:
         if fact.key in values or fact.step_id not in content.evidence_refs:
             raise ValueError("Invalid fact binding")
-        value = results[fact.step_id]
+        result = results[fact.step_id]
+        from app.analysis.models import ForecastResult
+        if isinstance(result,ForecastResult):result=result.model_dump(mode='json')
+        value = result
         for part in fact.path:
             if isinstance(value, dict) and isinstance(part, str) and part in value:
                 value = value[part]
@@ -66,7 +81,7 @@ def render_report(content: ReportContent, results: dict) -> str:
                 raise ValueError("Expected a bounded finite numeric fact")
             with localcontext() as arithmetic:
                 arithmetic.prec=3100
-                number *= 100 if fact.format == "percent" else 1
+                number *= _percent_multiplier(result,fact.path) if fact.format == "percent" else 1
                 if fact.decimals is not None:
                     number = number.quantize(Decimal(1).scaleb(-fact.decimals), rounding=ROUND_HALF_UP)
                 values[fact.key] = format(number, "f") + ("%" if fact.format == "percent" else "")
