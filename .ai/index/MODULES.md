@@ -4,7 +4,7 @@ Phase 4 v2.0.0 additions: see `docs/phase4-implementation.md` for session worksp
 
 ## datasets
 path: backend/app/services/datasets.py；backend/app/routers/datasets.py
-role: 上传、解析、类型/质量画像、投影与授权加载
+role: 表格/文档上传、候选确认、类型/质量画像、固定版本投影与授权加载、清洗/Join 发布
 entry: /api/v1/datasets；DatasetService
 depends: models、database、config
 index: modules/datasets.md

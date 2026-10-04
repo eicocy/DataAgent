@@ -7,7 +7,7 @@ role: DatasetContext、Protocol、类型化输入结果、显式注册、权限�
 depends: Pandas、NumPy、Pydantic、datasets schemas/profiler、execution validators；不依赖 FastAPI/Vue/LangChain
 
 backend/app/analysis/{operations,data_tools,aggregation_tools,statistics_tools,quality_tools,cleaning_tools,eda,chart_tools}.py
-role: 共享计算、51 个规范工具、注册工具组合 EDA、规则图表推荐与 ChartSpec 2.0
+role: 共享计算、规范工具目录、注册工具组合 EDA、规则图表推荐与 ChartSpec 2.0；Phase 3 工具路径见下方
 depends: Context、typed models、Registry；清洗内部显式授权
 
 backend/app/analysis/{legacy_inputs,legacy_adapters,legacy_calculations,sql_safety,serialization}.py
@@ -60,7 +60,11 @@ backend/app/semantic/{detectors,mappings}.py；routers/sessions.py：保守业�
 
 backend/app/agent/{template_router,task_graph,graph_executor,budget}.py；services/{run_configuration,input_workspace}.py：多输入固定版本、完整配置幂等、Plan 3.0 校验、只读工具有限并行、DEEP 有界探索、模型与执行预算；兼容旧协议。
 
-docs/phase2-workspace.md；migrations/versions/0010_analysis_profiles.py：新版 Workspace Phase 2，区别于旧版工具阶段；未开放 Join、预测与沙箱。
+docs/phase2-workspace.md；migrations/versions/0010_analysis_profiles.py：新版 Workspace Phase 2，区别于旧版工具阶段。
+
+analysis/{business_tools,forecast_tools,join_tools,quality_tools}.py、semantic/business_validation.py：新版 Phase 3 的 Decimal KPI/周期/贡献、三折预测、关系校验 Join、公开质量分；graph_executor/plan_validator 维护输入来源/语义/并行预算，execution/evidence.py 区分比例与百分数事实。
+
+docs/phase3-workspace.md：Phase 3 契约和精度/预测/提取限制；Artifact 升级与 Python 沙箱待 Phase 4/5。
 
 docs/tool-development.md；docs/analysis-capabilities.md；docs/phase2.md；backend/migrations/versions/0007_analysis_engine.py
 

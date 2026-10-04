@@ -1,5 +1,6 @@
 """Normalize public options and pin every authorized input before queuing."""
 from fastapi import HTTPException
+from sqlalchemy import select
 from app.config import get_settings
 from app.models import Dataset, DatasetVersion
 from app.services.datasets import DatasetService
@@ -35,12 +36,16 @@ def snapshot_config(db, user_id, session, request, primary, version):
         raise HTTPException(422, detail={'code': 'DUPLICATE_INPUT', 'message': '数据输入别名与数据集不能重复'})
     pinned = []
     for binding in bindings:
-        dataset = db.get(Dataset, binding['dataset_id'])
+        dataset = db.scalar(select(Dataset).where(Dataset.id == binding['dataset_id']).with_for_update().execution_options(populate_existing=True))
         if not dataset or dataset.user_id != user_id:
             raise HTTPException(403, detail={'code': 'DATASET_FORBIDDEN', 'message': '数据输入不存在或未授权'})
         if dataset.status != 'ready':
             raise HTTPException(409, detail={'code': 'DATASET_NOT_READY', 'message': '数据集尚未就绪'})
-        fixed = DatasetService(db).get_version(dataset, binding.get('dataset_version_id'))
+        identifier = binding.get('dataset_version_id') or dataset.current_version_id
+        current = db.scalar(select(DatasetVersion).where(DatasetVersion.id == identifier).with_for_update().execution_options(populate_existing=True)) if identifier else None
+        if current is None:
+            raise HTTPException(409, detail={'code': 'DATASET_VERSION_UNAVAILABLE', 'message': '输入版本不可用'})
+        fixed = DatasetService(db).get_version(dataset, identifier)
         if not fixed:
             raise HTTPException(409, detail={'code': 'DATASET_VERSION_UNAVAILABLE', 'message': '输入版本不可用'})
         pinned.append(dict(binding, dataset_version_id=fixed.id))

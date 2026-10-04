@@ -9,4 +9,4 @@ infrastructure: backend/app/config.py、database.py；backend/migrations/；depl
 navigation: MODULES.md；源码优先于索引；中文设计目录与产品原型是历史资料
 phase2: docs/tool-development.md、analysis-capabilities.md、phase2.md；0007_analysis_engine；不开放通用工具执行 API
 phase4-v2.0.0: docs/phase4-implementation.md；0009_workspace_reports；多格式上传、图表渲染与版本化报告；开发验收状态，不是正式发行
-ai-workspace-upgrade: docs/UPGRADE_PLAN.md、UPGRADE_PROGRESS.md、phase2-workspace.md；Phase 1 对话入口/上传队列；新版 Phase 2 版本化 Profile、语义修正、多输入 Plan 3.0、有界 DAG/探索/预算；0010 增量迁移；业务工具/工件留存/沙箱待 Phase 3—5
+ai-workspace-upgrade: docs/UPGRADE_PLAN.md、UPGRADE_PROGRESS.md、phase2-workspace.md、phase3-workspace.md；Phase 1 对话入口/上传队列；Phase 2 版本化 Profile、语义、多输入 Plan 3.0/DAG/预算；Phase 3 文件确认/版本清洗/受限 Join/业务计算/预测，0011；工件留存/自动交付/沙箱待 Phase 4/5

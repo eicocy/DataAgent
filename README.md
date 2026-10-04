@@ -1,6 +1,6 @@
 # DataLens Agent
 
-**当前版本 V2.0.2：AI-Native Workspace 升级 Phase 2 已完成。** 本版基于 V2.0.1，新增版本化 AnalysisProfile、自动模板路由、字段语义修正、多输入 Plan 3.0、受控 DAG 和分析深度预算。新版五阶段升级的 Phase 3—5 尚未实施；专业业务工具、预测、Artifact 引用与长期留存、Python 沙箱保持后续阶段范围。版本内容见 [V2.0.2 发行说明](docs/releases/v2.0.2.md)，范围和进度见 [升级计划](docs/UPGRADE_PLAN.md) 与 [交付记录](docs/UPGRADE_PROGRESS.md)。旧版 Phase 4 开发记录属于 v2.0.0 基线，不代表本轮五阶段升级进度。
+**当前版本 V2.0.3：AI-Native Workspace 升级 Phase 3。** 本版基于 V2.0.2，新增文档候选表核对、公开质量评分、版本清洗、受限 Join、精确业务工具和三折验证预测。版本内容、验收及限制见 [V2.0.3 发行说明](docs/releases/v2.0.3.md) 与 [Phase 3 工作台](docs/phase3-workspace.md)，范围和进度见 [升级计划](docs/UPGRADE_PLAN.md) 与 [交付记录](docs/UPGRADE_PROGRESS.md)。新版 Phase 4/5 的 Artifact 引用与长期留存、自动交付和 Python 沙箱尚未实施。旧版 Phase 4 开发记录属于 v2.0.0 基线，不代表本轮五阶段升级进度。
 
 中文数据分析工作台：上传 CSV/XLSX，使用自然语言提出问题，核对受控工具的真实计算结果、执行步骤、数据质量说明和 ECharts 图表。模型生成计划和解释，白名单工具执行计算；面向单机小规模部署。
 

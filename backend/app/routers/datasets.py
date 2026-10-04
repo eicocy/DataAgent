@@ -328,16 +328,35 @@ def preview_dataset(
 
 @router.delete("/{dataset_id}")
 def delete_dataset(dataset_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
-    dataset = _owned_dataset(db, dataset_id, user.id)
-    if dataset.status in {"uploading", "parsing"}:
-        raise _error(409, "DATASET_BUSY", "数据集仍在解析，请稍后删除")
-    db.scalar(select(Dataset).where(Dataset.id == dataset_id).with_for_update())
-    if db.scalar(select(BackgroundJob.id).where(BackgroundJob.dataset_id==dataset_id,BackgroundJob.kind=='tool',BackgroundJob.status.in_(('pending','running'))).limit(1)):
+    from app.services.analysis import resource_lock
+    with resource_lock:
+        try:
+            return _delete_dataset_locked(dataset_id, user, db)
+        except Exception:
+            db.rollback()
+            raise
+
+
+def _delete_dataset_locked(dataset_id: int, user: User, db: Session):
+    # Same owner mutex as submission. Current reads must not reuse a snapshot
+    # established by authentication or an earlier request-local identity read.
+    db.scalar(select(User).where(User.id == user.id).with_for_update().execution_options(populate_existing=True))
+    # Workers retain their Job lease lock before publishing under Dataset locks.
+    # Inspect only matching busy rows first; a match rejects/releases immediately.
+    if db.scalar(select(BackgroundJob.id).where(BackgroundJob.user_id==user.id,BackgroundJob.dataset_id==dataset_id,BackgroundJob.kind=='tool',BackgroundJob.status.in_(('pending','running'))).limit(1).with_for_update()):
         raise _error(409,'DATASET_BUSY','数据集正在执行工具任务')
     from app.models import ToolExecutionRecord
-    if any(record.parameters_json.get('right_dataset_id')==dataset_id for record in db.scalars(select(ToolExecutionRecord).where(ToolExecutionRecord.tool_name=='publish_join',ToolExecutionRecord.status.in_(('pending','running'))))):
+    if db.scalar(select(ToolExecutionRecord.id).where(ToolExecutionRecord.user_id==user.id,ToolExecutionRecord.tool_name=='publish_join',ToolExecutionRecord.status.in_(('pending','running')),ToolExecutionRecord.parameters_json['right_dataset_id'].as_integer()==dataset_id).limit(1).with_for_update()):
         raise _error(409,'DATASET_BUSY','数据集正在作为关联任务的输入')
-    if db.scalar(select(AnalysisRecord.id).where(AnalysisRecord.dataset_id == dataset_id, AnalysisRecord.status.in_(("pending", "running"))).limit(1)):
+    dataset = db.scalar(select(Dataset).where(Dataset.id == dataset_id).with_for_update().execution_options(populate_existing=True))
+    if dataset is None:
+        raise _error(404, 'DATASET_NOT_FOUND', '数据集不存在')
+    if dataset.user_id != user.id:
+        raise _error(403, 'DATASET_FORBIDDEN', '你没有权限访问这个数据集')
+    if dataset.status in {"uploading", "parsing"}:
+        raise _error(409, "DATASET_BUSY", "数据集仍在解析，请稍后删除")
+    active = db.scalars(select(AnalysisRecord).where(AnalysisRecord.user_id == user.id, AnalysisRecord.status.in_(("pending", "running"))).with_for_update().execution_options(populate_existing=True))
+    if any(record.dataset_id == dataset_id or any(binding.get('dataset_id') == dataset_id for binding in (record.request_config_json or {}).get('inputs', []) if isinstance(binding, dict)) for record in active):
         raise _error(409, "DATASET_BUSY", "数据集正在分析，请稍后删除")
     stored_name = dataset.stored_name
     from app.models import DatasetVersion

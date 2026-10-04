@@ -25,6 +25,10 @@ depends: Pandas、openpyxl、xlrd、pyarrow、SQLAlchemy、models、database
 
 ## Related
 
+backend/app/files/{parsers,service}.py、routers/files.py、migrations/versions/0011_workspace_files.py：UploadedFile、TXT/PDF/DOCX 有界原文/候选表，人工确认创建 Dataset；会话绑定保留完整可信身份，监督进程查询清新事务状态。
+
+routers/datasets.py、services/tool_execution.py：固定版本质量/清洗/Join 预览与受限发布，预览 hash、幂等、两输入来源、CAS；DatasetService.load_frame(preserve_decimal=True) 保留已存储 Decimal，首次文件解析精度限制仍在。
+
 backend/app/tools/pandas_tools.py；backend/app/models.py；frontend/src/views/{DatasetDetailView,DatasetUploadView}.vue；backend/tests/test_dataset_service.py、test_dataset_formats.py
 
 backend/scripts/migrate_projections.py：旧投影反射复制、计数核对与定位切换，默认干运行。

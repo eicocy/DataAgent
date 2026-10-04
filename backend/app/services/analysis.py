@@ -27,25 +27,41 @@ def domain_error(status, code, message, data=None):
 
 
 def submit_analysis(db, user_id, request, allow_switch=False):
+    # Keep rollback within the shared admission boundary, including direct callers.
+    with resource_lock:
+        try:
+            return _submit_analysis_locked(db, user_id, request, allow_switch)
+        except Exception:
+            db.rollback()
+            raise
+
+
+def _submit_analysis_locked(db, user_id, request, allow_switch=False):
     from app.services.run_configuration import public_config, snapshot_config
     settings = get_settings()
     with resource_lock:
         # Row locks make submission/delete serialize at the database resource boundary.
-        db.scalar(select(User).where(User.id == user_id).with_for_update())
-        existing = db.scalar(select(AnalysisRecord).where(AnalysisRecord.user_id == user_id, AnalysisRecord.request_id == request.request_id))
+        db.scalar(select(User).where(User.id == user_id).with_for_update().execution_options(populate_existing=True))
+        existing = db.scalar(select(AnalysisRecord).where(AnalysisRecord.user_id == user_id, AnalysisRecord.request_id == request.request_id).with_for_update().execution_options(populate_existing=True))
         if existing:
             if existing.session_id != request.session_id or existing.question != request.question or (request.dataset_id is not None and existing.dataset_id != request.dataset_id) or (existing.request_config_json or {}).get('public', public_config(type('Legacy', (), {})())) != public_config(request):
                 raise domain_error(409, "ANALYSIS_REQUEST_ID_CONFLICT", "request_id 已用于另一请求")
             return existing, False
         if not request.question.strip():
             raise domain_error(400, "ANALYSIS_QUESTION_EMPTY", "请输入分析问题")
-        session = db.scalar(select(AnalysisSession).where(AnalysisSession.id == request.session_id).with_for_update())
+        session = db.scalar(select(AnalysisSession).where(AnalysisSession.id == request.session_id).with_for_update().execution_options(populate_existing=True))
         if not session or session.user_id != user_id:
             raise domain_error(404, "ANALYSIS_SESSION_NOT_FOUND", "分析会话不存在")
         dataset_id = request.dataset_id if request.dataset_id is not None else session.dataset_id
         if not allow_switch and dataset_id != session.dataset_id:
             raise domain_error(409, "ANALYSIS_SESSION_DATASET_MISMATCH", "分析会话与数据集不匹配")
-        dataset = db.scalar(select(Dataset).where(Dataset.id == dataset_id).with_for_update()) if dataset_id else None
+        # Owner mutex precedes session and sorted input locks in both admission
+        # and deletion. Locking reads bypass an earlier MySQL RR snapshot/cache.
+        input_ids = {item.dataset_id for item in getattr(request, 'inputs', [])}
+        if dataset_id:
+            input_ids.add(dataset_id)
+        locked_inputs = {item.id: item for item in db.scalars(select(Dataset).where(Dataset.id.in_(sorted(input_ids))).order_by(Dataset.id).with_for_update().execution_options(populate_existing=True))} if input_ids else {}
+        dataset = locked_inputs.get(dataset_id)
         if dataset_id and not dataset:
             raise domain_error(404, "DATASET_NOT_FOUND", "数据集不存在")
         if dataset and dataset.user_id != user_id:
@@ -54,16 +70,30 @@ def submit_analysis(db, user_id, request, allow_switch=False):
             raise domain_error(409, "DATASET_NOT_READY", "数据集尚未解析完成")
         # 提交只固定授权版本；可用性由执行入口验证并保存正式澄清响应。
         # 版本已失效也不能在入队前丢失这轮对话，且绝不自动换用新版本。
-        version = db.get(DatasetVersion, dataset.current_version_id) if dataset and dataset.current_version_id else None
-        if dataset and dataset.current_version_id and (version is None or version.dataset_id != dataset.id):
-            raise domain_error(409, 'DATASET_VERSION_UNAVAILABLE', '数据版本不可用')
         requested_inputs = getattr(request, 'inputs', [])
+        if requested_inputs and (not dataset or requested_inputs[0].dataset_id != dataset.id):
+            raise domain_error(422, 'PRIMARY_INPUT_MISMATCH', '首个输入必须是当前数据集的固定版本')
+        primary_version_id = dataset.current_version_id if dataset else None
+        if requested_inputs and requested_inputs[0].dataset_version_id:
+            primary_version_id = requested_inputs[0].dataset_version_id
+        # At most the ten requested fixed versions (or the single legacy current
+        # version), never every historical schema/profile for an input Dataset.
+        version_ids = {item.dataset_version_id or locked_inputs[item.dataset_id].current_version_id
+                       for item in requested_inputs if item.dataset_id in locked_inputs}
+        if primary_version_id:
+            version_ids.add(primary_version_id)
+        version_ids.discard(None)
+        locked_versions = {item.id: item for item in db.scalars(select(DatasetVersion).where(DatasetVersion.id.in_(sorted(version_ids))).order_by(DatasetVersion.id).with_for_update().execution_options(populate_existing=True))} if version_ids else {}
+        version = locked_versions.get(primary_version_id)
+        if primary_version_id and (version is None or version.dataset_id != dataset.id):
+            raise domain_error(409, 'DATASET_VERSION_UNAVAILABLE', '数据版本不可用')
         if requested_inputs and dataset and requested_inputs[0].dataset_id == dataset.id and requested_inputs[0].dataset_version_id:
             version = DatasetService(db).get_version(dataset, requested_inputs[0].dataset_version_id)
         configuration = snapshot_config(db, user_id, session, request, dataset, version)
-        if db.scalar(select(AnalysisRecord.id).where(AnalysisRecord.session_id == session.id, AnalysisRecord.status.in_(ACTIVE)).limit(1)):
+        active_records = list(db.scalars(select(AnalysisRecord).where(AnalysisRecord.user_id == user_id, AnalysisRecord.status.in_(ACTIVE)).with_for_update().execution_options(populate_existing=True)))
+        if any(item.session_id == session.id for item in active_records):
             raise domain_error(409, "ANALYSIS_SESSION_BUSY", "此会话已有分析任务")
-        count = db.scalar(select(func.count()).select_from(AnalysisRecord).where(AnalysisRecord.user_id == user_id, AnalysisRecord.status.in_(ACTIVE))) or 0
+        count = len(active_records)
         if count >= settings.max_user_active_runs:
             raise domain_error(429, "ANALYSIS_USER_LIMIT", "未完成的分析任务已达上限")
         queued = db.scalar(select(func.count()).select_from(BackgroundJob).where(BackgroundJob.status.in_(ACTIVE))) or 0
