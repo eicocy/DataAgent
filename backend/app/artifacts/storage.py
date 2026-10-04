@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 _ALLOWED_EXTENSIONS = {
-    "csv", "docx", "html", "json", "md", "pdf", "png", "svg", "xlsx", "zip",
+    "csv", "docx", "html", "json", "md", "pdf", "png", "svg", "xlsx", "zip", "py", "sql",
 }
 _STORAGE_KEY = re.compile(
     r"u/[1-9]\d*/c/[1-9]\d*/t/[1-9]\d*/a/[1-9]\d*-[a-f0-9]{32}\.(?:"

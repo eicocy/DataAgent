@@ -15,6 +15,59 @@ from app.routers.datasets import _owned_dataset
 router = APIRouter(prefix="/analysis/sessions", tags=["analysis sessions"])
 
 
+class WorkspaceSelection(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    selected_artifact_id: int | None = Field(default=None, gt=0)
+
+
+@router.get('/{session_id}/workspace')
+def workspace(session_id: int, offset: int = Query(default=0, ge=0), limit: int = Query(default=50, ge=1, le=100),
+              user: User = Depends(current_user), db: Session = Depends(get_db)):
+    session = _session_or_error(db, session_id, user.id)
+    from app.artifacts.manager import ArtifactManager
+    from app.routers.analysis import _response
+    manager = ArtifactManager(db)
+    # session_id is indexed after 0012; legacy owner queries remain readable.
+    record_ids = select(AnalysisRecord.id).where(AnalysisRecord.session_id == session_id)
+    version_ids = select(AnalysisReportVersion.id).join(AnalysisReport).where(AnalysisReport.session_id == session_id)
+    rows = db.scalars(select(AnalysisArtifact).where(AnalysisArtifact.user_id == user.id,
+        or_(AnalysisArtifact.session_id == session_id, AnalysisArtifact.record_id.in_(record_ids), AnalysisArtifact.report_version_id.in_(version_ids)))
+        .order_by(AnalysisArtifact.id.desc()).offset(offset).limit(limit+1)).all()
+    analysis = db.scalar(select(AnalysisRecord).where(AnalysisRecord.session_id == session_id,
+        AnalysisRecord.user_id == user.id, or_(AnalysisRecord.intent_summary.is_(None), AnalysisRecord.intent_summary != 'REPORT_GENERATION'))
+        .order_by(AnalysisRecord.id.desc()).limit(1))
+    reports = db.scalars(select(AnalysisReport).where(AnalysisReport.session_id == session_id,
+        AnalysisReport.user_id == user.id).order_by(AnalysisReport.id.desc()).limit(100)).all()
+    latest = _response(analysis)['data'] if analysis else None
+    if latest:
+        latest.update(dataset_id=analysis.dataset_id, dataset_version_id=analysis.dataset_version_id,
+            report=analysis.report_json, plan=analysis.plan_json)
+    selected = (session.context_json or {}).get('workspace_selection', {}).get('selected_artifact_id')
+    selected_item = None
+    if selected:
+        try: selected_item = manager.view(manager.owned(selected, user.id, session_id))
+        except LookupError: selected = None
+    return {'code':200,'message':'success','data':{'session_id':session_id,
+        'selected_artifact_id':selected, 'selected_artifact':selected_item, 'latest_analysis':latest,
+        'artifacts':{'items':[manager.view(item) for item in rows[:limit]], 'offset':offset, 'limit':limit, 'has_more':len(rows)>limit},
+        'reports':[{'id':r.id,'title':r.title,'version':r.latest_version_number} for r in reports]}}
+
+
+@router.patch('/{session_id}/workspace')
+def save_workspace(session_id: int, request: WorkspaceSelection,
+                   user: User = Depends(current_user), db: Session = Depends(get_db)):
+    _session_or_error(db,session_id,user.id)
+    session = db.scalar(select(AnalysisSession).where(AnalysisSession.id == session_id).with_for_update().execution_options(populate_existing=True))
+    from app.artifacts.manager import ArtifactManager
+    if request.selected_artifact_id:
+        try: ArtifactManager(db).owned(request.selected_artifact_id,user.id,session_id)
+        except LookupError:
+            raise HTTPException(404,detail={'code':'ARTIFACT_NOT_FOUND','message':'会话成果不存在'}) from None
+    session.context_json = {**(session.context_json or {}), 'workspace_selection': request.model_dump()}
+    db.commit()
+    return {'code':200,'message':'success','data':request.model_dump()}
+
+
 from app.semantic.mappings import SemanticMapping, merge_mappings
 
 

@@ -117,6 +117,7 @@ class WorkflowExecutor:
                 if not cached or any(dep not in self.results for dep in step.depends_on):
                     continue
                 old = cached['step']
+                if old.get('input_alias','primary') != getattr(step,'input_alias','primary'): continue
                 signature = ('tool_name', 'depends_on', 'source_ref', 'required')
                 if any(old.get(key) != getattr(step, key) for key in signature):
                     continue

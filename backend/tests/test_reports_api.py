@@ -113,7 +113,8 @@ def test_report_is_versioned_exported_and_downloaded_with_owner_checks(analysis_
     xlsx_artifact_id = xlsx_run.json()["data"]["report"]["artifacts"][0]["artifact_id"]
     xlsx_download = client.get(f"/api/v1/artifacts/{xlsx_artifact_id}/download")
     workbook = load_workbook(BytesIO(xlsx_download.content), read_only=True, data_only=True)
-    assert workbook["Raw Data"].max_row == 3
+    # Raw Data is now the complete pinned input, not a computed group result.
+    assert workbook["Raw Data"].max_row == 2
     data_row = list(workbook["Raw Data"].values)[1]
     assert data_row[:2] == ("East", 12)
     assert data_row[-1] == record_id

@@ -79,9 +79,17 @@ Pre-flight: Composer 上传复用 Dataset API/Store；附件存 Session JSON，�
 
 前端最终 18 文件/77 单元测试通过，9.90 秒；构建通过，20.65 秒；6 个模拟 API 浏览器流程通过，15.5 秒；strict UI 审计 0 errors / 0 warnings。附件说明已与关联键 Join 能力一致。实际 Vue/隔离后端浏览器验证文档确认、质量、清洗、Join 与旧版本；原生历史详情复验真实保存结果，1 预测/2 业务面板正确，1440/390px 截图已查看、表格内滚动可用、无页面横向溢出或控制台错误。手动报告成为最新证据后遮蔽此前分析，以及报告任务摘要缺少完整 document 导致即时编辑器空白，单列为 Phase 4 已知限制；组件已有 document sections 回退，详情 API 的六段报告不受此摘要缺失影响。
 
-## Phase 4/5
+## Phase 4 — 2026-10-05
 
-尚未实施。本轮停止于 Phase 3。
+用户已验收 Phase 3，并授权只执行 Phase 4，完成后停止。本阶段实现已完成：ArtifactManager 与 0012、长期留存/配额、完整成果引用与再生成、会话恢复、模板/固定多输入报告、企业格式及代码导出、原监督任务自动交付、报告幂等与 Vue 成果面板。详见 [Phase 4 工作区](phase4-workspace.md)。分支 `codex/phase4-artifact-report`；未提交、发行、部署或迁移业务库，用户配置和 `plan/` 保持。
+
+测试按用户新策略收敛：保留实施中后端 843 passed/12 skipped 和前端 82 项的全量检查点；后续只做受影响检查，报告/图表组合 27 passed，最后报告/API/关键链路 13 passed，前端收尾 18 项及选择恢复 15 项通过。隔离 MySQL 0011→0012 与重复 upgrade 1 passed，临时库已删除。小样例覆盖真实计算、Artifact、报告预览/认证下载并打开 XLSX/DOCX/PDF；PDF/Word 各四页已查看，Word 标准渲染器环境超时后由本机 Word 转换成功。Python 本地重现验证保留大金额 Decimal 精度。浏览器 1 项 Phase 4 冒烟通过，生产构建、UI strict 和 whitespace 通过。
+
+独立审查调用因账号用量限制失败，未取得审查结论；没有新增真实模型调用、部署或压力/大规模兼容性测试。最终证据和边界写在上述工作区文档，不声称未验证范围通过。
+
+## Phase 5
+
+尚未实施。本轮停止于 Phase 4。
 
 ## V2.0.2 — Phase 2 发行收口
 
@@ -100,3 +108,7 @@ Pre-flight: Composer 上传复用 Dataset API/Store；附件存 Session JSON，�
 - 发行前后端回归使用临时 SQLite、隔离文件目录和禁用真实模型的子进程配置：482 passed / 4 skipped / 14 warnings，37.82 秒；跳过专用 MySQL 集成，未触碰本地业务库。版本号一致性、Git whitespace 和 UI strict 检查通过。
 - 本地调试已使用现有 MySQL 初始化两个空的项目数据库，迁移至 0009；API 存活、数据库就绪及前端代理检查通过。模型 Key 配置存在，此过程未调用真实模型；不等同于隔离 MySQL 集成、真实模型或部署验收。
 - 本地 `.env`、凭据、上传数据不属于发行内容；原有 `plan/` 与本地模型配置改动保持原状，不纳入本次提交。
+
+## V2.0.4 — Phase 4 发行收口
+
+用户已验收 Phase 4，并授权提交、推送与 GitHub 正式发行，随后实施 Phase 5。前后端版本号同步为 2.0.4；发行内容仅包含 Phase 4 与其文档，排除本地配置、plan/ 和运行数据。复用本阶段已通过的验收证据，收口仅检查版本契约、暂存内容及 whitespace；远程 CI 将执行仓库强制检查。详见 [V2.0.4 发行说明](releases/v2.0.4.md)。

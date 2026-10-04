@@ -57,8 +57,12 @@ def chart_spec_from_legacy(payload: dict[str, Any], *, chart_type: str | None = 
         normalized = []
         for series in payload.get("series", []):
             points = series.get("points", series.get("data", []))
+            if payload.get('chart_type') == 'heatmap' and 'values' in series:
+                normalized.append({'name':series.get('name') or '系列','values':series['values']})
+                continue
             data = [{"x": point.get("x", point.get("name")),
                      "y": point.get("y", point.get("value")),
+                     **({k:point[k] for k in ('lower','upper') if k in point}),
                      **({"values": point["values"]} if point.get("values") else {})}
                     for point in points]
             normalized.append({"name": series.get("name") or "系列",
@@ -77,7 +81,9 @@ def chart_spec_from_legacy(payload: dict[str, Any], *, chart_type: str | None = 
         "x": dimension.get("label") or dimension.get("field"),
         "y": [item.get("label") or item.get("field") for item in metrics],
         "series": [{"name": item.get("name") or "系列", "data": [
-            {"x": point.get("name"), "y": (point.get("value")[-1] if isinstance(point.get("value"), list) else point.get("value"))}
+            ({"x": point['value'][0], "y": point['value'][1]} if (chart_type or payload.get('type')) == 'scatter' and isinstance(point.get('value'), list) else
+             {"x": point.get("name"), "values": point['value']} if (chart_type or payload.get('type')) in {'box','boxplot'} and isinstance(point.get('value'), list) else
+             {"x": point.get("name"), "y": (point.get("value")[-1] if isinstance(point.get("value"), list) else point.get("value"))})
             for point in item.get("data", [])
         ]} for item in payload.get("series", [])],
         "show_legend": True,
@@ -135,11 +141,9 @@ class ChartRenderer:
                 for value in values:
                     bottoms.append(cumulative if value >= 0 else cumulative + value)
                     cumulative += value
-                axis.bar(labels, values, bottom=bottoms,
+                axis.bar(labels, [abs(value) for value in values], bottom=bottoms,
                          color=[PALETTE[1] if value >= 0 else "#E56D7B" for value in values])
             else:
-                pairs = sorted(zip(labels, values), key=lambda pair: pair[1], reverse=True)
-                labels, values = [item[0] for item in pairs], [item[1] for item in pairs]
                 axis.barh(labels[::-1], values[::-1], color=PALETTE[0])
         else:
             categories = list(dict.fromkeys(str(point.get("x", "")) for item in series for point in item.get("data", [])))
@@ -152,6 +156,10 @@ class ChartRenderer:
                 color = PALETTE[index % len(PALETTE)]
                 if chart_type == "line":
                     axis.plot(categories, values, marker="o", linewidth=2.3, label=item.get("name", ""), color=color)
+                    bounds = {str(point.get('x','')):point for point in points}
+                    if all(bounds.get(label,{}).get('lower') is not None and bounds.get(label,{}).get('upper') is not None for label in categories):
+                        axis.fill_between(range(len(categories)),[self._number(bounds[label]['lower']) for label in categories],
+                            [self._number(bounds[label]['upper']) for label in categories],color=color,alpha=.16,label='经验误差范围')
                 elif chart_type == "scatter":
                     axis.scatter([self._number(point.get("x")) for point in points],
                                  [self._number(point.get("y")) for point in points], label=item.get("name", ""), color=color)

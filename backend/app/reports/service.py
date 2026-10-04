@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, or_
 from sqlalchemy.orm import Session
 
 from app.artifacts.storage import LocalArtifactStorage
@@ -12,16 +12,44 @@ from app.charts.renderer import ChartRenderer, chart_spec_from_legacy
 from app.config import get_settings
 from app.models import (AnalysisArtifact, AnalysisEvent, AnalysisMessage, AnalysisRecord,
                         AnalysisReport, AnalysisReportVersion, AnalysisSession, BackgroundJob,
-                        Dataset, DatasetVersion)
+                        Dataset, DatasetVersion, DatasetColumn, User, ToolExecutionRecord)
 from app.reports.builder import ReportBuilder
 from app.reports.exporters import MAX_EXPORT_ROWS, ExportOptions, exporter_registry
 from app.reports.schemas import ReportSpec
+from app.artifacts.manager import ArtifactManager, expired
 
 
 class ReportError(ValueError):
     def __init__(self, code: str, status_code: int = 422):
         self.code, self.status_code = code, status_code
         super().__init__(code)
+
+
+def _input_lineage(db, user_id, bindings):
+    """Pin all immutable inputs, including both sides of saved joins."""
+    result, seen = [], set()
+    pending = list(bindings)
+    while pending:
+        binding = pending.pop(0)
+        key = (binding['dataset_id'], binding['dataset_version_id'])
+        if key in seen: continue
+        seen.add(key)
+        version = db.get(DatasetVersion, key[1]); dataset = db.get(Dataset, key[0])
+        if not dataset or dataset.user_id != user_id or not version or version.dataset_id != dataset.id or version.status != 'ready':
+            raise ReportError('REPORT_INPUT_VERSION_UNAVAILABLE',410)
+        result.append(binding)
+        # Walk ancestors to discover joins followed by later cleaning steps.
+        ancestor, ancestors = version, set()
+        while ancestor:
+            if ancestor.id in ancestors: raise ReportError('REPORT_INPUT_LINEAGE_INVALID')
+            ancestors.add(ancestor.id)
+            for operation in ancestor.transformations_json or []:
+                for source in operation.get('source_versions', []):
+                    if source['dataset_id'] != dataset.id:
+                        pending.append({'alias':f"lineage_{source['dataset_id']}_{source['version_id']}",
+                            'dataset_id':source['dataset_id'],'dataset_version_id':source['version_id']})
+            ancestor = db.get(DatasetVersion,ancestor.parent_version_id) if ancestor.parent_version_id else None
+    return result
 
 
 def _owned_dataset_version(db: Session, user_id: int, spec: ReportSpec):
@@ -35,7 +63,7 @@ def _owned_dataset_version(db: Session, user_id: int, spec: ReportSpec):
 
 
 def _source_rows(db: Session, user_id: int, session_id: int, spec: ReportSpec,
-                 record_ids: list[int]) -> list[dict]:
+                 record_ids: list[int], inline_source: tuple[int,str] | None = None) -> list[dict]:
     if not record_ids or len(record_ids) > 50:
         raise ReportError("REPORT_SOURCE_REQUIRED")
     session = db.get(AnalysisSession, session_id)
@@ -46,23 +74,50 @@ def _source_rows(db: Session, user_id: int, session_id: int, spec: ReportSpec,
         AnalysisRecord.session_id == session_id,
         AnalysisRecord.dataset_id == spec.dataset_id,
         AnalysisRecord.dataset_version_id == spec.dataset_version_id,
-        AnalysisRecord.status.in_(["succeeded", "partial"]),
+        or_(AnalysisRecord.status.in_(["succeeded", "partial"]),
+            AnalysisRecord.id == inline_source[0] if inline_source else False),
     )).all()
     if len(rows) != len(set(record_ids)):
         raise ReportError("REPORT_SOURCE_NOT_FOUND", 404)
+    referenced_ids = {int(ref.split(':',1)[1]) for row in rows for step in (row.plan_json or {}).get('steps',[])
+        if (ref:=step.get('result_ref') or '').startswith('artifact:') and ref.split(':',1)[1].isdigit()}
     artifacts = db.scalars(select(AnalysisArtifact).where(
         AnalysisArtifact.user_id == user_id,
-        AnalysisArtifact.record_id.in_([row.id for row in rows]),
+        or_(AnalysisArtifact.record_id.in_([row.id for row in rows]), AnalysisArtifact.id.in_(referenced_ids)),
     )).all()
+    artifacts = [item for item in artifacts if ArtifactManager(db).session_id(item)==session_id]
     artifacts_by_record: dict[int, list[dict]] = {}
     for artifact in artifacts:
         artifacts_by_record.setdefault(artifact.record_id, []).append({
             "artifact_id": artifact.id, "step_id": artifact.step_id,
             "kind": artifact.kind,
-            "expired": artifact.purged_at is not None or artifact.expires_at < datetime.now(UTC).replace(tzinfo=None),
+            "expired": expired(artifact) or not ArtifactManager(db).available(artifact),
         })
+    for row in rows:
+        existing_ids = {item['artifact_id'] for item in artifacts_by_record.get(row.id,[])}
+        for step in (row.plan_json or {}).get('steps',[]):
+            ref = step.get('result_ref') or ''
+            if not ref.startswith('artifact:') or not ref.split(':',1)[1].isdigit(): continue
+            identifier = int(ref.split(':',1)[1])
+            if identifier in existing_ids: continue
+            item = next((a for a in artifacts if a.id==identifier),None)
+            if item:
+                artifacts_by_record.setdefault(row.id,[]).append({'artifact_id':item.id,'step_id':step['step_id'],
+                    'kind':item.kind,'expired':expired(item) or not ArtifactManager(db).available(item)})
     sources = []
     for row in rows:
+        from app.reports.result_tables import result_tables
+        calculations, tables = [], []
+        for artifact in artifacts:
+            if artifact.id not in {item['artifact_id'] for item in artifacts_by_record.get(row.id,[])} or artifact.storage_key: continue
+            if not expired(artifact) and ArtifactManager(db).available(artifact):
+                payload = ArtifactStore(db).read(artifact)
+                result = payload.get('data') or {}
+                if payload.get('rows'):
+                    result = {**result, 'columns':payload.get('schema',{}).get('columns',[]),'rows':payload['rows']}
+                if artifact.kind != 'chart':
+                    calculations.append(result); tables.extend(result_tables(result))
+                ArtifactManager(db).protect(artifact)
         facts = (row.report_json or {}).get("findings", [])
         evidence = []
         for fact in facts:
@@ -70,28 +125,43 @@ def _source_rows(db: Session, user_id: int, session_id: int, spec: ReportSpec,
             step_id, key = ref.get("step_id"), ref.get("key")
             artifact = next((item for item in artifacts_by_record.get(row.id, [])
                              if item["step_id"] == step_id), None)
+            if fact.get("kind") == "bound_fact" and not artifact:
+                raise ReportError('REPORT_EVIDENCE_UNAVAILABLE',410)
             if fact.get("kind") == "bound_fact" and artifact:
+                owner_artifact = db.get(AnalysisArtifact,artifact['artifact_id'])
+                if artifact['expired']: raise ReportError('REPORT_EVIDENCE_EXPIRED',410)
+                execution = next((e for e in db.scalars(select(ToolExecutionRecord).where(
+                    ToolExecutionRecord.analysis_record_id.in_([row.id,owner_artifact.record_id])).order_by(ToolExecutionRecord.id.desc()))
+                    if (e.result_json or {}).get('artifact_ref')==owner_artifact.id),None)
+                value = ArtifactStore(db).read(owner_artifact).get('data') or {}
+                try:
+                    for part in ref.get('path',[]): value = value[part]
+                except (KeyError,IndexError,TypeError): raise ReportError('REPORT_EVIDENCE_INVALID',422) from None
                 evidence.append({
                     "evidence_id": f"{row.id}:{step_id}:{key}",
-                    "dataset_id": row.dataset_id, "dataset_version_id": row.dataset_version_id,
+                    "dataset_id": owner_artifact.dataset_id, "dataset_version_id": execution.dataset_version_id if execution else row.dataset_version_id,
                     "step_id": step_id, "tool_name": next((step.get("tool_name") for step in
                         (row.plan_json or {}).get("steps", []) if step.get("step_id") == step_id), None),
-                    "artifact_id": artifact["artifact_id"], "fact_path": ref.get("path"), "key": key,
+                    "artifact_id": artifact["artifact_id"], "fact_path": ref.get("path"), "key": key, 'value':value,
                 })
         sources.append({
             "record_id": row.id, "dataset_id": row.dataset_id,
-            "dataset_version_id": row.dataset_version_id, "status": row.status,
-            "answer": row.final_answer, "report": row.report_json,
+            "dataset_version_id": row.dataset_version_id, "status": inline_source[1] if inline_source and row.id==inline_source[0] else row.status,
+            "answer": row.final_answer, "report": {**(row.report_json or {}),'tables': tables or (row.report_json or {}).get('tables',[])},
+            'results':calculations, 'plan':row.plan_json,
+            'dataset_name':db.get(Dataset,row.dataset_id).original_name,
+            'dataset_versions': _input_lineage(db,user_id,(row.request_config_json or {}).get('inputs') or [{'alias':'primary','dataset_id':row.dataset_id,'dataset_version_id':row.dataset_version_id}]),
             "evidence": evidence, "artifacts": artifacts_by_record.get(row.id, []),
         })
     return sources
 
 
 def create_report(db: Session, user_id: int, session_id: int,
-                  spec: ReportSpec, record_ids: list[int], *, report_id: int | None = None) -> tuple[AnalysisReport, AnalysisReportVersion]:
+                  spec: ReportSpec, record_ids: list[int], *, report_id: int | None = None,
+                  inline_source: tuple[int,str] | None = None) -> tuple[AnalysisReport, AnalysisReportVersion]:
     dataset, version = _owned_dataset_version(db, user_id, spec)
-    sources = _source_rows(db, user_id, session_id, spec, record_ids)
-    report = (db.scalar(select(AnalysisReport).where(AnalysisReport.id == report_id).with_for_update())
+    sources = _source_rows(db, user_id, session_id, spec, record_ids,inline_source)
+    report = (db.scalar(select(AnalysisReport).where(AnalysisReport.id == report_id).with_for_update().execution_options(populate_existing=True))
               if report_id else None)
     now = datetime.now(UTC)
     if report_id:
@@ -109,10 +179,13 @@ def create_report(db: Session, user_id: int, session_id: int,
         db.flush()
 
     number = report.latest_version_number + 1
-    doc = ReportBuilder().build(spec, sources, report_id=report.id, report_version=number)
+    try:
+        doc = ReportBuilder().build(spec, sources, report_id=report.id, report_version=number)
+    except ValueError as error:
+        raise ReportError(str(error)) from None
     row = AnalysisReportVersion(report_id=report.id, version_number=number, status="READY",
         spec_json=spec.model_dump(mode="json"), document_json=doc.model_dump(mode="json"),
-        source_records_json=sorted(set(record_ids)), created_at=now)
+        source_records_json=sorted(set(record_ids)), dataset_versions_json=doc.metadata.get('dataset_versions',[]), created_at=now)
     report.title, report.latest_version_number, report.updated_at = spec.title, number, now
     db.add(row)
     db.commit()
@@ -133,7 +206,7 @@ def export_report_version(db: Session, report: AnalysisReport, version: Analysis
     if cached:
         try:
             for item in cached:
-                if item.purged_at or item.expires_at < datetime.now(UTC).replace(tzinfo=None):
+                if expired(item):
                     raise OSError("expired")
                 storage.read(item.storage_key)
             return cached
@@ -142,11 +215,14 @@ def export_report_version(db: Session, report: AnalysisReport, version: Analysis
     document = ReportDocument.model_validate(version.document_json)
     chart_files: dict[int, bytes] = {}
     raw_data: list[dict] = []
+    cleaned_data: list[dict] = []
+    input_snapshots: list[dict] = []
+    source_plan: dict = {}
     if document.artifacts and version.source_records_json:
         source_rows = db.scalars(select(AnalysisArtifact).where(
             AnalysisArtifact.user_id == report.user_id,
-            AnalysisArtifact.record_id.in_(version.source_records_json),
             AnalysisArtifact.id.in_(document.artifacts), AnalysisArtifact.kind == "chart")).all()
+        source_rows = [item for item in source_rows if ArtifactManager(db).session_id(item)==report.session_id and not item.storage_key]
         chart_ids = {artifact.id for artifact in source_rows}
         for source_artifact in source_rows:
             try:
@@ -163,70 +239,74 @@ def export_report_version(db: Session, report: AnalysisReport, version: Analysis
         }
         if expected_chart_ids - chart_ids:
             raise ValueError("REPORT_CHART_SOURCE_EXPIRED")
-    if format == "xlsx":
+    if format in {"xlsx", "python", "sql"}:
         records = db.scalars(select(AnalysisRecord).where(
             AnalysisRecord.id.in_(version.source_records_json),
             AnalysisRecord.user_id == report.user_id,
             AnalysisRecord.session_id == report.session_id,
             AnalysisRecord.dataset_id == report.dataset_id,
             AnalysisRecord.dataset_version_id == report.dataset_version_id,
-            AnalysisRecord.status.in_(["succeeded", "partial"]),
         )).all()
-        for source in records:
-            artifact_id = None
-            for step in reversed((source.plan_json or {}).get("steps", [])):
-                if step.get("status") != "COMPLETED" or step.get("tool_name") in {
-                    "get_dataset_info", "preview_data", "generate_chart",
-                }:
-                    continue
-                result_ref = step.get("result_ref") or ""
-                if result_ref.startswith("artifact:") and result_ref.split(":", 1)[1].isdigit():
-                    artifact_id = int(result_ref.split(":", 1)[1])
-                    break
-            if artifact_id is None:
-                artifact_id = (source.tool_result_json or {}).get("artifact_id")
-            if type(artifact_id) is not int:
-                continue
-            artifact = db.scalar(select(AnalysisArtifact).where(
-                AnalysisArtifact.id == artifact_id,
-                AnalysisArtifact.record_id == source.id,
-                AnalysisArtifact.user_id == report.user_id,
-                AnalysisArtifact.dataset_id == report.dataset_id,
-                AnalysisArtifact.kind == "table",
-            ))
-            if artifact is None:
-                raise ValueError("REPORT_SOURCE_ARTIFACT_NOT_FOUND")
-            try:
-                payload = ArtifactStore(db).read(artifact)
-            except LookupError:
-                raise ValueError("REPORT_SOURCE_ARTIFACT_EXPIRED") from None
-            columns = payload.get("schema", {}).get("columns", [])
-            for row in payload.get("rows", []):
-                if isinstance(row, dict):
-                    raw_data.append({**row, "source_record_id": source.id})
-                elif isinstance(row, (list, tuple)) and len(row) == len(columns):
-                    raw_data.append({**dict(zip(columns, row)), "source_record_id": source.id})
-                if len(raw_data) > MAX_EXPORT_ROWS:
-                    raise ValueError("RAW_DATA_EXPORT_LIMIT_EXCEEDED")
+        if not records: raise ValueError('REPORT_SOURCE_NOT_FOUND')
+        source_plan = {**(records[-1].plan_json or {}),
+            'semantic_snapshot':(records[-1].request_config_json or {}).get('semantic_snapshot',[])}
+        from app.services.datasets import DatasetService
+        from app.services.analysis import select_projection_bind
+        from app.database import projection_engine
+        from app.analysis.serialization import records as frame_records
+        seen = set()
+        for binding in version.dataset_versions_json or document.metadata.get('dataset_versions',[]) or [{'alias':'primary','dataset_id':report.dataset_id,'dataset_version_id':report.dataset_version_id}]:
+            key = (binding['dataset_id'],binding['dataset_version_id'])
+            if key in seen: continue
+            seen.add(key)
+            dataset = db.get(Dataset,key[0]); fixed = db.get(DatasetVersion,key[1])
+            if not dataset or dataset.user_id != report.user_id or not fixed or fixed.dataset_id != dataset.id or fixed.status != 'ready':
+                raise ValueError('REPORT_INPUT_VERSION_UNAVAILABLE')
+            service = DatasetService(db,select_projection_bind(fixed,db.get_bind(),projection_engine))
+            columns = db.scalars(select(DatasetColumn).where(DatasetColumn.dataset_id==dataset.id)).all()
+            if format == 'xlsx':
+                current_frame = service.load_frame(dataset,columns,fixed.id,preserve_decimal=True)
+                current_rows = frame_records(current_frame)
+                original = fixed
+                ancestors = set()
+                while original.parent_version_id:
+                    if original.id in ancestors: raise ValueError('REPORT_INPUT_LINEAGE_INVALID')
+                    ancestors.add(original.id)
+                    original = db.get(DatasetVersion,original.parent_version_id)
+                    if not original or original.dataset_id != dataset.id or original.status != 'ready':
+                        raise ValueError('REPORT_ORIGINAL_VERSION_UNAVAILABLE')
+                raw_frame = current_frame if original.id == fixed.id else service.load_frame(dataset,columns,original.id,preserve_decimal=True)
+                raw_rows = frame_records(raw_frame)
+                def annotated(rows,vid):
+                    return [{**row,'_input_alias':binding.get('alias','primary'),'_dataset_id':dataset.id,
+                        '_dataset_version_id':vid,'source_record_id':records[-1].id} for row in rows]
+                raw_data.extend(annotated(raw_rows,original.id))
+                if original.id != fixed.id: cleaned_data.extend(annotated(current_rows,fixed.id))
+            input_snapshots.append({**binding,'dataset_name':dataset.original_name,'schema':fixed.schema_json,
+                'profile':fixed.profile_json,'transformations':fixed.transformations_json,'source_checksum':fixed.source_checksum})
     files = exporter_registry().export(format, document, ExportOptions(
-        chart_files=chart_files, include_raw_data=bool(raw_data), raw_data=raw_data))
+        chart_files=chart_files, include_raw_data=format=='xlsx', raw_data=raw_data,
+        cleaned_data=cleaned_data,input_snapshots=input_snapshots,source_plan=source_plan))
     rows: list[AnalysisArtifact] = []
     used = db.scalar(select(func.coalesce(func.sum(AnalysisArtifact.size_bytes), 0)).where(
         AnalysisArtifact.report_version_id == version.id, AnalysisArtifact.status == "READY")) or 0
     if used + sum(len(item.content) for item in files) > 128 * 1024 * 1024:
         raise ValueError("REPORT_TASK_ARTIFACT_BUDGET_EXCEEDED")
+    ArtifactManager(db).check_quota(report.user_id,sum(len(item.content) for item in files))
     created_keys: list[str] = []
     try:
         for file in files:
             artifact = AnalysisArtifact(
-                record_id=None, tool_execution_id=None, report_version_id=version.id,
+                session_id=report.session_id, retention_class='final', record_id=None, tool_execution_id=None, report_version_id=version.id,
                 user_id=report.user_id, dataset_id=report.dataset_id, step_id=f"export_{format}",
                 kind="report", stored_name=f"{uuid.uuid4().hex}.json", size_bytes=len(file.content),
                 row_count=0, schema_json={"columns": [], "types": {}, "version": "2.0"},
                 created_at=datetime.now(UTC).replace(tzinfo=None),
-                expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=get_settings().artifact_retention_days),
+                expires_at=None,
                 status="CREATING", metadata_json={"report_id": report.id, "version": version.version_number,
-                                                   "format": format, "file_name": file.file_name},
+                                                   "format": format, "file_name": file.file_name,
+                                                   'dataset_versions':version.dataset_versions_json or [],
+                                                   'source_artifact_ids':document.artifacts},
                 file_name=file.file_name, mime_type=file.mime_type,
             )
             db.add(artifact)
@@ -253,11 +333,22 @@ def export_report_version(db: Session, report: AnalysisReport, version: Analysis
 
 
 def enqueue_report_task(db: Session, user_id: int, session_id: int, dataset_id: int,
-                        dataset_version_id: int, operation: str, payload: dict) -> AnalysisRecord:
+                        dataset_version_id: int, operation: str, payload: dict, *, request_id: str | None = None) -> AnalysisRecord:
     """Queue trusted, schema-validated report work on the existing supervised worker."""
     if operation not in {"create", "export"}:
         raise ReportError("REPORT_OPERATION_UNSUPPORTED")
     now = datetime.now(UTC).replace(tzinfo=None)
+    db.scalar(select(User.id).where(User.id == user_id).with_for_update())
+    request_config = {'operation':operation, 'session_id':session_id, 'dataset_id':dataset_id,
+        'dataset_version_id':dataset_version_id, 'payload':payload}
+    if request_id:
+        existing = db.scalar(select(AnalysisRecord).where(AnalysisRecord.user_id == user_id,
+            AnalysisRecord.request_id == request_id).with_for_update())
+        if existing:
+            if existing.request_config_json != request_config:
+                raise ReportError('REPORT_REQUEST_ID_CONFLICT',409)
+            existing._request_replayed = True
+            return existing
     session = db.scalar(select(AnalysisSession).where(
         AnalysisSession.id == session_id, AnalysisSession.user_id == user_id).with_for_update())
     dataset = db.get(Dataset, dataset_id)
@@ -292,7 +383,7 @@ def enqueue_report_task(db: Session, user_id: int, session_id: int, dataset_id: 
     record = AnalysisRecord(user_id=user_id, dataset_id=dataset_id, session_id=session_id,
         user_message_id=user_message.id, assistant_message_id=assistant_message.id,
         dataset_version_id=dataset_version_id, schema_version="2.0", version_binding="snapshot",
-        request_id=uuid.uuid4().hex, question=question, intent_summary="REPORT_GENERATION",
+        request_id=request_id or uuid.uuid4().hex, request_config_json=request_config, question=question, intent_summary="REPORT_GENERATION",
         status="pending", created_at=now, tool_calls_json=[], report_json={"version": "2.0", "operation": operation})
     db.add(record)
     db.flush()

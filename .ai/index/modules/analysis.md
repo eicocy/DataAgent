@@ -1,5 +1,7 @@
 # analysis
 
+Phase 4 增量：artifacts/{manager,references}.py 统一授权 DTO/配额/长期留存与固定来源引用；services/input_workspace.py 加载完整可复用 DAG 结果；reports/{templates,result_tables,code_exporter,delivery}.py 从验证结果生成模板/完整明细/代码，自动交付不提交子 Job。迁移 0012；API 为 sessions workspace、artifacts 过滤/再生成、reports 稳定 request_id；细节和验证边界见 docs/phase4-workspace.md。
+
 ## Files
 
 backend/app/analysis/{context,models,inputs,errors,registry,catalog,engine}.py

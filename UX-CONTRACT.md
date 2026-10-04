@@ -153,3 +153,11 @@
 - 覆盖：frontend/tests/upgrade-phase3-review.test.js、frontend/tests/e2e/phase3-workspace.spec.js 的真实 normalized-only 与 raw+normalized fixture、反序复合键、慢/失败/过期版本响应和 legacy quality 分支。
 
 - 预测 MAPE 列明确标注 (%)，直接展示后端百分数值，不再次乘以 100。
+
+## 2026-10-05 Phase 4 成果与报告
+
+- ArtifactWorkspace 使用原工件侧栏，主对话保留分析内容；手动报告任务不会遮蔽最近分析。恢复成果、报告列表及选中成果，较早选择不受第一页列表范围限制；迟到请求不更新新会话，连续选择按顺序保存。
+- MentionPicker 提交结构化成果 ID，显示被选项；只提供可用的表、图和报告引用。报告类型为 native select，自动交付仍由后台监督任务执行；格式失败明确部分完成，原成果继续可查。
+- 文件页与会话侧栏共用 ArtifactPreview：图表仍归 ChartView，表格最多100行并内部滚动，工作簿按页预览，Word 使用结构化 document，PDF 使用浏览器预览，HTML 禁用脚本。过期成果不可下载/引用，不用预览恢复丢失数据。
+- ReportWorkbench 可打开已有报告并保存新版本；用户编辑文案有明确标记，计算表/证据继续来自原固定来源。生成和导出保留稳定 request_id 供重试。重新生成副本产生新 ID 并显示来源关系。
+- 延续浅色背景、原有颜色/字体/圆角；保留窄屏抽屉、焦点和 IME 行为。证据：Phase 4 组件检查、单个小样例浏览器流程及真实文件预览/下载；未执行压力或多实例验收。

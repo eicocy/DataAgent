@@ -27,6 +27,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table as PdfTable, TableStyle
+from reportlab.platypus.tableofcontents import TableOfContents
 
 from app.reports.schemas import DocumentSection, ReportDocument
 
@@ -79,6 +80,9 @@ class ExportOptions:
     raw_data: list[dict[str, Any]] = field(default_factory=list)
     chart_files: dict[int, bytes] = field(default_factory=dict)
     max_export_rows: int = MAX_EXPORT_ROWS
+    cleaned_data: list[dict[str, Any]] = field(default_factory=list)
+    input_snapshots: list[dict[str, Any]] = field(default_factory=list)
+    source_plan: dict = field(default_factory=dict)
 
 
 class ReportExporter(Protocol):
@@ -102,6 +106,8 @@ def _display(value: Any) -> str:
 
 
 def _spreadsheet_safe(value: Any) -> Any:
+    from decimal import Decimal
+    if isinstance(value,(dict,list,tuple,Decimal)): value = _display(value)
     if isinstance(value, str) and value.lstrip(" \t\r\n").startswith(("=", "+", "-", "@")):
         return "'" + value
     return value
@@ -147,7 +153,12 @@ class PdfExporter:
             len(_table_shape(table)[0]) > 6
             for section in document.sections for table in _tables(section)
         ) else A4
-        pdf = SimpleDocTemplate(buffer, pagesize=page_size, rightMargin=19 * mm, leftMargin=19 * mm,
+        class ReportPdf(SimpleDocTemplate):
+            def afterFlowable(self, flowable):
+                if isinstance(flowable, Paragraph) and hasattr(flowable, '_toc_key'):
+                    self.canv.bookmarkPage(flowable._toc_key)
+                    self.notify('TOCEntry',(0, flowable.getPlainText(), self.page, flowable._toc_key))
+        pdf = ReportPdf(buffer, pagesize=page_size, rightMargin=19 * mm, leftMargin=19 * mm,
                                 topMargin=20 * mm, bottomMargin=19 * mm, title=document.title,
                                 author=document.author or "DataLens Agent", pageCompression=1)
         source_styles = getSampleStyleSheet()
@@ -159,20 +170,29 @@ class PdfExporter:
             "heading": ParagraphStyle("DLHeading", parent=source_styles["Heading2"], fontName=font_name,
                                        fontSize=14, leading=20, textColor=colors.HexColor("#2f6bff"), spaceBefore=9),
             "body": ParagraphStyle("DLBody", parent=source_styles["BodyText"], fontName=font_name,
-                                    fontSize=9.5, leading=15, textColor=colors.HexColor("#243247")),
+                                    fontSize=9.5, leading=15, wordWrap='CJK', textColor=colors.HexColor("#243247")),
             "small": ParagraphStyle("DLSmall", parent=source_styles["BodyText"], fontName=font_name,
-                                     fontSize=7.5, leading=10, textColor=colors.HexColor("#526174")),
+                                     fontSize=7.5, leading=10, wordWrap='CJK', textColor=colors.HexColor("#526174")),
         }
         story: list[Any] = [Paragraph(html.escape(document.title), styles["title"]), Spacer(1, 3 * mm)]
         if document.subtitle:
             story += [Paragraph(html.escape(document.subtitle), styles["subtitle"]), Spacer(1, 7 * mm)]
+        story.extend([Spacer(1,20*mm),Paragraph('范围：固定输入版本的已保存分析结果。',styles['body']),
+            Paragraph(html.escape(document.generated_at.isoformat()),styles['small']),
+            Paragraph('报告版本 '+str(document.report_version),styles['small'])])
+        if document.metadata.get('user_edited'):
+            story.append(Paragraph('此版本包含用户编辑文案；计算表格与证据保留原始来源。',styles['body']))
+        if len(document.sections)>2: story.append(PageBreak())
         if document.include_toc and len(document.sections) > 2:
             story.append(Paragraph("目录", styles["heading"]))
-            story.extend(Paragraph(f"• {index + 1}. {html.escape(section.title)}", styles["body"])
-                         for index, section in enumerate(document.sections))
+            toc = TableOfContents()
+            toc.levelStyles = [ParagraphStyle('DLToc',parent=styles['body'],spaceBefore=5,leftIndent=0,firstLineIndent=0)]
+            story.append(toc)
             story.append(PageBreak())
         for section in document.sections:
-            story.append(Paragraph(html.escape(section.title), styles["heading"]))
+            heading = Paragraph(html.escape(section.title), styles['heading'])
+            heading._toc_key = section.section_id
+            story.append(heading)
             if section.narrative:
                 story.append(Paragraph(html.escape(section.narrative).replace("\n", "<br/>"), styles["body"]))
                 story.append(Spacer(1, 3 * mm))
@@ -183,7 +203,7 @@ class PdfExporter:
                 cells = [[Paragraph(html.escape(column), styles["small"]) for column in columns]]
                 cells.extend([[Paragraph(html.escape(_display(value)), styles["small"]) for value in row]
                               for row in rows])
-                report_table = PdfTable(cells, repeatRows=1, hAlign="LEFT", splitByRow=1)
+                report_table = PdfTable(cells, colWidths=[pdf.width/len(columns)]*len(columns), repeatRows=1, hAlign="LEFT", splitByRow=1, splitInRow=1)
                 report_table.setStyle(TableStyle([
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eaf0fa")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#12213a")),
@@ -204,9 +224,10 @@ class PdfExporter:
             canvas.setFont(font_name, 8)
             canvas.setFillColor(colors.HexColor("#65748a"))
             canvas.drawString(19 * mm, 10 * mm, f"DataLens Agent · {document.report_version}")
+            canvas.drawString(19 * mm, page_size[1]-12*mm, document.title[:40])
             canvas.drawRightString(page_size[0] - 19 * mm, 10 * mm, str(doc.page))
             canvas.restoreState()
-        pdf.build(story, onFirstPage=draw_footer, onLaterPages=draw_footer)
+        pdf.multiBuild(story, onFirstPage=draw_footer, onLaterPages=draw_footer)
         return [ExportFile(f"{_base_name(document)}.pdf", "application/pdf", buffer.getvalue())]
 
 
@@ -230,9 +251,10 @@ class DocxExporter:
         normal = word.styles["Normal"]
         normal.font.name = "Microsoft YaHei"
         normal.font.size = Pt(10)
+        normal.element.rPr.rFonts.set(qn('w:eastAsia'),'Microsoft YaHei')
         title = word.add_heading(document.title, 0)
         title.style.font.name = "Microsoft YaHei"
-        title.style.font.color.rgb = RGBColor(18, 33, 58)
+        title.style.font.color.rgb = RGBColor(0, 0, 0)
         if document.subtitle:
             subtitle = word.add_paragraph(document.subtitle)
             subtitle.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -244,6 +266,21 @@ class DocxExporter:
         field = OxmlElement("w:fldSimple")
         field.set(qn("w:instr"), "PAGE")
         footer._p.append(field)
+        word.add_paragraph('范围：固定输入版本的已保存分析结果。')
+        word.add_paragraph(f'生成时间 {document.generated_at.isoformat()}')
+        if document.metadata.get('user_edited'): word.add_paragraph('此版本包含用户编辑文案；计算表格与证据保留原始来源。')
+        if len(document.sections)>2: word.add_page_break()
+        if document.include_toc:
+            toc_title = word.add_paragraph('目录')
+            toc_title.runs[0].bold = True
+            toc_title.runs[0].font.size = Pt(16)
+            toc = word.add_paragraph()
+            field_toc = OxmlElement('w:fldSimple'); field_toc.set(qn('w:instr'),'TOC \\o "1-2" \\h \\z \\u')
+            toc._p.append(field_toc)
+            settings_update = OxmlElement('w:updateFields'); settings_update.set(qn('w:val'),'true')
+            word.settings.element.append(settings_update)
+            word.add_paragraph('打开文档后可更新目录页码。')
+            word.add_page_break()
         for block in document.sections:
             word.add_heading(block.title, level=1)
             if block.narrative:
@@ -254,6 +291,8 @@ class DocxExporter:
                     continue
                 table = word.add_table(rows=1, cols=len(columns))
                 table.style = "Light Shading Accent 1"
+                repeat = OxmlElement('w:tblHeader'); repeat.set(qn('w:val'),'true')
+                table.rows[0]._tr.get_or_add_trPr().append(repeat)
                 for cell, column in zip(table.rows[0].cells, columns):
                     _docx_set_cell_text(cell, column)
                     cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
@@ -278,6 +317,21 @@ class ExcelExporter:
     format = "xlsx"
 
     def export(self, document: ReportDocument, options: ExportOptions) -> list[ExportFile]:
+        limit = max(1,min(options.max_export_rows,MAX_EXPORT_ROWS))
+        if len(options.raw_data) > limit or len(options.cleaned_data) > limit:
+            from dataclasses import replace
+            count = max((len(options.raw_data)+limit-1)//limit,(len(options.cleaned_data)+limit-1)//limit)
+            outputs, parts = [], []
+            for index in range(count):
+                selected = replace(options,raw_data=options.raw_data[index*limit:(index+1)*limit],
+                    cleaned_data=options.cleaned_data[index*limit:(index+1)*limit])
+                file = self.export(document,selected)[0]
+                name = f'{_base_name(document)}_part_{index+1}.xlsx'
+                outputs.append(ExportFile(name,file.mime_type,file.content))
+                parts.append({'file_name':name,'row_count':len(selected.raw_data),'cleaned_row_count':len(selected.cleaned_data),'raw_offset':index*limit})
+            outputs.append(ExportFile(f'{_base_name(document)}_manifest.json','application/json',json.dumps({
+                'dataset_versions':document.metadata.get('dataset_versions',[]),'parts':parts},ensure_ascii=False).encode()))
+            return outputs
         workbook = Workbook()
         summary = workbook.active
         summary.title = "Summary"
@@ -291,6 +345,17 @@ class ExcelExporter:
         analysis = workbook.create_sheet("Analysis")
         metrics = workbook.create_sheet("Metrics")
         charts = workbook.create_sheet("Charts")
+        kpi = workbook.create_sheet('KPI')
+        quality = workbook.create_sheet('Data Quality')
+        cleaned = workbook.create_sheet('Cleaned Data')
+        insights = workbook.create_sheet('Insights')
+        quality.append(['输入','固定版本','质量概要','清洗操作'])
+        for item in options.input_snapshots:
+            quality.append([_spreadsheet_safe(item.get('alias','primary')),item.get('dataset_version_id'),
+                _spreadsheet_safe(_display(item.get('profile',{}))),_spreadsheet_safe(_display(item.get('transformations',[])))])
+        insights.append(['章节','结论或限制','证据'])
+        for section in document.sections:
+            if section.content_type == 'insights': insights.append([section.title,_spreadsheet_safe(section.narrative or ''),', '.join(section.evidence_ids)])
         native_chart_source = None
         for section in document.sections:
             analysis.append([_spreadsheet_safe(section.title)])
@@ -313,21 +378,28 @@ class ExcelExporter:
                     table = Table(displayName=f"MetricsTable{metrics.max_row}", ref=ref)
                     table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
                     metrics.add_table(table)
-                    if native_chart_source is None and len(columns) >= 2:
+                    if native_chart_source is None and len(columns) >= 2 and all(
+                        isinstance(value, (int, float)) and not isinstance(value, bool)
+                        for row in rows for value in row[1:]):
                         native_chart_source = (start, end, len(columns))
         analysis.column_dimensions["A"].width = 100
         for column_index in range(1, metrics.max_column + 1):
             metrics.column_dimensions[get_column_letter(column_index)].width = 24
         if options.include_raw_data:
-            if len(options.raw_data) > min(options.max_export_rows, MAX_EXPORT_ROWS):
-                raise ValueError("RAW_DATA_EXPORT_LIMIT_EXCEEDED")
             raw = workbook.create_sheet("Raw Data")
             if options.raw_data:
-                headers = list(options.raw_data[0].keys())
-                raw.append(headers)
+                headers = list(dict.fromkeys(key for row in options.raw_data for key in row))
+                raw.append([_spreadsheet_safe(header) for header in headers])
                 for record in options.raw_data:
                     raw.append([_spreadsheet_safe(record.get(header)) for header in headers])
                 self._style_sheet(raw)
+        if options.cleaned_data:
+            headers = list(dict.fromkeys(key for row in options.cleaned_data for key in row))
+            cleaned.append([_spreadsheet_safe(header) for header in headers])
+            for row in options.cleaned_data: cleaned.append([_spreadsheet_safe(row.get(key)) for key in headers])
+        else:
+            cleaned.append(['状态']); cleaned.append(['当前输入未采用清洗版本；原始数据见 Raw Data。'])
+        for row in metrics.values: kpi.append(list(row))
         if native_chart_source:
             start, end, column_count = native_chart_source
             native = BarChart()
@@ -352,7 +424,7 @@ class ExcelExporter:
             charts.add_image(picture, f"A{image_anchor_row}")
             image_anchor_row += 22
         charts.column_dimensions["A"].width = 22
-        for sheet in (summary, analysis, metrics, charts):
+        for sheet in (summary, analysis, metrics, charts, kpi, quality, cleaned, insights):
             self._style_sheet(sheet)
         buffer = io.BytesIO()
         workbook.save(buffer)
@@ -507,8 +579,9 @@ class JsonExporter:
 class ExporterRegistry:
     def __init__(self, exporters: list[ReportExporter] | None = None):
         self._exporters: dict[str, ReportExporter] = {}
+        from app.reports.code_exporter import CodeExporter
         for exporter in exporters or [PdfExporter(), DocxExporter(), ExcelExporter(), HtmlExporter(),
-                                      MarkdownExporter(), CsvExporter(), JsonExporter()]:
+                                      MarkdownExporter(), CsvExporter(), JsonExporter(), CodeExporter('python'), CodeExporter('sql')]:
             if exporter.format in self._exporters:
                 raise ValueError("Duplicate report exporter")
             self._exporters[exporter.format] = exporter

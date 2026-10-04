@@ -13,6 +13,7 @@ from app.models import User, AnalysisRecord, AnalysisArtifact, AnalysisEvent, An
 from app.routers.analysis import AnalysisChatRequest, _response
 from app.services.analysis import submit_analysis, domain_error, append_event
 from app.services.artifacts import ArtifactStore
+from app.artifacts.manager import expired
 from app.agent.schemas import AgentResponse, Insight
 
 router = APIRouter(prefix="/analysis/runs", tags=["analysis-runs"])
@@ -146,7 +147,7 @@ def status(record_id: int, user: User = Depends(current_user), db: Session = Dep
                      (item.id in reused_ids and referenced_artifact(db, record, item.id, user.id))]
     now = datetime.now(UTC).replace(tzinfo=None)
     artifacts = [{'artifact_id': item.id, 'step_id': item.step_id, 'kind': item.kind,
-                  'row_count': item.row_count, 'expired': bool(item.purged_at or item.expires_at < now)}
+                  'row_count': item.row_count, 'expired': expired(item)}
                  for item in artifact_rows]
     artifact_by_step = {item['step_id']: item['artifact_id'] for item in artifacts}
     tool_by_step = {item.get('step_id'): item.get('tool_name') for item in steps}

@@ -22,6 +22,7 @@ def capabilities(user: User = Depends(current_user)):
         'cleaning_confirmation': True,
         'depth_selection': True, 'depths': ['FAST', 'STANDARD', 'DEEP'], 'model_selection': True,
         'models': [{'id': model, 'provider': provider, 'configured': configured}],
-        'report_formats': ['online', 'xlsx', 'docx', 'pdf', 'html', 'markdown', 'csv', 'json'],
-        'automatic_reports': False, 'sandbox_available': False,
+        'report_formats': ['online', 'xlsx', 'docx', 'pdf', 'html', 'markdown', 'csv', 'json', 'python', 'sql'],
+        'report_templates': [{'id':key,'name':label} for key,label in [('auto','自动'),('quick','快速'),('detailed','详细'),('executive','管理层'),('technical','技术'),('data_quality','质量'),('forecast','预测')]],
+        'automatic_reports': True, 'artifact_references': True, 'sandbox_available': False,
     }}

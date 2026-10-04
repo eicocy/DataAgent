@@ -12,6 +12,7 @@ from app.services.analysis import domain_error
 from app.charts.renderer import ChartRenderer, chart_spec_from_legacy
 from app.artifacts.storage import LocalArtifactStorage
 from app.config import get_settings
+from app.artifacts.manager import ArtifactManager
 
 router = APIRouter(prefix="/charts", tags=["charts"])
 
@@ -57,7 +58,7 @@ def render_chart(artifact_id: int, request: RenderRequest,
     source = _owned_chart_artifact(db, artifact_id, user.id)
     try:
         payload = ArtifactStore(db).read(source).get("data") or {}
-        spec_payload = payload if payload.get("chart_type") else chart_spec_from_legacy(payload, chart_type=request.chart_type)
+        spec_payload = chart_spec_from_legacy(payload, chart_type=request.chart_type)
         if request.chart_type:
             spec_payload["chart_type"] = request.chart_type
         rendered = ChartRenderer().render(spec_payload)
@@ -77,16 +78,20 @@ def render_chart(artifact_id: int, request: RenderRequest,
     if any(item not in content_by_format for item in request.formats):
         raise domain_error(422, "CHART_FORMAT_UNSUPPORTED", "图表格式不支持")
     now = datetime.now(UTC).replace(tzinfo=None)
+    manager = ArtifactManager(db)
+    try: manager.check_quota(user.id,sum(len(content_by_format[name][1]) for name in dict.fromkeys(request.formats)))
+    except ValueError as error: raise domain_error(409,str(error),'成果容量不足，请删除不再需要的成果后重试') from None
     created = []
     for format_name in dict.fromkeys(request.formats):
         extension, content = content_by_format[format_name]
-        row = AnalysisArtifact(record_id=source.record_id,
+        row = AnalysisArtifact(session_id=manager.session_id(source), retention_class='final', record_id=source.record_id,
             tool_execution_id=source.tool_execution_id, report_version_id=None,
             user_id=source.user_id, dataset_id=source.dataset_id, step_id=f"chart_render_{format_name}",
             kind="chart", stored_name=f"{uuid4().hex}.json", size_bytes=len(content), row_count=0,
             schema_json={"columns": [], "types": {}, "version": "2.0"}, created_at=now,
-            expires_at=now + timedelta(days=get_settings().artifact_retention_days),
-            status="READY", metadata_json={"source_artifact_id": source.id, "chart_type": request.chart_type or payload.get("chart_type") or payload.get("type"),
+            expires_at=None,
+            status="READY", metadata_json={"source_artifact_id": source.id, 'source_artifact_ids':[source.id],
+                'dataset_versions':(source.metadata_json or {}).get('dataset_versions',[]), "chart_type": request.chart_type or payload.get("chart_type") or payload.get("type"),
                 "width": rendered.width if format_name != "thumbnail" else 600,
                 "height": rendered.height if format_name != "thumbnail" else 360,
                 "dpi": rendered.dpi if format_name == "png" else None})
@@ -97,6 +102,7 @@ def render_chart(artifact_id: int, request: RenderRequest,
         row.storage_key, row.file_name = saved.storage_key, saved.file_name
         row.mime_type = "image/svg+xml" if extension == "svg" else "image/png"
         created.append(row)
+    manager.protect(source)
     db.commit()
     return {"code": 201, "message": "created", "data": [{
         "artifact_id": row.id, "artifact_type": "CHART", "file_name": row.file_name,

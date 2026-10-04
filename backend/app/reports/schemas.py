@@ -24,8 +24,8 @@ class ReportSection(ReportModel):
 class ReportSpec(ReportModel):
     title: str = Field(min_length=1, max_length=255)
     subtitle: str | None = Field(default=None, max_length=500)
-    report_type: Literal["general", "executive", "sales", "financial", "operations", "data_quality"] = "general"
-    template: Literal["auto", "general", "executive", "sales", "financial", "operations", "data_quality"] = "auto"
+    report_type: Literal["general", "executive", "sales", "financial", "operations", "data_quality", "forecast"] = "general"
+    template: Literal["auto", "general", "executive", "sales", "financial", "operations", "data_quality", "quick", "detailed", "technical", "forecast"] = "auto"
     author: str | None = Field(default=None, max_length=120)
     sections: list[ReportSection] = Field(default_factory=list, max_length=20)
     theme: Literal["professional", "minimal"] = "professional"

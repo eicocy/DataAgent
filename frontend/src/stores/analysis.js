@@ -5,7 +5,7 @@ const storageKey = 'datalens:analysis'
 const terminal = ['succeeded', 'partial', 'failed', 'waiting', 'cancelled']
 function runtimeOptions(value) {
   // 只保留公开选项；请求重放必须携带原来的完整配置。
-  return Object.fromEntries(['depth', 'category', 'model_id', 'profile_ids', 'inputs'].filter(key => value?.[key] != null).map(key => [key, JSON.parse(JSON.stringify(value[key]))]))
+  return Object.fromEntries(['depth', 'category', 'model_id', 'profile_ids', 'inputs', 'artifact_refs', 'report_template', 'output_formats'].filter(key => value?.[key] != null).map(key => [key, JSON.parse(JSON.stringify(value[key]))]))
 }
 function minimalPending(value) {
   if (!value || !Number.isInteger(Number(value.session_id)) || (value.dataset_id != null && !Number.isInteger(Number(value.dataset_id))) || typeof value.question !== 'string' || typeof value.request_id !== 'string') return null

@@ -60,4 +60,29 @@ def load_workspace(db, user_id, configuration, primary_tools, business_bind, pro
     workspace.metadata_by_input = metadata
     configuration['semantic_snapshot'] = semantics
     workspace.configuration = configuration
+    if configuration.get('artifact_references'):
+        from app.models import AnalysisRecord
+        from app.services.artifacts import ArtifactStore
+        from app.artifacts.manager import ArtifactManager
+        prior_plans = []
+        for reference in configuration['artifact_references']:
+            source = db.get(AnalysisRecord,reference.get('record_id')) if reference.get('record_id') else None
+            if source is None: continue
+            if source.user_id != user_id or source.session_id != primary_tools.conversation_state.conversation_id:
+                raise VersionUnavailable()
+            prior_plans.append(source.plan_json or {})
+            for step in (source.plan_json or {}).get('steps',[]):
+                ref = step.get('result_ref') or ''
+                if step.get('status')!='COMPLETED' or not ref.startswith('artifact:') or not ref.split(':',1)[1].isdigit(): continue
+                item = ArtifactManager(db).owned(int(ref.split(':',1)[1]),user_id,source.session_id,require_ready=True)
+                alias = step.get('input_alias',configuration['inputs'][0]['alias'])
+                old_inputs = (source.request_config_json or {}).get('inputs') or [{'alias':'primary','dataset_id':source.dataset_id,'dataset_version_id':source.dataset_version_id}]
+                old_binding = next((b for b in old_inputs if b['alias']==alias),None)
+                new_alias = next((b['alias'] for b in configuration['inputs'] if old_binding and
+                    (b['dataset_id'],b['dataset_version_id'])==(old_binding['dataset_id'],old_binding['dataset_version_id'])),None)
+                if not new_alias: continue
+                if (source.request_config_json or {}).get('semantic_snapshot',[]) != configuration.get('semantic_snapshot',[]): continue
+                workspace.reuse_steps[step['step_id']]={'step':{**step,'input_alias':new_alias},
+                    'artifact_id':item.id,'payload':ArtifactStore(db).read(item)}
+        configuration['reference_plans'] = prior_plans
     return workspace

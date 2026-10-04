@@ -34,7 +34,7 @@ async def lifespan(application: FastAPI):
         application.state.task_supervisor = None
 
 
-app = FastAPI(title="DataLens Agent API", version="2.0.3", lifespan=lifespan)
+app = FastAPI(title="DataLens Agent API", version="2.0.4", lifespan=lifespan)
 app.add_middleware(RequestBodyLimitMiddleware, max_bytes=settings.max_upload_bytes + 1024 * 1024)
 app.add_middleware(
     CORSMiddleware,

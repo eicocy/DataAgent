@@ -200,7 +200,9 @@ class AnalysisArtifact(Base):
     row_count: Mapped[int] = mapped_column(BigInteger, default=0)
     schema_json: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime)
-    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    session_id: Mapped[int | None] = mapped_column(ForeignKey('analysis_sessions.id', ondelete='CASCADE'), nullable=True, index=True)
+    retention_class: Mapped[str] = mapped_column(String(20), default='intermediate', server_default='intermediate')
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     purged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     storage_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -238,6 +240,7 @@ class AnalysisReportVersion(Base):
     spec_json: Mapped[dict] = mapped_column(JSON)
     document_json: Mapped[dict] = mapped_column(JSON)
     source_records_json: Mapped[list] = mapped_column(JSON, default=list)
+    dataset_versions_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 

@@ -45,6 +45,8 @@ class ReportBuilder:
             raise ValueError("REPORT_EVIDENCE_NOT_FOUND")
         if any(reference not in artifacts_by_id for reference in requested_artifacts):
             raise ValueError("REPORT_ARTIFACT_NOT_FOUND")
+        if any(artifacts_by_id[reference].get('expired') for reference in requested_artifacts):
+            raise ValueError('REPORT_ARTIFACT_EXPIRED')
 
         sections = self._sections(spec, compatible, evidence_by_id, artifacts_by_id)
         section_evidence = list(dict.fromkeys(
@@ -65,6 +67,9 @@ class ReportBuilder:
                 "dataset_version_id": spec.dataset_version_id,
                 "source_record_ids": [source["record_id"] for source in compatible],
                 "source_analysis_count": len(compatible),
+                "dataset_versions": list({(i['dataset_id'],i['dataset_version_id']):i for source in compatible for i in source.get('dataset_versions', [])}.values()),
+                "template": spec.template, "user_edited": bool(spec.sections),
+                "dataset_name": sources[0].get('dataset_name'),
             },
         )
 
@@ -86,19 +91,11 @@ class ReportBuilder:
         all_evidence = list(evidence)
         result_artifacts = [artifact_id for artifact_id, item in artifacts.items()
                             if item.get("kind") in {"table", "chart"} and not item.get("expired")]
-        sections = [
-            ReportSection(section_id="executive_summary", title="执行摘要", content_type="insights",
-                          narrative=summary_text or "当前分析没有可引用的事实结论。",
-                          evidence_ids=all_evidence[:100]),
-            ReportSection(section_id="data_overview", title="数据概览", content_type="overview"),
-            ReportSection(section_id="key_metrics", title="关键指标", content_type="metrics"),
-            ReportSection(section_id="findings", title="核心发现", content_type="insights",
-                          evidence_ids=all_evidence[:100]),
-            ReportSection(section_id="visualizations", title="图表与明细", content_type="chart",
-                          artifact_refs=result_artifacts[:30]),
-            ReportSection(section_id="methodology", title="方法与来源", content_type="methods",
-                          evidence_ids=all_evidence[:100]),
-        ]
+        from app.reports.templates import template_sections
+        sections = template_sections(spec,all_evidence,artifacts,sources)
+        # Retain full result-table references as evidence even without a chart.
+        for section in sections:
+            if section.content_type == 'metrics': section.artifact_refs = result_artifacts[:30]
         return [DocumentSection(**dict(
             section.model_dump(exclude={"data"}),
             data=ReportBuilder._section_data(section, sources, evidence, artifacts),
@@ -111,10 +108,11 @@ class ReportBuilder:
         evidence: dict[str, dict[str, Any]],
         artifacts: dict[int, dict[str, Any]],
     ) -> dict[str, Any]:
-        if section.section_id == "data_overview":
+        if section.content_type == "overview":
             return {"dataset_id": sources[0]["dataset_id"],
                     "dataset_version_id": sources[0]["dataset_version_id"],
-                    "dataset_name": sources[0].get("dataset_name")}
+                    "dataset_name": sources[0].get("dataset_name"), "tables":[{'columns':['输入','数据集','固定版本'],
+                        'rows':[{'输入':i.get('alias','primary'),'数据集':i['dataset_id'],'固定版本':i['dataset_version_id']} for source in sources for i in source.get('dataset_versions',[])]}]}
         if section.content_type == "metrics":
             return {"tables": [table for source in sources
                                for table in (source.get("report") or {}).get("tables", [])][:20]}
@@ -123,7 +121,13 @@ class ReportBuilder:
                                   if item in artifacts][:30]}
         if section.content_type == "methods":
             return {"source_record_ids": [source["record_id"] for source in sources],
-                    "evidence_ids": [item for item in section.evidence_ids if item in evidence]}
+                    "evidence_ids": [item for item in section.evidence_ids if item in evidence],
+                    "tables": [{'columns':['证据','输入版本','工具','事实路径','值'], 'rows':[
+                        {'证据':item['evidence_id'],'输入版本':item.get('dataset_version_id'), '工具':item.get('tool_name'),
+                         '事实路径':item.get('fact_path'), '值':item.get('value')} for item in evidence.values()]}]
+                    if section.section_id == 'evidence_appendix' else [{'columns':['记录','步骤','工具','参数','状态'],
+                        'rows':[{'记录':source['record_id'],'步骤':step.get('step_id'),'工具':step.get('tool_name'),
+                            '参数':step.get('arguments',{}),'状态':step.get('status')} for source in sources for step in (source.get('plan') or {}).get('steps',[])]}]}
         if section.content_type == "insights":
             return {"evidence_ids": [item for item in section.evidence_ids if item in evidence]}
         return {}

@@ -29,6 +29,7 @@ class ConversationContext(BaseModel):
     semantic_mappings: list[dict[str, Any]] = Field(default_factory=list, max_length=2000)
     semantic_version: int = 0
     selected_profiles: list[dict[str, Any]] = Field(default_factory=list, max_length=3)
+    workspace_selection: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     def from_session(cls, session, **defaults) -> ConversationContext:

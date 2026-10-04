@@ -20,7 +20,7 @@ def test_capabilities_enable_phase2_and_keep_future_tools_closed(analysis_contex
     assert data['depth_selection'] is True
     assert data['depths'] == ['FAST', 'STANDARD', 'DEEP']
     assert data['cross_dataset_join'] is True
-    assert data['automatic_reports'] is False
+    assert data['automatic_reports'] is True
     assert not data['sandbox_available']
     assert TestClient(app).get('/api/v1/workspace/capabilities').status_code == 401
 

@@ -16,10 +16,13 @@ import { mapState } from 'pinia'
 import { useAnalysisStore } from '../stores/analysis'
 import { analysisApi } from '../api/analysis'
 import { datasetApi } from '../api/datasets'
+import ArtifactWorkspace from '../components/ArtifactWorkspace.vue'
+import MentionPicker from '../components/MentionPicker.vue'
+import { useWorkspaceStore } from '../stores/workspace'
 
 export default {
   name: 'AnalysisWorkspaceView',
-  components: { AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, DocumentCandidatePreview, SemanticMappingEditor, ChatLineRound, DataAnalysis, Refresh, Promotion },
+  components: { ArtifactWorkspace, MentionPicker, AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, DocumentCandidatePreview, SemanticMappingEditor, ChatLineRound, DataAnalysis, Refresh, Promotion },
   data() {
     return {
       dataset: null,
@@ -30,6 +33,7 @@ export default {
       datasetSelectionToken: 0,
       cancelRequested: false,
       reportDialogVisible: false,
+      selectedReportId: null, restoredAnalysis: null,
       artifactPanelOpen: false,
       artifactPanelMaximized: false,
       artifactPanelWidth: 560,
@@ -58,9 +62,13 @@ export default {
   },
   computed: {
     ...mapState(useAnalysisStore, { activeTrace: 'trace', activeResult: 'result' }),
+    ...mapState(useWorkspaceStore, { workspaceArtifacts: 'items', workspaceReports: 'reports' }),
     analysisLayoutStyle() { return { '--artifact-panel-width': `${this.artifactPanelWidth}px` } },
-    latestEvidence() { return [...this.messages].reverse().find((message) => message.evidence)?.evidence || null },
-    isLanding() { return !this.messages.length && !this.loading },
+    latestEvidence() {
+      const value = [...this.messages].reverse().find(message => message.evidence && !['create','export'].includes(message.evidence.report?.operation))?.evidence || null
+      return this.restoredAnalysis && (!value || this.restoredAnalysis.record_id > value.record_id) ? this.restoredAnalysis : value
+    },
+    isLanding() { return !this.messages.length && !this.loading && !this.workspaceArtifacts?.length && !this.workspaceReports?.length },
     canCreateReport() { return Boolean(this.sessionId && this.latestEvidence?.record_id && this.latestEvidence?.dataset_id && this.latestEvidence?.dataset_version_id && ['succeeded', 'partial'].includes(this.latestEvidence.status)) },
     runningLabel() {
       if (this.cancelRequested) return '正在取消任务…'
@@ -127,6 +135,7 @@ export default {
       this.initializing = true
       this.errorMessage = ''
       this.messages = []
+      useWorkspaceStore().reset(); this.restoredAnalysis = null; this.selectedReportId = null; this.reportDialogVisible = false
       this.dataset = null
       this.sessionId = null
       this.sessionCreation = null
@@ -183,7 +192,12 @@ export default {
         if (this.$route.query.question) this.question = String(this.$route.query.question)
         await this.loadCapabilities(controller)
         if (!this.isCurrent(controller)) return
-        if (this.latestEvidence) this.artifactPanelOpen = true
+        if (this.sessionId && this.capabilities.artifact_references) {
+          await useWorkspaceStore().load(this.sessionId, { signal: controller.signal })
+          if (!this.isCurrent(controller)) return
+          this.restoredAnalysis = useWorkspaceStore().latestAnalysis
+        }
+        if (this.latestEvidence || this.workspaceArtifacts.length || this.workspaceReports.length) this.artifactPanelOpen = true
         else this.artifactPanelOpen = false
         const pending = useAnalysisStore().restore(this.sessionId, this.dataset?.id ?? null, historyMessages)
         if (pending) {
@@ -289,7 +303,10 @@ export default {
         const store = useAnalysisStore()
         const options = this.capabilities.profile_execution && this.dataset ? {
           ...this.runOptions, category: this.runOptions.category || null,
-          inputs: [this.dataset.id, ...this.additionalInputIds.filter(id => id !== this.dataset.id && this.attachedDatasets.some(item => item.id === id))].map((id, index) => ({ alias: index === 0 ? 'primary' : `input_${id}`, dataset_id: id })),
+          inputs: [this.dataset.id, ...this.additionalInputIds.filter(id => id !== this.dataset.id && this.attachedDatasets.some(item => item.id === id))].map((id, index) => {
+            const versions = this.workspaceArtifacts.filter(item => (this.runOptions.artifact_refs || []).includes(item.id || item.artifact_id)).flatMap(item => item.dataset_versions || []).filter(item => item.dataset_id === id)
+            return { alias: index === 0 ? 'primary' : `input_${id}`, dataset_id: id, ...(versions[0]?.dataset_version_id ? { dataset_version_id: versions[0].dataset_version_id } : {}) }
+          }),
         } : {}
         await store.submit({ session_id: this.sessionId, dataset_id: this.dataset?.id ?? null, question, ...options }, false, { signal: controller.signal })
         if (!this.isCurrent(controller)) return
@@ -298,6 +315,7 @@ export default {
         if (result.dataset_id && this.dataset?.id !== result.dataset_id) await this.chooseDataset(result.dataset_id)
         userMessage.evidence = result
         this.messages.push({ id: result.message_id || result.record_id, role: 'assistant', content: result.answer || result.error_message, status: result.status, evidence: result })
+        if (this.capabilities.artifact_references) await useWorkspaceStore().load(this.sessionId, { signal: controller.signal })
       } catch (error) {
         if (!this.isCurrent(controller) || error.name === 'AbortError' || error.code === 'ERR_CANCELED') return
         this.question = question
@@ -354,6 +372,12 @@ export default {
       return seconds < 1 ? `${Math.round(seconds * 1000)} ms` : `${seconds.toFixed(2)} 秒`
     },
     showValue(value) { return value === null || value === undefined ? '—' : String(value) },
+    openReport(id = null) { this.selectedReportId = id; this.reportDialogVisible = true },
+    referenceArtifact(item) {
+      const id = item.id || item.artifact_id
+      this.runOptions = { ...this.runOptions, artifact_refs: [...new Set([...(this.runOptions.artifact_refs || []), id])].slice(0,10) }
+    },
+    async reportsChanged() { if (this.sessionId && this.capabilities.artifact_references) await useWorkspaceStore().load(this.sessionId, { signal: this.controller.signal }) },
     async searchDatasets(query) {
       const token = ++this.datasetSearchToken
       const controller = this.controller
@@ -407,6 +431,7 @@ export default {
       const result = await store.watchRun(controller.signal)
       if (result?.dataset_id && this.isCurrent(controller) && this.dataset?.id !== result.dataset_id) await this.chooseDataset(result.dataset_id)
       if (result && this.isCurrent(controller) && !this.messages.some((message) => message.role === 'assistant' && message.evidence?.record_id === result.record_id)) this.messages.push({ id: result.message_id || result.record_id, role: 'assistant', content: result.answer || result.error_message, status: result.status, evidence: result })
+      if (result && this.isCurrent(controller) && this.capabilities.artifact_references) await useWorkspaceStore().load(this.sessionId, { signal: controller.signal })
     },
     async retryMessage(message) {
       if (message.errorCode === 'NETWORK_ERROR' && useAnalysisStore().pending) {
@@ -459,6 +484,7 @@ export default {
         </div>
 
         <PromptComposer v-model="question" :busy="loading || choosingDataset" :uploading="uploadBusy || attachmentBindings > 0" :catalog="catalog" :capabilities="capabilities" :options="runOptions" @option-change="runOptions = { ...runOptions, ...$event }" @submit="submitQuestion" @upload="$refs.uploadQueue.addFiles($event)" @templates="$router.push('/templates')">
+          <MentionPicker v-if="capabilities.artifact_references" :items="workspaceArtifacts" :model-value="runOptions.artifact_refs || []" :busy="loading" @update:model-value="runOptions = { ...runOptions, artifact_refs: $event }" />
           <UploadQueue ref="uploadQueue" :session-id="Number(sessionId) || undefined" :prepare-session="ensureSession" @document="documentReady" @document-hidden="documentFileId === $event && (documentFileId = null)" :formats="[...(capabilities.file_formats || []), ...(capabilities.document_formats || [])]" :attached-ids="attachedDatasets.map(item => item.id)" :max-files="capabilities.max_files || 10" :max-bytes="capabilities.max_upload_bytes || 20971520" @busy="uploadBusy = $event" @started="startUpload" @ready="attachDataset" @removed="removeAttachment" />
           <div v-if="attachedDocuments.length" class="session-attachments" aria-label="会话文档附件"><el-button v-for="file in attachedDocuments" :key="file.id" @click="documentFileId = file.id">{{ file.name }} · 文档</el-button><el-button :disabled="documentPage === 1" @click="documentPage--; loadDocuments()">上一页文档</el-button><el-button :disabled="documentPage * 20 >= documentTotal" @click="documentPage++; loadDocuments()">下一页文档</el-button></div>
           <div v-if="documentFileId"><DocumentCandidatePreview :file-id="documentFileId" :session-id="Number(sessionId)" @ready="extractedDataset" /><el-button @click="documentFileId = null">收起附件预览</el-button><p class="caption">收起只关闭预览，文档仍在会话中，刷新可恢复。</p></div>
@@ -473,14 +499,15 @@ export default {
       <button v-if="artifactPanelOpen" type="button" class="artifact-panel-backdrop" aria-label="关闭工件面板" @click="toggleArtifactPanel"></button>
       <aside v-if="artifactPanelOpen" class="panel evidence-panel artifact-panel" aria-label="工件与分析证据">
         <div v-if="!artifactPanelMaximized" class="artifact-panel-resizer" tabindex="0" role="separator" aria-label="调整工件面板宽度" aria-orientation="vertical" :aria-valuenow="artifactPanelWidth" aria-valuemin="420" aria-valuemax="720" @keydown.left.prevent="artifactPanelWidth = Math.min(720, artifactPanelWidth + 20); savePanelPreference()" @keydown.right.prevent="artifactPanelWidth = Math.max(420, artifactPanelWidth - 20); savePanelPreference()" @pointerdown="startPanelResize" @pointermove="movePanelResize" @pointerup="endPanelResize" @pointercancel="endPanelResize"><span></span></div>
-        <div class="evidence-panel-heading"><span class="evidence-dot"></span><div><h2>工件与证据</h2><p>图表、结果表和工具轨迹</p></div><el-button v-if="canCreateReport" size="small" plain @click="reportDialogVisible = true">生成报告</el-button><el-button text aria-label="最大化工件面板" @click="toggleArtifactPanelSize">{{ artifactPanelMaximized ? '还原' : '展开' }}</el-button><el-button text aria-label="关闭工件面板" @click="toggleArtifactPanel">关闭</el-button></div>
+        <div class="evidence-panel-heading"><span class="evidence-dot"></span><div><h2>工件与证据</h2><p>图表、结果表和工具轨迹</p></div><el-button v-if="canCreateReport" size="small" plain @click="openReport()">生成报告</el-button><el-button text aria-label="最大化工件面板" @click="toggleArtifactPanelSize">{{ artifactPanelMaximized ? '还原' : '展开' }}</el-button><el-button text aria-label="关闭工件面板" @click="toggleArtifactPanel">关闭</el-button></div>
         <p v-if="loading && activeResult?.progress?.total" class="caption">已完成 {{ activeResult.progress.completed }} / {{ activeResult.progress.total }} 步</p>
         <AgentSteps :trace="activeTrace || (latestEvidence?.plan ? { plan: latestEvidence.plan, steps: latestEvidence.tool_calls } : null)" :calls="loading ? [] : latestEvidence?.tool_calls || []" />
         <AnalysisResult v-if="loading && activeResult" :evidence="activeResult" />
         <AnalysisResult v-else-if="latestEvidence" :evidence="latestEvidence" />
+        <ArtifactWorkspace v-if="sessionId && capabilities.artifact_references" :session-id="sessionId" @report="openReport" @reference="referenceArtifact" />
       </aside>
     </section>
-    <ReportWorkbench v-if="sessionId" v-model="reportDialogVisible" :session-id="sessionId" :source="latestEvidence" />
+    <ReportWorkbench v-if="sessionId" :key="`${sessionId}-${selectedReportId || 'new'}`" v-model="reportDialogVisible" :session-id="sessionId" :report-id="selectedReportId" :source="latestEvidence" @changed="reportsChanged" />
   </AppShell>
 </template>
 

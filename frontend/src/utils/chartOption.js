@@ -83,5 +83,15 @@ export function buildChartOption(spec) {
         } }]
     option.tooltip = { trigger: 'item', formatter: p => `${String(items[p.dataIndex]?.name ?? '')}: ${String(items[p.dataIndex]?.value ?? '')}`, renderMode: 'richText' }
   }
+  if (type === 'line') {
+    for (const series of spec.series) {
+      if (!(series.data || []).some(point => toNumber(point.lower) !== null && toNumber(point.upper) !== null)) continue
+      for (const [key, label] of [['lower', '经验范围下界'], ['upper', '经验范围上界']]) {
+        option.series.push({ name: `${series.name || '预测'} · ${label}`, type: 'line',
+          lineStyle: { type: 'dashed', opacity: .65 }, symbol: 'none', connectNulls: false,
+          data: categories.map(category => toNumber(series.data.find(point => String(point.name) === category)?.[key])) })
+      }
+    }
+  }
   return option
 }

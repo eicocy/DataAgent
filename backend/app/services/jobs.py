@@ -68,7 +68,7 @@ def run_maintenance(factory):
         for task in tasks:
             perform_cleanup(db, task, engine, projection_engine)
         store_settings = get_settings()
-        for artifact in db.scalars(select(AnalysisArtifact).where(AnalysisArtifact.expires_at < datetime.now(UTC).replace(tzinfo=None), AnalysisArtifact.purged_at.is_(None)).limit(100)):
+        for artifact in db.scalars(select(AnalysisArtifact).where(AnalysisArtifact.retention_class == 'intermediate', AnalysisArtifact.expires_at < datetime.now(UTC).replace(tzinfo=None), AnalysisArtifact.purged_at.is_(None)).limit(100)):
             from app.services.artifacts import ArtifactStore
             try:
                 if artifact.storage_key:

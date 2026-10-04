@@ -44,7 +44,7 @@ describe('report workbench', () => {
         sections: [expect.objectContaining({ title: '经营摘要' })] }),
     }))
     await wrapper.vm.exportReport('pdf')
-    expect(reportsApi.export).toHaveBeenCalledWith(12, 2, 'pdf')
+    expect(reportsApi.export).toHaveBeenCalledWith(12, 2, 'pdf', expect.objectContaining({ requestId: expect.any(String) }))
     expect(wrapper.vm.files[0].artifact_id).toBe(88)
   })
 })

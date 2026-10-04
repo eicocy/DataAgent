@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { authApi } from '../api/auth'
 import { useDatasetStore } from './datasets'
 import { useAnalysisStore } from './analysis'
+import { useWorkspaceStore } from './workspace'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -15,6 +16,7 @@ export const useAuthStore = defineStore('auth', {
     expireSession() {
       useDatasetStore().reset()
       useAnalysisStore().reset()
+      useWorkspaceStore().reset()
       this.user = null; this.authStatus = 'anonymous'; this.initialized = true
     },
     async initialize() {
@@ -36,6 +38,7 @@ export const useAuthStore = defineStore('auth', {
       // JWT 只由 HttpOnly Cookie 保存，Pinia 只保存不含凭据的用户资料。
       useDatasetStore().reset()
       useAnalysisStore().reset()
+      useWorkspaceStore().reset()
       const result = await authApi.login(credentials)
       this.user = result.user
       this.authStatus = 'authenticated'
@@ -46,6 +49,7 @@ export const useAuthStore = defineStore('auth', {
     async register(details) {
       useDatasetStore().reset()
       useAnalysisStore().reset()
+      useWorkspaceStore().reset()
       this.user = await authApi.register(details)
       this.authStatus = 'authenticated'
       this.initialized = true

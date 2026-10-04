@@ -441,6 +441,30 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
         if record.status == "partial":
             record.report_json = {"version": "1.0", "status": "partial", "answer": None, "tables": [record.tool_result_json], "charts": [record.chart_json] if record.chart_json else [], "warnings": [message], "evidence_refs": [], "incomplete_steps": []}
     record.intent_summary = record.intent_summary or record.question[:500]
+    from app.artifacts.manager import ArtifactManager
+    ArtifactManager(db).finalize_record(record)
+    if record.status in {'succeeded','partial'} and (record.request_config_json or {}).get('delivery'):
+        from app.reports.delivery import deliver_record
+        def delivery_event(kind,payload):
+            append_event(db,record,kind,payload)
+            if job_id:
+                job = db.get(BackgroundJob,job_id)
+                job.active_stage,job.stage_started_at = 'report',datetime.now(UTC).replace(tzinfo=None)
+            db.commit()
+        try:
+            delivery = deliver_record(db,record,check_lease,delivery_event)
+            record.report_json = {**(record.report_json or {}),'delivery':delivery}
+            if delivery['status']!='succeeded':
+                record.status = 'partial'
+                record.error_code = 'REPORT_DELIVERY_PARTIAL'
+                record.error_message = '分析结果已保留，部分交付未完成，请查看报告文件状态。'
+        except WorkerLeaseLost:
+            db.rollback(); return
+        except Exception as error:
+            db.rollback(); record = db.get(AnalysisRecord,record_id)
+            record.status,record.error_code = 'partial','REPORT_DELIVERY_FAILED'
+            record.error_message = '分析结果已保留，报告交付失败，请从报告工作区重试。'
+            record.report_json = {**(record.report_json or {}),'delivery':{'status':'partial','error_code':str(error)[:64],'formats':{}}}
     try:
         check_lease()
     except WorkerLeaseLost:

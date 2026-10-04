@@ -34,6 +34,8 @@ class ArtifactStore:
         used = self.db.scalar(select(func.coalesce(func.sum(AnalysisArtifact.size_bytes), 0)).where(owner == record.id)) or 0
         if len(encoded) > self.settings.artifact_max_bytes or used + len(encoded) > self.settings.artifact_task_max_bytes:
             raise ValueError("Artifact budget exceeded")
+        from app.artifacts.manager import ArtifactManager
+        ArtifactManager(self.db, self.settings).check_quota(record.user_id, len(encoded))
         self.root.mkdir(parents=True, exist_ok=True)
         name = stored_name or uuid.uuid4().hex + ".json"
         path = self._path(name)
@@ -42,7 +44,9 @@ class ArtifactStore:
             temp.write_bytes(encoded)
             os.replace(temp, path)
             now = datetime.now(UTC).replace(tzinfo=None)
-            artifact = AnalysisArtifact(record_id=None if independent else record.id, tool_execution_id=record.id if independent else None, user_id=record.user_id, dataset_id=record.dataset_id, step_id=step_id, kind=kind,
+            from app.models import AnalysisRecord
+            owner_record = self.db.get(AnalysisRecord, record.id) if not independent else None
+            artifact = AnalysisArtifact(session_id=owner_record.session_id if owner_record else None, record_id=None if independent else record.id, tool_execution_id=record.id if independent else None, user_id=record.user_id, dataset_id=record.dataset_id, step_id=step_id, kind=kind,
                                         stored_name=name, size_bytes=len(encoded), row_count=len(rows), schema_json=schema, created_at=now,
                                         expires_at=now + timedelta(days=self.settings.artifact_retention_days))
             self.db.add(artifact)
@@ -56,7 +60,7 @@ class ArtifactStore:
         return dict(preview, artifact_id=artifact.id, row_count=len(rows), total=len(rows))
 
     def read(self, artifact):
-        if artifact.expires_at <= datetime.now(UTC).replace(tzinfo=None):
+        if artifact.purged_at or (artifact.expires_at is not None and artifact.expires_at <= datetime.now(UTC).replace(tzinfo=None)):
             raise LookupError("ARTIFACT_EXPIRED")
         try:
             return json.loads(self._path(artifact.stored_name).read_text(encoding="utf-8"))

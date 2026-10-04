@@ -81,10 +81,17 @@ class Planner:
                 schemas[names[signature]] = parameters
             tools.append(dict(tool, parameters={'$ref': f"#/tool_parameter_schemas/{names[signature]}"}))
         budget = getattr(self.adapter, 'budget', None) or RuntimeBudget.for_depth(config['depth'])
+        delivery_tasks = 1+len(config['delivery']['formats']) if config.get('delivery') else 0
+        analysis_task_limit = max(0,budget.max_tasks-delivery_tasks)
         payload = {'question': question[:2000], 'task_id': task_id, 'intent': intent, 'inputs': config['inputs'],
             'datasets': metadata_by_input, 'dataset': metadata_by_input.get(config['inputs'][0]['alias'], {}),
             'profiles': [{k:p[k] for k in ('id','version','name','category','description','expected_metrics','expected_dimensions','preferred_tools','analysis_steps','constraints','prompt_context') if k in p} for p in config['profiles']], 'semantics': config['semantic_snapshot'], 'semantic_version': config['semantic_version'],
             'depth': config['depth'], 'budget': budget.snapshot(), 'tools': tools, 'tool_parameter_schemas': schemas}
+        if delivery_tasks:
+            payload['budget'].update(max_analysis_tasks=analysis_task_limit, reserved_delivery_tasks=delivery_tasks)
+        if config.get('artifact_references'):
+            payload['artifact_references'] = config['artifact_references']
+            payload['referenced_plans'] = config.get('reference_plans',[])
         from datetime import datetime
         from zoneinfo import ZoneInfo
         payload['current_date']=datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()
@@ -100,7 +107,7 @@ class Planner:
                 plan = AnalysisPlanV3.model_validate(raw)
                 if plan.task_id != task_id or plan.intent != intent or [i.model_dump() for i in plan.inputs] != config['inputs']:
                     raise ValueError('PLAN_TASK_INPUT_MISMATCH')
-                if len(plan.steps) > budget.max_tasks:
+                if len(plan.steps) > analysis_task_limit:
                     raise ValueError('PLAN_STEP_LIMIT')
                 trusted_steps = {s.step_id: s for s in prior_plan.steps} if prior_plan else {}
                 for step in plan.steps:

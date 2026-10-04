@@ -214,7 +214,9 @@ class GraphExecutor(WorkflowExecutor):
     def _explore(self, plan):
         if not self.adapter or plan.depth != 'DEEP' or not self.results or not self._budget_available():
             return False
-        remaining = self.budget.max_tasks - len(plan.steps)
+        delivery = (getattr(self.tools, 'configuration', None) or {}).get('delivery')
+        reserved = 1 + len(delivery['formats']) if delivery else 0
+        remaining = self.budget.max_tasks - reserved - len(plan.steps)
         if remaining <= 0:
             return False
         try:
@@ -241,7 +243,7 @@ class GraphExecutor(WorkflowExecutor):
             for step in validation.steps[:len(plan.steps)]:
                 step.status, step.result_ref, step.error, step.retry_count = 'PENDING', None, None, 0
                 step.started_at = step.finished_at = None
-            validate_graph(validation, self.columns, self.tools.permissions, self.budget.max_tasks,getattr(self.tools,'metadata_by_input',None))
+            validate_graph(validation, self.columns, self.tools.permissions, self.budget.max_tasks - reserved,getattr(self.tools,'metadata_by_input',None))
             plan.steps.extend(proposal.steps)
             self.emit('exploration_created', {'trigger_step_id': parent.step_id, 'step_ids': [s.step_id for s in proposal.steps], 'depth': depth, 'reason': proposal.reason})
             return True
@@ -257,6 +259,8 @@ class GraphExecutor(WorkflowExecutor):
         required = {s.step_id for s in plan.steps if s.required} | set(plan.expected_outputs)
         plan.status = 'RUNNING'
         self.emit('plan', plan.model_dump())
+        if self.tools.reuse_steps:
+            self._reuse_completed(plan)
         explored = 0
         replans = 0
         while True:

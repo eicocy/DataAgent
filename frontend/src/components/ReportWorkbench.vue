@@ -7,6 +7,7 @@ const FORMATS = [
   { id: 'xlsx', label: 'Excel' }, { id: 'html', label: 'HTML' },
   { id: 'markdown', label: 'Markdown' }, { id: 'csv', label: 'CSV' },
   { id: 'json', label: 'JSON' },
+  { id: 'python', label: 'Python' }, { id: 'sql', label: 'SQL' },
 ]
 
 export default {
@@ -15,38 +16,48 @@ export default {
     modelValue: { type: Boolean, default: false },
     sessionId: { type: Number, required: true },
     source: { type: Object, default: null },
+    reportId: { type: Number, default: null },
   },
-  emits: ['update:modelValue'],
+  emits: ['update:modelValue', 'changed'],
   data() {
     return { report: null, title: '', sections: [], loading: false, saving: false,
-      exporting: '', errorMessage: '', files: [], formats: FORMATS }
+      exporting: '', errorMessage: '', files: [], formats: FORMATS, requestGeneration: 0,
+      createRequestId: null, exportRequestIds: {}, template: 'auto' }
   },
   watch: {
-    modelValue(value) {
-      if (value && !this.report) this.createReport()
-    },
+    modelValue: { immediate: true, handler(value) { if (value && !this.report) this.createReport() } },
+    sessionId() { this.resetReport() },
+    reportId() { this.resetReport() },
+    'source.record_id'() { if (!this.reportId) this.resetReport() },
   },
   methods: {
+    resetReport() { this.requestGeneration++; this.report = null; this.sections = []; this.files = []; this.createRequestId = null; this.exportRequestIds = {}; this.loading = false; this.exporting = ''; this.saving = false; this.errorMessage = ''; if (this.modelValue) this.createReport() },
     close() { this.$emit('update:modelValue', false) },
     async createReport() {
-      if (!this.source?.record_id || !this.source?.dataset_id || !this.source?.dataset_version_id) return
+      if (this.loading || (!this.reportId && (!this.source?.record_id || !this.source?.dataset_id || !this.source?.dataset_version_id))) return
+      const generation = ++this.requestGeneration
       this.loading = true
       this.errorMessage = ''
       try {
+        if (this.reportId) { const value = await reportsApi.get(this.reportId); if (generation === this.requestGeneration) this.applyReport(value); return }
+        this.createRequestId ||= crypto.randomUUID()
         const response = await reportsApi.create({
           session_id: this.sessionId,
           source_record_ids: [this.source.record_id],
-          spec: { title: '数据分析报告', report_type: 'general', dataset_id: this.source.dataset_id,
+          request_id: this.createRequestId,
+          spec: { title: '数据分析报告', template: this.template, report_type: 'general', dataset_id: this.source.dataset_id,
             dataset_version_id: this.source.dataset_version_id },
         })
-        this.applyReport(await this.waitForReportTask(response.record_id))
+        const value = await this.waitForReportTask(response.record_id, generation)
+        if (generation === this.requestGeneration) { this.applyReport(value.report || value); this.$emit('changed') }
       } catch (error) {
-        this.errorMessage = error.message || '报告生成失败'
-      } finally { this.loading = false }
+        if (generation === this.requestGeneration) this.errorMessage = error.message || '报告生成失败'
+      } finally { if (generation === this.requestGeneration) this.loading = false }
     },
-    async waitForReportTask(recordId) {
+    async waitForReportTask(recordId, generation = this.requestGeneration) {
       const deadline = Date.now() + 300000
       while (Date.now() < deadline) {
+        if (generation !== this.requestGeneration) throw new Error('报告工作区已切换')
         const result = await analysisApi.run(recordId)
         if (result.status === "succeeded") return result.report || {}
         if (["failed", "cancelled"].includes(result.status)) {
@@ -62,12 +73,13 @@ export default {
       this.report = value
       this.title = value.document?.title || value.title
       const configured = value.spec?.sections || []
-      this.sections = (configured.length ? configured : value.document?.sections || []).map((section) => ({ ...section }))
+      this.sections = (value.document?.sections?.length ? value.document.sections : configured).map((section) => ({ ...section }))
     },
     async saveReport() {
       if (!this.report || this.saving) return
       this.saving = true
       this.errorMessage = ''
+      const generation = this.requestGeneration
       try {
         const spec = { ...this.report.spec, report_id: this.report.id,
           base_version: this.report.version, title: this.title.trim(),
@@ -75,27 +87,31 @@ export default {
         const response = await reportsApi.update(this.report.id, {
           session_id: this.sessionId, source_record_ids: this.report.source_record_ids, spec,
         })
-        this.applyReport(response)
+        if (generation === this.requestGeneration) { this.applyReport(response); this.$emit('changed') }
       } catch (error) {
-        this.errorMessage = error.code === 'REPORT_VERSION_CONFLICT'
+        if (generation === this.requestGeneration) this.errorMessage = error.code === 'REPORT_VERSION_CONFLICT'
           ? '报告版本已更新，请重新打开后继续编辑。' : error.message || '报告保存失败'
-      } finally { this.saving = false }
+      } finally { if (generation === this.requestGeneration) this.saving = false }
     },
     async exportReport(format) {
       if (!this.report || this.exporting) return
       this.exporting = format
       this.errorMessage = ''
+      const generation = this.requestGeneration
       try {
-        const task = await reportsApi.export(this.report.id, this.report.version, format)
-        const result = await this.waitForReportTask(task.record_id)
-        this.files = [...(result.artifacts || []), ...this.files]
+        const key = `${this.report.id}:${this.report.version}:${format}`
+        this.exportRequestIds[key] ||= crypto.randomUUID()
+        const task = await reportsApi.export(this.report.id, this.report.version, format, { requestId: this.exportRequestIds[key] })
+        const result = await this.waitForReportTask(task.record_id, generation)
+        if (generation === this.requestGeneration) { this.files = [...(result.artifacts || []), ...this.files.filter(item => !result.artifacts?.some(file => file.artifact_id === item.artifact_id))]; this.$emit('changed') }
       } catch (error) {
-        this.errorMessage = error.message || '导出失败，请重试'
-      } finally { this.exporting = '' }
+        if (generation === this.requestGeneration) this.errorMessage = error.message || '导出失败，请重试'
+      } finally { if (generation === this.requestGeneration) this.exporting = '' }
     },
     removeSection(index) { if (this.sections.length > 1) this.sections.splice(index, 1) },
     artifactUrl(file) { return file.download_url }
   },
+  beforeUnmount() { this.requestGeneration++ },
 }
 </script>
 
@@ -124,6 +140,7 @@ export default {
       <aside class="report-tools">
         <div class="report-toolbar"><h3>导出格式</h3><el-button plain :loading="saving" @click="saveReport">保存新版本</el-button></div>
         <p class="report-help">修改章节后保存会创建不可变新版本；之前生成的文件仍关联原版本。</p>
+        <p class="report-help">计算指标来自固定版本证据。用户修改的标题和文案会在新版本中标记。</p>
         <div class="report-format-grid"><el-button v-for="item in formats" :key="item.id" plain :loading="exporting === item.id" :disabled="Boolean(exporting)" @click="exportReport(item.id)">{{ item.label }}</el-button></div>
         <div v-if="files.length" class="report-files"><h3>已生成文件</h3><a v-for="(file, index) in files" :key="`${file.artifact_id}-${index}`" :href="artifactUrl(file)"><span>{{ file.file_name }}</span><small>{{ Math.ceil(file.size_bytes / 1024) }} KB</small></a></div>
         <p v-if="errorMessage" class="report-error" role="alert">{{ errorMessage }}</p>

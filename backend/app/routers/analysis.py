@@ -37,6 +37,9 @@ class AnalysisChatRequest(BaseModel):
     depth: str | None = Field(default=None, pattern=r'^(FAST|STANDARD|DEEP)$')
     category: str | None = Field(default=None, max_length=50)
     model_id: str | None = Field(default=None, max_length=100)
+    artifact_refs: list[int] = Field(default_factory=list, max_length=10)
+    report_template: str | None = Field(default=None, pattern=r'^(auto|quick|detailed|executive|technical|data_quality|forecast)$')
+    output_formats: list[str] = Field(default_factory=list, max_length=9)
 
     @field_validator("question")
     @classmethod
