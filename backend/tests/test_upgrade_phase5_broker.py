@@ -140,3 +140,23 @@ def test_oom_during_ready_probe_keeps_kernel_failure_code():
     request=RunRequest.model_validate({'code':'result={"x":2}','owner':'b'*64,'inputs':[{'alias':'primary','dataset_id':1,'dataset_version_id':2,'columns':['x'],'rows':[{'x':1}]}]})
     broker.run(job,request)
     assert job.error_code=='SANDBOX_OOM'
+
+
+def test_failed_probe_waits_for_container_exit_reason():
+    import time
+    module=broker_module(); engine=Engine(); reloads=[]
+    container=SimpleNamespace(attach_socket=lambda **kw:SimpleNamespace(_sock=SimpleNamespace(sendall=lambda body:None),close=lambda:None),
+        start=lambda:None,attrs={'State':{'Running':True}},remove=lambda **kw:None)
+    def reload():
+        reloads.append(True)
+        # Docker exec can fail while the main process exits, before inspect
+        # exposes its final code. The trusted runner's code 3 means quota.
+        if len(reloads)>=3: container.attrs['State']={'Running':False,'ExitCode':3}
+    container.reload=reload; container.exec_run=lambda *args,**kwargs:(137,b'')
+    engine.containers.create=lambda **kw:container
+    broker=module.Broker(engine,'trusted-image'); now=time.monotonic()
+    job=module.Job('a'*32,'b'*64,now+10,now+10); broker.jobs[job.id]=job
+    from app.sandbox.protocol import RunRequest
+    request=RunRequest.model_validate({'code':'result={"x":2}','owner':'b'*64,'inputs':[{'alias':'primary','dataset_id':1,'dataset_version_id':2,'columns':['x'],'rows':[{'x':1}]}]})
+    broker.run(job,request)
+    assert job.error_code=='SANDBOX_OUTPUT_LIMIT'

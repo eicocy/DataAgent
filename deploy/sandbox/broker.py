@@ -171,12 +171,16 @@ class Broker:
                     container.reload()
                     if container.attrs['State'].get('OOMKilled'): raise ValueError('SANDBOX_OOM') from None
                     if container.attrs['State'].get('ExitCode') == 3: raise ValueError('SANDBOX_OUTPUT_LIMIT') from None
+                    if container.attrs['State'].get('Running'): continue
                     raise
                 if ready == 3: continue
                 if ready != 0:
                     container.reload()
                     if container.attrs['State'].get('OOMKilled'): raise ValueError('SANDBOX_OOM')
                     if container.attrs['State'].get('ExitCode') == 3: raise ValueError('SANDBOX_OUTPUT_LIMIT')
+                    # Exec may lose the race with a runner exiting. Wait for
+                    # inspect's final reason; the job deadline still bounds us.
+                    if container.attrs['State'].get('Running'): continue
                     raise ValueError('SANDBOX_OUTPUT_INVALID')
                 exported = container.exec_run(['python','-I','/opt/export_output.py','archive'],stream=True)
                 chunks = exported.output
