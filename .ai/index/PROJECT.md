@@ -9,4 +9,4 @@ infrastructure: backend/app/config.py、database.py；backend/migrations/；depl
 navigation: MODULES.md；源码优先于索引；中文设计目录与产品原型是历史资料
 phase2: docs/tool-development.md、analysis-capabilities.md、phase2.md；0007_analysis_engine；不开放通用工具执行 API
 phase4-v2.0.0: docs/phase4-implementation.md；0009_workspace_reports；多格式上传、图表渲染与版本化报告；开发验收状态，不是正式发行
-ai-workspace-upgrade: docs/UPGRADE_PLAN.md、UPGRADE_PROGRESS.md、phase2-workspace.md、phase3-workspace.md、phase4-workspace.md；Phase 1 对话入口/上传队列；Phase 2 Profile/语义/多输入 DAG；Phase 3 文件确认/清洗/Join/业务/预测；Phase 4 Artifact/引用/报告/自动交付，0012；Phase 5 沙箱未实施
+ai-workspace-upgrade: docs/UPGRADE_PLAN.md、UPGRADE_PROGRESS.md、phase2-workspace.md、phase3-workspace.md、phase4-workspace.md、phase5-workspace.md；Phase 1 对话入口/上传队列；Phase 2 Profile/语义/多输入 DAG；Phase 3 文件确认/清洗/Join/业务/预测；Phase 4 Artifact/引用/报告/自动交付，0012；Phase 5 默认关闭的独立沙箱/资源与恢复加固/备份，迁移头仍 0012；部署准备见 docs/operations.md

@@ -66,7 +66,9 @@ docs/phase2-workspace.md；migrations/versions/0010_analysis_profiles.py：新�
 
 analysis/{business_tools,forecast_tools,join_tools,quality_tools}.py、semantic/business_validation.py：新版 Phase 3 的 Decimal KPI/周期/贡献、三折预测、关系校验 Join、公开质量分；graph_executor/plan_validator 维护输入来源/语义/并行预算，execution/evidence.py 区分比例与百分数事实。
 
-docs/phase3-workspace.md：Phase 3 契约和精度/预测/提取限制；Artifact 升级与 Python 沙箱待 Phase 4/5。
+docs/phase3-workspace.md：Phase 3 契约和精度/预测/提取限制；Artifact 与报告升级见 phase4-workspace.md，默认关闭的独立沙箱见 phase5-workspace.md。
+
+backend/app/sandbox/{settings,validator,protocol,client,results,agent,artifacts}.py；deploy/sandbox/{broker,runtime,export_output}.py：私有 Agent 受限提案、固定授权版本快照、Docker broker、资源/租约与输出校验；工具证据和报告沿用既有链路。无任意代码公开路由。deploy/backup.py 与 docs/operations.md 管理离线备份和部署准备，默认迁移头不变。
 
 docs/tool-development.md；docs/analysis-capabilities.md；docs/phase2.md；backend/migrations/versions/0007_analysis_engine.py
 

@@ -23,6 +23,8 @@ docker compose -f compose.yaml -f compose.sandbox.yaml --profile sandbox up --bu
 
 普通注册工具优先，最多两次受控规划仍找不到对应方法时才提出受限代码；参数错误、清洗发布和已有工具不会获得代码执行授权。应用与 broker/runner 各做 AST 校验；禁止系统/网络/进程/动态导入、eval/exec、pickle 和任意文件读写。结果来自自定义方法，需要用户核对统计前提；攻击测试不是安全认证，Docker 容器也不是专用于高对抗多租户的虚拟机边界。
 
+代码提案的模型上下文只有字段、类型、行数与固定绑定，不含原始行；原始快照仅由服务器授权加载并通过 STDIN 进入执行容器。`apply/agg/map/transform` 等高阶调用限制为显式安全统计名或受限 lambda，拒绝动态函数分派和别名绕过。Docker archive API 无法读取 tmpfs，输出由镜像中固定的受信任导出器收集，参见 [Docker cp 的限制](https://docs.docker.com/reference/cli/docker/container/cp/#corner-cases)。成功读取后 DELETE 释放结果，broker 合计驻留输出上限 128 MiB，UTF-8 JSON 不进行 ASCII 膨胀。
+
 任务取消/租约失效会请求销毁，客户端停止续租后 broker 最多五秒清理；broker 重启仅清理自身 scope 的执行容器。broker 不可用、内核缺少限额或镜像协议不匹配时明确失败，不回退宿主执行。导出 Python 重现自定义方法同样需要 broker；专用令牌只从环境读取，不写进脚本。
 
 ## 一致性备份

@@ -2,6 +2,8 @@
 
 Phase 4 v2.0.0 additions: see `docs/phase4-implementation.md` for session workspace, expanded data formats, chart rendering, report versions/export, artifact preview/download, and acceptance status.
 
+V2.0.5 Phase 5: `backend/app/sandbox/` provides default-off restricted execution through `deploy/sandbox/broker.py` and fixed Docker images; `deploy/backup.py`, `compose.sandbox.yaml`, `docs/operations.md` provide backup and deployment preparation. No public arbitrary-code API; database head remains 0012. Scope and actual validation: `docs/phase5-workspace.md`.
+
 ## datasets
 path: backend/app/services/datasets.py；backend/app/routers/datasets.py
 role: 表格/文档上传、候选确认、类型/质量画像、固定版本投影与授权加载、清洗/Join 发布

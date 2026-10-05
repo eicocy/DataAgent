@@ -87,9 +87,21 @@ Pre-flight: Composer 上传复用 Dataset API/Store；附件存 Session JSON，�
 
 独立审查调用因账号用量限制失败，未取得审查结论；没有新增真实模型调用、部署或压力/大规模兼容性测试。最终证据和边界写在上述工作区文档，不声称未验证范围通过。
 
-## Phase 5
+### V2.0.4 发行收口
 
-尚未实施。本轮停止于 Phase 4。
+用户验收 Phase 4 后授权提交、推送与发行。提交 `8ab210d` 已推送 main、功能分支和原目标不变的标签 V2.0.4，正式 [GitHub Release](https://github.com/eicocy/DataAgent/releases/tag/V2.0.4) 已发布。三个引用对应的强制 CI 均成功。本地配置、凭据及 `plan/` 排除在提交之外；没有执行生产部署或业务库迁移。
+
+## Phase 5 — V2.0.5
+
+基线 `8ab210d` / V2.0.4，分支 `codex/phase5-v2.0.5`。任务 1–4 实现完成，任务 5 集中验收完成后进行版本提交、推送与发行，不推进后续扩展。详见 [实施与实际验收](phase5-workspace.md)、[发行说明](releases/v2.0.5.md)、[运行手册](operations.md)。
+
+交付默认关闭的独立 Python 沙箱、严格 AST/固定输入输出、受控未知能力提案、现有 Engine/证据/Artifact/报告接入；模型提案不接收原始行。固定 Docker 隔离及资源上限，取消/租约/超时/OOM/输出配额与重启清理明确处理。安全日志、Nginx SSE、可选 Compose 和 SHA-256 manifest 备份恢复完成。迁移头保持 0012，无任意代码公开接口或宿主回退。
+
+按用户测试策略，开发中运行最小必要检查和固定 Provider，已通过检查仅在相关新改动或失败后重跑。一次独立整分支审查无 Critical，四项 Important 全部复现并修复，相关组合 34 passed。报告事实绑定 8 passed；overview/取消/固定 Provider 链路 4 passed；Docker 退出状态竞争 3 passed。Linux CI `37261657008` 对提交 `8decc08` 的 backend/frontend/sandbox 全部成功，包含真实容器的计算、PNG、资源隔离、OOM/超时/输出配额、取消/租约/重启清理及 Nginx 配置；最终发行提交的 CI 另以 Actions 为准。
+
+真实 `deepseek-flash` 小样例工作流只执行一次，共 3 次调用、9,218 Token；两行一列的模拟数据计算与事实回答正确。报告首次暴露表格事实读取错误，修复后复用已存结果，成功生成 PDF/DOCX/XLSX 并认证预览/下载；PDF 与 Word 各四页实际查看，Excel 原始两行/来源正确。实际 Vue 浏览器检查结果、成果恢复、报告工作区、PDF/Excel 预览和文件下载，控制台无错误；SSE 回放和 Last-Event-ID 重连通过。修复前缓存的 overview 预览未重写，真实文件/答案/报告事实与新预览回归单独核对。
+
+真实隔离 MySQL 0009→0012、旧 Plan/Session 保留与 Profile 105 初始化，1 passed；mysqldump、归档验证、文件恢复及新隔离库 SQL 恢复通过，仅清理本次测试库。本机 Windows Docker 引擎未就绪，容器实测由 Linux CI 完成。未生产部署、业务库迁移、压力/大规模兼容性测试、安全认证或付费模型与真实 broker 组合验收；用户配置和 `plan/` 保持。
 
 ## V2.0.2 — Phase 2 发行收口
 

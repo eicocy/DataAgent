@@ -92,4 +92,6 @@ Plan 1/2 compatibility and Plan 3 owned fixed-input graphs, persistent conversat
 
 Kendall, normality tests, t tests, chi-square and ANOVA are not registered or advertised as Available.
 
-Dynamic Python and sandbox execution, automatic multi-format reports, a cache platform and machine-learning infrastructure remain reserved future scope.
+Automatic multi-format reports are implemented in Phase 4. Phase 5 adds default-off restricted Python execution through an independent Docker broker, only after missing registered capabilities; it is a private Agent path, not a registered public code tool. Configured status and broker health are exposed by workspace capabilities. See [Phase 5 scope and verification](phase5-workspace.md).
+
+A cache platform and machine-learning infrastructure remain reserved future scope.

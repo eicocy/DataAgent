@@ -1,6 +1,6 @@
 # DataLens Agent
 
-**当前发行版本 V2.0.4：AI-Native Workspace 升级 Phase 4。** 本版基于 V2.0.3，新增 Artifact 引用与长期留存、会话成果恢复、七种报告模板、完整明细与代码导出，以及同一监督任务内的自动交付。版本内容与真实验证边界见 [V2.0.4 发行说明](docs/releases/v2.0.4.md)、[Phase 4 工作区](docs/phase4-workspace.md)、[升级计划](docs/UPGRADE_PLAN.md) 与 [交付记录](docs/UPGRADE_PROGRESS.md)。运行本版前需备份并升级数据库至 0012。Phase 5 Python 沙箱未实施。旧版 Phase 4 开发记录属于 v2.0.0 基线。
+**当前发行版本 V2.0.5：AI-Native Workspace 升级 Phase 5。** 本版基于 V2.0.4，新增默认关闭的独立 Python 沙箱、任务与输出加固、备份恢复工具和部署准备手册；沿用 Artifact、会话成果和多格式报告。版本内容与真实验证边界见 [V2.0.5 发行说明](docs/releases/v2.0.5.md)、[Phase 5 工作区](docs/phase5-workspace.md)、[运行手册](docs/operations.md)、[升级计划](docs/UPGRADE_PLAN.md) 与 [交付记录](docs/UPGRADE_PROGRESS.md)。迁移头仍为 0012，旧库运行前需备份并升级。普通分析不依赖沙箱，启用需另行配置并验证 broker。旧版 Phase 4 开发记录属于 v2.0.0 基线。
 
 中文数据分析工作台：上传 CSV/XLSX，使用自然语言提出问题，核对受控工具的真实计算结果、执行步骤、数据质量说明和 ECharts 图表。模型生成计划和解释，白名单工具执行计算；面向单机小规模部署。
 
