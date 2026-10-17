@@ -65,6 +65,8 @@ class Planner:
             wanted.update(profile['preferred_tools'])
         import re
         if re.search(r'预测|未来|forecast',question,re.I):wanted.add('forecast')
+        if re.search(r'前\s*\d+|后\s*\d+|top\s*\d+|最多|最少|最高|最低|排名|排行',question,re.I):
+            wanted.update({'top_n','bottom_n'})
         if len(config['inputs'])>1:wanted.add('join_data')
         if intent == 'DATA_CLEANING':
             from app.agent.tool_policy import CLEANING_TOOLS

@@ -202,6 +202,47 @@ def test_invalid_plan_diagnostic_survives_run_history_and_session(analysis_conte
     assert any(m.get('analysis_record',{}).get('error_info')==run for m in session['messages'] if m.get('analysis_record'))
 
 
+def test_group_count_can_sort_by_its_own_output_alias():
+    """A top-ten request sorts the computed count, not a raw dataset column."""
+    from app.agent.planner import Planner
+    from app.agent.providers import FakeLLMProvider
+    from app.agent.context import ConversationContext
+    from app.analysis.models import Permission
+    binding={'alias':'primary','dataset_id':1,'dataset_version_id':4}
+    raw={'task_id':'count','goal':'genres top10','intent':'DATA_ANALYSIS','dataset_id':1,'dataset_version_id':4,
+         'inputs':[binding],'steps':[{'step_id':'genres_count','tool_name':'groupby_aggregate',
+         'arguments':{'dimensions':['genres'],'metrics':[{'column':'movieid','aggregation':'count','alias':'movie_count'}],
+                      'sort':[{'column':'movie_count','direction':'desc'}],'limit':10}}]}
+    class CaptureProvider(FakeLLMProvider):
+        def generate_structured(self,name,payload,schema):
+            self.payload=payload
+            return super().generate_structured(name,payload,schema)
+    provider=CaptureProvider([raw,raw])
+    plan=Planner(provider).plan_v3('按 genres 统计电影数量，取前10组',
+        {'primary':{'columns':[{'name':'movieid','data_type':'integer'},{'name':'genres','data_type':'string'}]}},
+        ConversationContext(conversation_id=1,user_id=1),task_id='count',intent='DATA_ANALYSIS',
+        config={'inputs':[binding],'profiles':[],'semantic_snapshot':[],'semantic_version':0,'depth':'STANDARD'},
+        permissions=frozenset({Permission.READ_DATA}))
+    assert plan.steps[0].arguments['sort'][0]['column']=='movie_count'
+    assert {'top_n','bottom_n'} <= {tool['name'] for tool in provider.payload['tools']}
+
+
+def test_aggregate_output_sort_still_rejects_unknown_source_and_output_columns():
+    import pytest
+    from app.agent.schemas import AnalysisPlanV3
+    from app.agent.task_graph import validate_graph
+    from app.analysis.models import Permission
+    binding={'alias':'primary','dataset_id':1,'dataset_version_id':4}
+    for metric,sort_column in [('missing_raw','movie_count'),('movieid','missing_result')]:
+        plan=AnalysisPlanV3.model_validate({'task_id':'bad','goal':'count','intent':'DATA_ANALYSIS',
+            'dataset_id':1,'dataset_version_id':4,'inputs':[binding],
+            'steps':[{'step_id':'count','tool_name':'groupby_aggregate','arguments':{
+                'dimensions':['genres'],'metrics':[{'column':metric,'aggregation':'count','alias':'movie_count'}],
+                'sort':[{'column':sort_column,'direction':'desc'}]}}]})
+        with pytest.raises(ValueError,match='COLUMN_NOT_FOUND'):
+            validate_graph(plan,{'primary':{'movieid':'integer','genres':'string'}},frozenset({Permission.READ_DATA}))
+
+
 def test_migration_preserves_legacy_records(tmp_path,monkeypatch):
     from alembic import command
     from alembic.config import Config

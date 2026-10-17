@@ -67,7 +67,22 @@ class PlanValidator:
             except ValueError as exc:
                 raise ValueError("TOOL_ARGUMENTS_INVALID") from exc
             if (step.source_ref == "dataset" or known_source) and step.tool_name != "sql_query":
-                for field in self._referenced_fields(step.arguments):
+                source_arguments = step.arguments
+                if step.tool_name in {'aggregate', 'groupby_aggregate'}:
+                    # These tools sort after aggregation. Output aliases do not exist in the raw schema.
+                    source_arguments = {key:value for key,value in step.arguments.items() if key!='sort'}
+                    output_columns = set(step.arguments.get('dimensions', [])) | {
+                        metric.get('alias') or f"{metric['column']}_{metric['aggregation']}"
+                        for metric in step.arguments.get('metrics', [])
+                        if isinstance(metric.get('column'), str)
+                    }
+                    for sort in step.arguments.get('sort', []):
+                        if isinstance(sort.get('column'), str) and sort['column'] not in output_columns:
+                            error = ValueError('COLUMN_NOT_FOUND')
+                            error.details = {'column':sort['column'], 'step_id':step.step_id,
+                                             'tool_name':step.tool_name, 'expected_type':'聚合输出字段或分组字段'}
+                            raise error
+                for field in self._referenced_fields(source_arguments):
                     if field not in step_columns:
                         error = ValueError('COLUMN_NOT_FOUND')
                         error.details = {'column':field, 'step_id':step.step_id, 'tool_name':step.tool_name}
