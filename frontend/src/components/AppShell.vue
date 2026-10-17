@@ -8,6 +8,7 @@ import { analysisApi } from '../api/analysis'
 export default {
   name: 'AppShell',
   components: { DataAnalysis, Files, ChatLineRound, Clock, UserFilled, Plus, Star, EditPen, Delete, Menu },
+  props: { chat: Boolean, title: { type: String, default: '' } },
   data() {
     return { recentSessions: [], recentLoading: false, mobileSidebarOpen: false,
       editingSessionId: null, editingTitle: '', renameSaving: false,
@@ -92,23 +93,21 @@ export default {
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'chat-shell': chat }">
     <button v-if="mobileSidebarOpen" type="button" class="sidebar-backdrop" aria-label="关闭导航" @click="mobileSidebarOpen = false"></button>
     <aside id="workspace-navigation" class="sidebar" :class="{ 'is-open': mobileSidebarOpen }" aria-label="主导航">
       <router-link class="brand" :to="{ name: 'workspace' }">
         <span class="brand-mark"><el-icon><DataAnalysis /></el-icon></span>
-        <span><strong>DataLens</strong><small>AGENT WORKSPACE</small></span>
+        <span><strong>DataLens</strong></span>
       </router-link>
-      <p class="nav-caption">工作空间</p>
+
       <nav class="nav-list">
         <router-link class="nav-item" :to="{ name: 'workspace' }" exact-active-class="is-active" @click="mobileSidebarOpen = false">
-          <el-icon><Plus /></el-icon><span>新分析</span>
+          <el-icon><Plus /></el-icon><span>新对话</span>
         </router-link>
-        <router-link class="nav-item" to="/templates" @click="mobileSidebarOpen = false"><el-icon><DataAnalysis /></el-icon><span>分析模板</span></router-link>
-        <router-link class="nav-item" to="/datasets" @click="mobileSidebarOpen = false"><el-icon><Files /></el-icon><span>数据集</span></router-link>
-        <router-link class="nav-item" to="/files" @click="mobileSidebarOpen = false"><el-icon><Files /></el-icon><span>文件与工件</span></router-link>
+        <router-link class="nav-item" to="/files" @click="mobileSidebarOpen = false"><el-icon><Files /></el-icon><span>文件</span></router-link>
       </nav>
-      <details class="sidebar-more"><summary>更多</summary><nav class="nav-list"><router-link class="nav-item" to="/overview">工作区概览</router-link><router-link class="nav-item" to="/sessions">全部会话</router-link><router-link class="nav-item" to="/history">分析历史</router-link></nav></details>
+      <details class="sidebar-more"><summary>更多</summary><nav class="nav-list"><router-link class="nav-item" to="/datasets">数据集</router-link><router-link class="nav-item" to="/templates">分析模板</router-link><router-link class="nav-item" to="/history">历史记录</router-link><router-link class="nav-item" to="/overview">概览</router-link><router-link class="nav-item" to="/sessions">全部会话</router-link></nav></details>
       <section class="sidebar-conversations" aria-label="最近会话">
         <div class="sidebar-section-heading"><span>最近会话</span><button type="button" aria-label="新建分析" @click="newConversation"><el-icon><Plus /></el-icon></button></div>
         <p v-if="sidebarError" class="sidebar-error" role="alert">{{ sidebarError }}</p>
@@ -121,7 +120,7 @@ export default {
         </div>
       </section>
       <div class="sidebar-bottom">
-        <div class="evidence-note"><span class="evidence-dot"></span><span>每个结论都有数据依据</span></div>
+
         <button class="profile-button" type="button" @click="signOut">
           <span class="avatar"><el-icon><UserFilled /></el-icon></span>
           <span class="profile-copy"><strong>{{ user?.username || '用户' }}</strong><small>退出登录</small></span>
@@ -132,8 +131,7 @@ export default {
     <div class="workspace">
       <header class="topbar">
         <button type="button" class="mobile-menu-button" :aria-expanded="mobileSidebarOpen" aria-controls="workspace-navigation" aria-label="打开导航" @click="mobileSidebarOpen = !mobileSidebarOpen"><el-icon><Menu /></el-icon></button>
-        <span class="breadcrumb">Data workspace <span>/</span> {{ $route.meta.title }}</span>
-        <div class="topbar-status"><span class="status-pulse"></span>本地工作区</div>
+        <span class="breadcrumb" :title="title || $route.meta.title">{{ title || $route.meta.title }}</span><div class="topbar-actions"><slot name="actions" /></div>
       </header>
       <main class="page-content"><slot /></main>
     </div>

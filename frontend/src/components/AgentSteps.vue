@@ -11,7 +11,8 @@ const labels = { pending: '等待执行', running: '执行中', succeeded: '已�
 export default {
   name: 'AgentSteps',
   components: { ErrorInfoPanel },
-  props: { trace: { type: Object, default: null }, calls: { type: Array, default: () => [] } },
+  props: { trace: { type: Object, default: null }, calls: { type: Array, default: () => [] }, compact: Boolean },
+  emits: ['diagnostic'],
   computed: { steps() { return ['2.0', '3.0'].includes(this.trace?.plan?.version) ? this.trace.plan.steps || [] : (this.trace?.steps?.length ? this.trace.steps : this.calls) } },
   methods: {
     stepLabel(step) { return toolLabels[step.tool_name] || '执行分析步骤' },
@@ -28,13 +29,14 @@ export default {
 </script>
 <template>
   <section aria-label="分析步骤" aria-live="polite">
-    <p v-if="trace?.plan?.goal">{{ trace.plan.goal }}</p>
-    <p v-if="!steps.length" class="caption">提交后将显示已保存的执行步骤。</p>
+    <p v-if="!compact && trace?.plan?.goal">{{ trace.plan.goal }}</p>
+    <p v-if="!compact && !steps.length" class="caption">提交后将显示已保存的执行步骤。</p>
     <article v-for="(step, index) in steps" :key="step.step_id || step.call_id || step.tool_call_id || index" class="tool-evidence">
       <div class="tool-evidence-title"><strong>{{ stepLabel(step) }}</strong><span>{{ duration(step) }} ms</span></div>
-      <p>{{ statusLabel(step.status) }} · {{ step.result_summary || step.summary || '' }}</p>
+      <p>{{ statusLabel(step.status) }}<span v-if="!compact"> · {{ step.result_summary || step.summary || '' }}</span></p>
       <p v-if="trace?.plan?.version === '3.0'" class="caption">数据：{{ step.input_alias }}<span v-if="step.depends_on?.length"> · 依赖：{{ step.depends_on.join('、') }}</span><span v-if="step.exploration_parent"> · 探索来源：{{ step.exploration_parent }}</span></p>
-      <ErrorInfoPanel :info="stepError(step)" :message="step.error_message || step.error?.message || ''" />
+      <button v-if="compact && (stepError(step) || step.status === 'FAILED' || step.status === 'failed')" type="button" class="step-diagnostic-link" @click="$emit('diagnostic')">查看失败原因</button>
+      <ErrorInfoPanel v-if="!compact" :info="stepError(step)" :message="step.error_message || step.error?.message || ''" />
       <details><summary>查看工具与参数</summary><code>{{ step.tool_name }}</code><pre>{{ JSON.stringify(step.parameters || step.arguments || {}, null, 2) }}</pre></details>
     </article>
   </section>

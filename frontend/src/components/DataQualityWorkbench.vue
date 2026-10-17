@@ -4,7 +4,7 @@ import { percentText } from '../utils/exactDecimal'
 
 export default {
   name: 'DataQualityWorkbench',
-  props: { datasetId: Number, versionId: Number, result: Object },
+  props: { datasetId: Number, versionId: Number, result: Object, compact: Boolean },
   data() {
     return { quality: null, loading: false, error: '', token: 0 }
   },
@@ -35,7 +35,7 @@ export default {
       }
     },
     rate(value) { return value == null ? '未提供' : percentText(String(value)) },
-    samples(finding) { return finding.row_refs?.slice(0, 100).join('、') || '无样例' },
+    samples(finding) { return finding.row_refs?.slice(0, this.compact ? 10 : 100).join('、') || '无样例' },
     checkLabel(check) {
       return ({ missing_value_analysis: '缺失值检查', duplicate_detection: '重复记录检查',
         outlier_detection: '异常值检查', data_type_check: '字段类型检查' })[check] || check
@@ -58,9 +58,9 @@ export default {
       <p>{{ data.explanation }}</p>
       <div class="table-wrap phase3-table">
         <table class="data-table">
-          <thead><tr><th>问题</th><th>字段</th><th>严重程度</th><th>完整数量</th><th>建议</th><th>行号样例（最多100条）</th></tr></thead>
+          <thead><tr><th>问题</th><th>字段</th><th>严重程度</th><th>完整数量</th><th>建议</th><th>行号样例（最多{{ compact ? 10 : 100 }}条）</th></tr></thead>
           <tbody>
-            <tr v-for="(item, index) in data.findings" :key="index">
+            <tr v-for="(item, index) in compact ? data.findings.slice(0, 10) : data.findings" :key="index">
               <td>{{ item.issue }}</td><td>{{ item.column || '整表' }}</td>
               <td>{{ item.severity === 'error' ? '错误' : item.severity === 'warning' ? '警告' : '未提供' }}</td>
               <td>{{ item.count }}</td><td>{{ item.suggestion || '未提供' }}</td><td>{{ samples(item) }}</td>
@@ -82,9 +82,9 @@ export default {
       <p>此结果按单项检查的原始口径展示数量、比例、状态及阈值。</p>
       <div class="table-wrap phase3-table">
         <table class="data-table">
-          <thead><tr><th>字段</th><th>完整数量</th><th>比例</th><th>检查状态</th><th>下界</th><th>上界</th><th>行号样例（最多100条）</th></tr></thead>
+          <thead><tr><th>字段</th><th>完整数量</th><th>比例</th><th>检查状态</th><th>下界</th><th>上界</th><th>行号样例（最多{{ compact ? 10 : 100 }}条）</th></tr></thead>
           <tbody>
-            <tr v-for="(item, index) in data.findings" :key="index">
+            <tr v-for="(item, index) in compact ? data.findings.slice(0, 10) : data.findings" :key="index">
               <td>{{ item.column || '整表' }}</td><td>{{ item.count }}</td><td>{{ rate(item.rate) }}</td>
               <td>{{ item.status ?? '未提供' }}</td><td>{{ item.lower ?? '未提供' }}</td><td>{{ item.upper ?? '未提供' }}</td><td>{{ samples(item) }}</td>
             </tr>

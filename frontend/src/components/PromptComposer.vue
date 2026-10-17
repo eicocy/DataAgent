@@ -64,10 +64,10 @@ export default {
   <form novalidate class="prompt-composer" :class="{ 'is-dragging': dragging }" @submit.prevent="submit" @dragover.prevent="dragging = !busy" @dragleave.prevent="dragging = false" @drop.prevent="files">
     <div v-if="$slots.attachments || $slots.default" class="composer-attachments"><slot name="attachments"><slot /></slot></div>
     <label class="sr-only" for="analysis-question">分析问题</label>
-    <textarea id="analysis-question" ref="question" class="resize-none" :value="modelValue" :disabled="busy" maxlength="2000" rows="3" placeholder="描述你的业务问题，或拖入数据文件…" @input="input" @keydown="handleEnter" @compositionstart="composing = true" @compositionend="composing = false"></textarea>
+    <textarea id="analysis-question" ref="question" class="resize-none" :value="modelValue" :disabled="busy" maxlength="2000" rows="3" placeholder="输入问题…" @input="input" @keydown="handleEnter" @compositionstart="composing = true" @compositionend="composing = false"></textarea>
     <div class="prompt-toolbar">
       <input ref="fileInput" class="sr-only" type="file" multiple :accept="accept" aria-label="选择数据文件" :disabled="busy" @change="files" />
-      <el-button native-type="button" class="composer-file" :disabled="busy" aria-label="添加附件" title="添加附件" @click="$refs.fileInput.click()"><el-icon><Plus /></el-icon></el-button>
+      <slot name="add" :upload="() => $refs.fileInput.click()"><el-button native-type="button" class="composer-file" :disabled="busy" aria-label="添加附件" title="添加附件" @click="$refs.fileInput.click()"><el-icon><Plus /></el-icon></el-button></slot>
       <ComposerSettingsPopover :catalog="catalog" :capabilities="capabilities" :options="options" :busy="busy" @option-change="$emit('option-change', $event)" @template-select="chooseTemplate" />
       <span class="composer-summary" :title="summary" aria-label="当前分析配置">{{ summary }}</span>
       <el-button v-if="busy && interruptible" native-type="button" class="composer-send composer-interrupt run-stop-button" :disabled="interruptDisabled || interrupting" :aria-label="interrupting ? '正在中断分析' : '中断分析'" :title="interrupting ? '正在中断，等待服务端确认' : '中断分析'" :aria-busy="interrupting" @click="interrupt"><span v-if="interrupting" class="run-stop-spinner" aria-hidden="true"></span><span class="run-stop-glyph" aria-hidden="true"></span><span class="sr-only">{{ interrupting ? '正在中断…' : '中断' }}</span></el-button>

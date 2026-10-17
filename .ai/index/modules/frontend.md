@@ -1,5 +1,9 @@
 # frontend
 
+V2.0.6 对话布局：AppShell.chat 隔离滚动与管理页样式，AnalysisWorkspace 默认单栏且不自动打开右侧。ChatMessage 绑定原 record_id；SafeMarkdown 使用 markdown-it@15.0.3（html/image 关闭、安全链接），LazyChart 管理视口挂载与释放。utils/chatResults 按 expected_outputs/图表来源/旧保存顺序选择去重结果；AnalysisResult.presentation 默认 full，chat 展示两图一表十行，ForecastResult/BusinessResult/DataQualityWorkbench 可选 compact 模式，必要单位/限制保留。
+
+消息 preview/files/report/retry -> 工作台独立 previewSelection/AbortController/reportSource；表分页始终用原 record_id+artifact_id，Run 工件身份再经 reportsApi.artifact 读取授权文件详情。重新分析使用原公开配置、输入版本和新幂等请求；附件选择、多输入、字段/文档确认合并到附件设置。手机全屏预览的 inert/Tab/Escape 和焦点返回由工作台管理，原上传/任务订阅/中断/幂等 API 不变。详情与截图：docs/v2.0.6-chat-interface.md；回归：tests/chat-presentation.test.js、analysis-workspace.test.js 及既有 e2e。
+
 V2.0.6: utils/errorInfo.js 归一化任务错误和安全复制；ErrorInfoPanel.vue Options API 展示原因/建议/详情/手动复制，业务页负责 retry；api/client.js 区分 HTTP_REQUEST_TIMEOUT 并保留 Error.info；AnalysisScope.vue 显示提交快照；AgentSteps 用中文操作名，工具与参数折叠。
 
 诊断补修：ErrorInfoPanel 默认显示醒目类别、具体原因、如何处理与完成步骤，技术信息折叠且省略空项；api/client 和 taskError 优先 Error.info.reason；诊断副本支持实际数量/长度及离线复核来源标记，不复制原始数据。

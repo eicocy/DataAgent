@@ -28,7 +28,7 @@ test('landing, template, multi-file failure/retry, attachments refresh and narro
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Hey！今天想分析什么数据？' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '想分析什么？' })).toBeVisible()
   expect(sessionCount).toBe(0)
   await page.screenshot({ path: '../.superpowers/sdd/upgrade-plan/landing-desktop.png', fullPage: true, animations: 'disabled' })
   await page.getByRole('button', { name: '分析设置', exact: true }).click()
@@ -60,6 +60,7 @@ test('landing, template, multi-file failure/retry, attachments refresh and narro
   await expect.poll(() => page.locator('.sidebar').evaluate(el => el.getBoundingClientRect().right)).toBeLessThanOrEqual(0)
   await page.screenshot({ path: '../.superpowers/sdd/upgrade-plan/landing-mobile.png', fullPage: true, animations: 'disabled' })
   await page.getByRole('button', { name: '打开导航' }).click()
+  await page.locator('.sidebar-more > summary').click()
   await page.getByRole('link', { name: '分析模板', exact: true }).click()
   await expect(page.getByRole('heading', { name: '数据质量分析' })).toBeVisible()
   await page.getByRole('button', { name: '预测分析', exact: true }).click()

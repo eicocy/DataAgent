@@ -1,8 +1,9 @@
 <script>
-import { ChatLineRound, DataAnalysis, Refresh, Promotion } from '@element-plus/icons-vue'
-
+import { ElPopover } from 'element-plus'
+import ChatMessage from '../components/ChatMessage.vue'
+import { reportsApi } from '../api/reports'
+import ArtifactPreview from '../components/ArtifactPreview.vue'
 import AppShell from '../components/AppShell.vue'
-import ErrorInfoPanel from '../components/ErrorInfoPanel.vue'
 import AnalysisScope from '../components/AnalysisScope.vue'
 import AgentSteps from '../components/AgentSteps.vue'
 import AnalysisResult from '../components/AnalysisResult.vue'
@@ -24,9 +25,11 @@ import { useWorkspaceStore } from '../stores/workspace'
 
 export default {
   name: 'AnalysisWorkspaceView',
-  components: { ErrorInfoPanel, AnalysisScope, ArtifactWorkspace, MentionPicker, AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, DocumentCandidatePreview, SemanticMappingEditor, ChatLineRound, DataAnalysis, Refresh, Promotion },
+  components: { ElPopover, ChatMessage, ArtifactPreview, AnalysisScope, ArtifactWorkspace, MentionPicker, AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, DocumentCandidatePreview, SemanticMappingEditor },
   data() {
     return {
+      sessionTitle: '', attachmentSettings: false, fileMenuOpen: false, stickToBottom: true, scrollObserver: null, compactViewport: false,
+      previewSelection: null, previewFiles: [], previewBusy: false, previewError: '', previewController: null, reportSource: null, previewTrigger: null,
       dataset: null,
       datasetChoices: [],
       selectedDatasetId: null,
@@ -60,11 +63,14 @@ export default {
       capabilityError: '',
       runOptions: { depth: 'STANDARD', category: '', profile_ids: [], model_id: null },
       additionalInputIds: [],
+      retryVersions: null,
     }
   },
   computed: {
     ...mapState(useAnalysisStore, { activeTrace: 'trace', activeResult: 'result', activePending: 'pending' }),
     ...mapState(useWorkspaceStore, { workspaceArtifacts: 'items', workspaceReports: 'reports' }),
+    inputDatasets() { return this.dataset ? [this.dataset, ...this.attachedDatasets.filter(item => item.id !== this.dataset.id)] : this.attachedDatasets },
+    selectedReferences() { return this.workspaceArtifacts.filter(item => (this.runOptions.artifact_refs || []).includes(item.id || item.artifact_id)) },
     analysisLayoutStyle() { return { '--artifact-panel-width': `${this.artifactPanelWidth}px` } },
     latestEvidence() {
       const value = [...this.messages].reverse().find(message => message.evidence && !['create','export'].includes(message.evidence.report?.operation))?.evidence || null
@@ -89,13 +95,21 @@ export default {
       if ((value ? Number(value) : null) !== this.sessionId) this.initializeWorkspace()
     },
   },
+  mounted() {
+    document.addEventListener('keydown', this.attachmentEscape)
+    this.updateViewport()
+    window.addEventListener('resize', this.updateViewport)
+    if (!window.ResizeObserver) return
+    this.scrollObserver = new ResizeObserver(() => { if (this.stickToBottom) this.scrollLatest() })
+    this.$nextTick(() => { if (this.$refs.streamContent) this.scrollObserver.observe(this.$refs.streamContent) })
+  },
+  updated() { if (this.$refs.streamContent) this.scrollObserver?.observe(this.$refs.streamContent) },
   created() { this.restorePanelPreference(); this.initializeWorkspace() },
-  beforeUnmount() { this.controller?.abort(); this.endPanelResize() },
+  beforeUnmount() { document.removeEventListener('keydown', this.attachmentEscape); window.removeEventListener('resize', this.updateViewport); this.controller?.abort(); this.previewController?.abort(); this.scrollObserver?.disconnect(); this.endPanelResize() },
   methods: {
     restorePanelPreference() {
       try {
         const saved = JSON.parse(localStorage.getItem('datalens:artifact-panel') || '{}')
-        if (typeof saved.open === 'boolean') this.artifactPanelOpen = saved.open
         if (Number.isFinite(saved.width)) this.artifactPanelWidth = Math.max(420, Math.min(720, saved.width))
       } catch { /* 浏览器禁用本地存储时使用默认布局 */ }
     },
@@ -104,9 +118,11 @@ export default {
       catch { /* 布局偏好不可持久化时仍可在本次工作区使用 */ }
     },
     toggleArtifactPanel() {
+      this.previewController?.abort()
       this.artifactPanelOpen = !this.artifactPanelOpen
       this.artifactPanelMaximized = false
       this.savePanelPreference()
+      this.$nextTick(() => { if (this.previewTrigger?.isConnected) this.previewTrigger.focus({ preventScroll: true }) })
     },
     toggleArtifactPanelSize() {
       this.artifactPanelMaximized = !this.artifactPanelMaximized
@@ -129,6 +145,7 @@ export default {
     },
     async initializeWorkspace() {
       // 路由切换只停止客户端轮询，后台任务仍可在原会话恢复。
+      this.scrollObserver?.disconnect()
       this.$refs.uploadQueue?.stop()
       this.controller?.abort()
       const controller = new AbortController()
@@ -138,12 +155,14 @@ export default {
       this.initializing = true
       this.errorMessage = ''
       this.messages = []
+      this.artifactPanelOpen = false; this.previewSelection = null; this.previewController?.abort(); this.attachmentSettings = false; this.sessionTitle = ''; this.reportSource = null; this.stickToBottom = true
       useWorkspaceStore().reset(); this.restoredAnalysis = null; this.selectedReportId = null; this.reportDialogVisible = false
       this.dataset = null
       this.sessionId = null
       this.sessionCreation = null
       this.attachedDatasets = []; this.attachedDocuments = []; this.documentFileId = null; this.documentPage = 1
       this.additionalInputIds = []
+      this.retryVersions = null
       this.runOptions = { depth: 'STANDARD', category: '', profile_ids: [], model_id: null }
       this.attachmentBindings = 0
       this.attachmentChain = Promise.resolve()
@@ -166,6 +185,7 @@ export default {
           const dataset = datasetId ? await datasetApi.detail(datasetId, { signal: controller.signal }) : null
           if (!this.isCurrent(controller)) return
           this.dataset = dataset
+          this.sessionTitle = history.session?.title || ''
           historyMessages = history.messages
           this.messages = history.messages.map(this.toChatMessage)
           const attachments = await Promise.all((history.session?.attached_dataset_ids || []).map(id => datasetApi.detail(id, { signal: controller.signal })))
@@ -200,12 +220,10 @@ export default {
           if (!this.isCurrent(controller)) return
           this.restoredAnalysis = useWorkspaceStore().latestAnalysis
         }
-        if (this.latestEvidence || this.workspaceArtifacts.length || this.workspaceReports.length) this.artifactPanelOpen = true
-        else this.artifactPanelOpen = false
+        this.artifactPanelOpen = false
         const pending = useAnalysisStore().restore(this.sessionId, this.dataset?.id ?? null, historyMessages)
         if (pending) {
           this.loading = true
-          this.artifactPanelOpen = true
           this.resumeTask(controller).catch((error) => { if (this.isCurrent(controller) && error.name !== 'AbortError' && error.code !== 'ERR_CANCELED') this.errorMessage = error.message }).finally(() => { if (this.isCurrent(controller)) this.loading = false })
         }
       } catch (error) {
@@ -296,27 +314,33 @@ export default {
       this.controller = new AbortController()
       const controller = this.controller
       this.loading = true
-      this.artifactPanelOpen = true
+      this.attachmentSettings = false
+      this.fileMenuOpen = false
+      this.stickToBottom = true
       this.cancelRequested = false
       this.errorMessage = ''
       this.question = ''
+      this.sessionTitle ||= question
       const userMessage = { id: crypto.randomUUID(), role: 'user', content: question }
+      const retryVersions = this.retryVersions || {}
+      this.retryVersions = null
       this.messages.push(userMessage)
+      this.$nextTick(() => this.scrollLatest())
       try {
         const store = useAnalysisStore()
         const options = this.capabilities.profile_execution && this.dataset ? {
           ...this.runOptions, category: this.runOptions.category || null,
           inputs: [this.dataset.id, ...this.additionalInputIds.filter(id => id !== this.dataset.id && this.attachedDatasets.some(item => item.id === id))].map((id, index) => {
             const versions = this.workspaceArtifacts.filter(item => (this.runOptions.artifact_refs || []).includes(item.id || item.artifact_id)).flatMap(item => item.dataset_versions || []).filter(item => item.dataset_id === id)
-            return { alias: index === 0 ? 'primary' : `input_${id}`, dataset_id: id, ...(versions[0]?.dataset_version_id ? { dataset_version_id: versions[0].dataset_version_id } : {}) }
+            const version = retryVersions[id] || versions[0]?.dataset_version_id
+            return { alias: index === 0 ? 'primary' : `input_${id}`, dataset_id: id, ...(version ? { dataset_version_id: version } : {}) }
           }),
         } : {}
-        await store.submit({ session_id: this.sessionId, dataset_id: this.dataset?.id ?? null, question, ...options }, false, { signal: controller.signal })
+        await store.submit({ session_id: this.sessionId, dataset_id: this.dataset?.id ?? null, ...(retryVersions[this.dataset?.id] ? { dataset_version_id: retryVersions[this.dataset.id] } : {}), question, ...options }, false, { signal: controller.signal })
         if (!this.isCurrent(controller)) return
         const result = await store.watchRun(controller.signal)
         if (!result || !this.isCurrent(controller)) return
         if (result.dataset_id && this.dataset?.id !== result.dataset_id) await this.chooseDataset(result.dataset_id)
-        userMessage.evidence = result
         this.messages.push({ id: result.message_id || result.record_id, role: 'assistant', content: result.answer || result.error_message, status: result.status, evidence: result })
         if (this.capabilities.artifact_references) await useWorkspaceStore().load(this.sessionId, { signal: controller.signal })
       } catch (error) {
@@ -347,6 +371,7 @@ export default {
         error_code: record.error_code,
         error_message: record.error_message,
         analysis_context: record.analysis_context,
+        request_options: record.request_options,
         summary_error: record.status === 'partial' ? 'SUMMARY_UNAVAILABLE' : null,
       } : null
       return {
@@ -355,24 +380,87 @@ export default {
         content: message.content,
         status: message.status,
         evidence: message.role === 'assistant' ? evidence : null,
-        error: message.status === 'failed' ? record?.error_message || '分析失败，请稍后重试' : '',
-        errorInfo: record?.error_info,
+        error: message.role === 'assistant' && message.status === 'failed' ? record?.error_message || '分析失败，请稍后重试' : '',
+        errorInfo: message.role === 'assistant' ? record?.error_info : null,
       }
     },
     async loadOlderMessages() {
       if (!this.messageCursor || this.olderLoading) return
       const controller = this.controller
       this.olderLoading = true
+      const scroll = this.$refs.stream
+      const oldHeight = scroll?.scrollHeight || 0
+      const oldTop = scroll?.scrollTop || 0
+      this.stickToBottom = false
       try {
         const page = await analysisApi.session(this.sessionId, { message_cursor: this.messageCursor, message_limit: 50 }, { signal: controller.signal })
         if (!this.isCurrent(controller)) return
         this.messages = [...page.messages.map(this.toChatMessage), ...this.messages]
         this.messageCursor = page.next_cursor
+        await this.$nextTick()
+        if (scroll) scroll.scrollTop = oldTop + scroll.scrollHeight - oldHeight
       } catch (error) {
         if (this.isCurrent(controller) && error.code !== 'ERR_CANCELED' && error.name !== 'AbortError') this.errorMessage = error.message || '更早的消息加载失败'
       } finally {
         if (this.isCurrent(controller)) this.olderLoading = false
       }
+    },
+    onScroll() { const el = this.$refs.stream; if (el) this.stickToBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80 },
+    scrollLatest() { const el = this.$refs.stream; if (el) el.scrollTop = el.scrollHeight },
+    returnToLatest() { this.stickToBottom = true; this.scrollLatest() },
+    attachmentEscape(event) { if (event.key === 'Escape' && this.fileMenuOpen) { event.stopPropagation(); this.closeFilesMenu() } },
+    focusAttachmentMenu() { document.querySelector('.attachment-menu button')?.focus({ preventScroll: true }) },
+    updateViewport() { this.compactViewport = window.innerWidth <= 1100 },
+    previewKeydown(event) {
+      if (event.key === 'Escape') { event.stopPropagation(); this.toggleArtifactPanel(); return }
+      if (event.key !== 'Tab' || !this.compactViewport) return
+      const controls = [...event.currentTarget.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex="0"]')].filter(el => el.getClientRects().length)
+      const target = event.shiftKey ? controls.at(-1) : controls[0]
+      if (controls.length && document.activeElement === (event.shiftKey ? controls[0] : controls.at(-1))) { event.preventDefault(); target.focus() }
+    },
+    closeFilesMenu() { this.fileMenuOpen = false; this.$nextTick(() => this.$refs.addAttachment?.focus()) },
+    openAttachmentSettings() { this.attachmentSettings = true; this.closeFilesMenu() },
+    async openPreview(selection) {
+      this.previewTrigger = document.activeElement
+      this.previewController?.abort(); this.previewError = ''; this.previewBusy = false; this.previewFiles = []
+      this.previewSelection = selection; this.artifactPanelOpen = true; this.artifactPanelMaximized = false
+      this.$nextTick(() => this.$refs.previewClose?.focus())
+      if (selection.kind !== 'table' || !selection.value?.artifact_id || !selection.evidence?.record_id) return
+      const controller = new AbortController(); this.previewController = controller; this.previewBusy = true
+      try {
+        const page = await analysisApi.result(selection.evidence.record_id, selection.value.artifact_id, { offset: 0, limit: 100 }, { signal: controller.signal })
+        if (this.previewController === controller && !controller.signal.aborted) this.previewSelection = { ...selection, value: { ...selection.value, rows: page.rows || [], columns: page.columns || selection.value.columns } }
+      } catch (error) { if (!controller.signal.aborted) this.previewError = error.message || '完整数据加载失败' }
+      finally { if (this.previewController === controller) this.previewBusy = false }
+    },
+    previewEvidence() {
+      const selection = this.previewSelection
+      if (!selection?.evidence) return null
+      // 缩放和分页只接收被点击消息的工件，禁止回退到 latestEvidence。
+      return { ...selection.evidence, error_info: null, error_message: null, status: 'succeeded', tool_result: null, chart: null,
+        report: { tables: selection.kind === 'table' ? [selection.value] : [], charts: selection.kind === 'chart' ? [selection.value] : [], warnings: [] } }
+    },
+    async openMessageFiles(evidence) {
+      this.openPreview({ kind: 'files', evidence })
+      const controller = new AbortController(); this.previewController = controller; this.previewBusy = true
+      try {
+        const run = await analysisApi.run(evidence.record_id, { signal: controller.signal })
+        // Run DTO 只包含工件身份；读取授权工件详情取得真实文件名与下载地址。
+        const files = await Promise.allSettled((run.artifacts || []).map(file => reportsApi.artifact(file.artifact_id || file.id, { signal: controller.signal })))
+        if (this.previewController !== controller || controller.signal.aborted) return
+        this.previewFiles = files.filter(file => file.status === 'fulfilled').map(file => file.value)
+        if (files.some(file => file.status === 'rejected')) this.previewError = '部分文件详情读取失败，请重新打开本轮文件。'
+      } catch (error) { if (!controller.signal.aborted) this.previewError = error.message || '文件加载失败' }
+      finally { if (this.previewController === controller) this.previewBusy = false }
+    },
+    async previewFile(file) {
+      this.previewController?.abort()
+      const controller = new AbortController(); this.previewController = controller; this.previewBusy = true; this.previewError = ''
+      try {
+        const response = await reportsApi.preview(file.artifact_id || file.id, {}, { signal: controller.signal })
+        if (this.previewController === controller && !controller.signal.aborted) this.previewSelection = { ...this.previewSelection, file, filePreview: response.preview || response }
+      } catch (error) { if (!controller.signal.aborted) this.previewError = error.message || '预览加载失败' }
+      finally { if (this.previewController === controller) this.previewBusy = false }
     },
     handleEnter(event) {
       if (!event.isComposing) { event.preventDefault(); this.submitQuestion() }
@@ -381,7 +469,8 @@ export default {
       return seconds < 1 ? `${Math.round(seconds * 1000)} ms` : `${seconds.toFixed(2)} 秒`
     },
     showValue(value) { return value === null || value === undefined ? '—' : String(value) },
-    openReport(id = null) { this.selectedReportId = id; this.reportDialogVisible = true },
+    openReport(id = null, source = this.latestEvidence) { this.reportSource = source; this.selectedReportId = id; this.reportDialogVisible = true },
+    reportForMessage(source) { this.openReport(null, source) },
     referenceArtifact(item) {
       const id = item.id || item.artifact_id
       this.runOptions = { ...this.runOptions, artifact_refs: [...new Set([...(this.runOptions.artifact_refs || []), id])].slice(0,10) }
@@ -457,104 +546,137 @@ export default {
         try { await this.resumeTask(controller) }
         catch (error) { if (this.isCurrent(controller) && error.code !== 'ERR_CANCELED' && error.name !== 'AbortError') { message.error = error.message; message.errorCode = error.code; message.errorInfo = error.info } }
         finally { if (this.isCurrent(controller)) this.loading = false }
-      } else { this.question = message.role === 'user' ? message.content : [...this.messages.slice(0, this.messages.indexOf(message))].reverse().find(m => m.role === 'user')?.content || ''; this.submitQuestion() }
+      } else {
+        const controller = this.controller
+        const source = message.evidence
+        this.question = message.role === 'user' ? message.content : [...this.messages.slice(0, this.messages.indexOf(message))].reverse().find(m => m.role === 'user')?.content || ''
+        if (source?.dataset_id && source.dataset_id !== this.dataset?.id) await this.chooseDataset(source.dataset_id)
+        if (source?.dataset_id === null) { this.dataset = null; this.selectedDatasetId = null }
+        if (!this.isCurrent(controller) || (source?.dataset_id && source.dataset_id !== this.dataset?.id)) return
+        if (source) {
+          const missing = (source.request_options?.inputs || []).filter(input => input.dataset_id !== source.dataset_id && !this.attachedDatasets.some(item => item.id === input.dataset_id))
+          if (missing.length) { this.errorMessage = `原分析需要数据集 ${missing.map(input => `#${input.dataset_id}`).join('、')}，请在附件设置中添加后重试。`; return }
+          // 历史重新分析固定原消息的输入版本与公开配置；新请求仍由原幂等提交逻辑生成。
+          this.runOptions = { depth: 'STANDARD', category: '', profile_ids: [], model_id: null, ...(source.request_options || {}) }
+          this.additionalInputIds = (source.request_options?.inputs || []).map(item => item.dataset_id).filter(id => id !== source.dataset_id)
+          this.retryVersions = Object.fromEntries((source.request_options?.inputs || []).map(item => [item.dataset_id, item.dataset_version_id]))
+          if (source.dataset_id && source.dataset_version_id) this.retryVersions[source.dataset_id] = source.dataset_version_id
+        }
+        return this.submitQuestion()
+      }
     },
   },
 }
 </script>
 
 <template>
-  <AppShell>
-    <section v-if="!isLanding" class="analysis-heading">
-      <div>
-        <p class="eyebrow">真实数据计算 · 可核对执行证据</p>
-        <h1>智能分析</h1>
-        <p class="page-intro">{{ dataset?.original_name || '可先聊天，分析前请选择数据集' }}<span v-if="dataset"> · {{ dataset.row_count }} 行 · {{ dataset.column_count }} 列</span></p>
-      </div>
-      <el-button v-if="dataset" plain @click="$router.push(`/datasets/${dataset.id}`)">数据集详情</el-button>
-    </section>
-
-    <div v-if="errorMessage" class="inline-error" role="alert"><span>{{ errorMessage }}</span><el-button text type="primary" @click="initializeWorkspace"><el-icon><Refresh /></el-icon>重试</el-button></div>
+  <AppShell ref="shell" chat :title="sessionTitle || '新对话'">
+    <template #actions><el-button text :disabled="initializing" aria-label="查看会话文件" @click="openPreview({ kind: 'workspace' })">文件</el-button></template>
+    <div v-if="errorMessage" class="inline-error" role="alert"><span>{{ errorMessage }}</span><el-button text type="primary" @click="initializeWorkspace">重新连接</el-button></div>
     <p v-if="capabilityError" class="capability-warning" role="status">{{ capabilityError }} <button type="button" @click="loadCapabilities(controller)">重试目录</button></p>
-    <section v-if="initializing" class="panel analysis-loading" aria-live="polite"><span class="large-loader"></span><h2>正在准备分析工作区</h2></section>
-    <section v-else class="analysis-layout" :class="{ 'panel-hidden': !artifactPanelOpen, 'panel-maximized': artifactPanelMaximized, 'workspace-landing': isLanding }" :style="analysisLayoutStyle">
-      <div class="panel conversation-panel">
-        <header v-if="!isLanding" class="conversation-header"><div class="conversation-title"><span class="analysis-mark"><el-icon><DataAnalysis /></el-icon></span><div><h2>分析对话</h2><p>基于服务器端计算结果回答</p></div></div><div class="conversation-header-actions"><el-tag v-if="sessionId" effect="plain" round>会话 #{{ sessionId }}</el-tag><el-button v-if="!artifactPanelOpen" text @click="toggleArtifactPanel">打开工件面板</el-button></div></header>
-        <div class="analysis-dataset-picker"><label for="analysis-dataset">当前数据集</label><el-select id="analysis-dataset" v-model="selectedDatasetId" filterable remote :remote-method="searchDatasets" placeholder="选择数据集（聊天可留空）" :disabled="loading" @change="chooseDataset"><el-option v-for="option in datasetChoices" :key="option.id" :label="option.original_name" :value="option.id" /></el-select></div>
-
-        <div class="conversation-stream" aria-live="polite" aria-relevant="additions text">
-          <el-button v-if="messageCursor" class="load-older-button" text :loading="olderLoading" @click="loadOlderMessages">加载更早的消息</el-button>
-          <div v-if="messages.length === 0" class="conversation-empty">
-            <p class="workspace-wordmark">DATA ANALYSIS WORKSPACE</p>
-            <h1>Hey！今天想分析什么数据？</h1>
-            <p>上传数据，提出业务问题，让分析从这里开始。</p>
+    <p v-if="initializing" class="analysis-loading" role="status">正在加载对话…</p>
+    <section v-else class="analysis-layout chat-layout" :class="{ 'panel-hidden': !artifactPanelOpen, 'panel-maximized': artifactPanelMaximized, 'workspace-landing': isLanding }" :style="analysisLayoutStyle">
+      <div class="conversation-panel" :inert="artifactPanelOpen && compactViewport">
+        <div ref="stream" class="conversation-stream" @scroll.passive="onScroll">
+          <div ref="streamContent" class="stream-content">
+            <el-button v-if="messageCursor" class="load-older-button" text :loading="olderLoading" @click="loadOlderMessages">加载更早的消息</el-button>
+            <div v-if="messages.length === 0 && !loading" class="conversation-empty"><h1>想分析什么？</h1></div>
+            <ChatMessage v-for="message in messages" :key="message.id" :message="message" :busy="loading" :datasets="datasetChoices" :session-id="sessionId || undefined" @retry="retryMessage" @preview="openPreview" @files="openMessageFiles" @report="reportForMessage" @clarification="useClarificationDataset" />
+            <div v-if="loading" class="pending-block">
+              <p class="agent-pending" role="status"><span class="status-pulse"></span>{{ runningLabel }}</p>
+              <details class="running-details"><summary>查看步骤</summary><AnalysisScope :context="activeResult?.analysis_context" :dataset="dataset" /><AgentSteps :trace="activeTrace" compact /></details>
+            </div>
           </div>
-          <article v-for="message in messages" :key="message.id" class="chat-message" :class="`message-${message.role}`">
-            <div class="message-role">{{ message.role === 'user' ? '你' : 'DataLens Agent' }}</div>
-            <p v-if="message.content" class="message-content">{{ message.content }}</p>
-            <div v-if="message.role === 'assistant' && message.evidence?.agent_response?.clarification?.candidate_dataset_ids?.length" class="clarification-choices"><el-button v-for="id in message.evidence.agent_response.clarification.candidate_dataset_ids" :key="id" plain size="small" @click="useClarificationDataset(id)">选择 {{ datasetChoices.find((item) => item.id === id)?.original_name || `数据集 #${id}` }}</el-button></div>
-            <div v-if="message.role === 'assistant' && message.evidence?.status === 'cancelled'" class="partial-note" role="status">任务已中断，已完成的结果仍可查看。</div>
-            <div v-if="message.evidence?.status === 'partial'" class="partial-note" role="status">分析部分完成，下面保留已完成的真实计算结果。</div>
-            <ErrorInfoPanel v-if="message.error || message.evidence?.error_info" :info="message.errorInfo || message.evidence?.error_info" :message="message.error || ''" :retryable="!loading" :retry-label="['NETWORK_ERROR', 'HTTP_REQUEST_TIMEOUT'].includes(message.errorCode) ? '重新连接确认状态' : '保留问题并重试'" @retry="retryMessage(message)" />
-          </article>
-          <div v-if="loading" class="agent-pending" role="status"><span class="status-pulse"></span>{{ runningLabel }}</div>
         </div>
-
-        <PromptComposer v-model="question" :busy="loading || choosingDataset" :interruptible="loading" :interrupt-disabled="!canInterrupt" :interrupting="cancelRequested" :uploading="uploadBusy || attachmentBindings > 0" :catalog="catalog" :capabilities="capabilities" :options="runOptions" @interrupt="cancelTask" @option-change="runOptions = { ...runOptions, ...$event }" @submit="submitQuestion" @upload="$refs.uploadQueue.addFiles($event)" @templates="$router.push('/templates')">
-          <template #attachments>
-          <MentionPicker v-if="capabilities.artifact_references" :items="workspaceArtifacts" :model-value="runOptions.artifact_refs || []" :busy="loading" @update:model-value="runOptions = { ...runOptions, artifact_refs: $event }" />
+        <div class="composer-dock">
+          <button v-if="!stickToBottom && messages.length" type="button" class="back-to-latest" @click="returnToLatest">↓ 回到最新</button>
+          <PromptComposer v-model="question" :busy="loading || choosingDataset" :interruptible="loading" :interrupt-disabled="!canInterrupt" :interrupting="cancelRequested" :uploading="uploadBusy || attachmentBindings > 0" :catalog="catalog" :capabilities="capabilities" :options="runOptions" @interrupt="cancelTask" @option-change="runOptions = { ...runOptions, ...$event }" @submit="submitQuestion" @upload="$refs.uploadQueue.addFiles($event)" @templates="$router.push('/templates')">
+            <template #add="{ upload }">
+              <el-popover v-model:visible="fileMenuOpen" role="dialog" trigger="click" placement="top-start" :width="200" :disabled="loading || choosingDataset" popper-class="attachment-menu-popper" @after-enter="focusAttachmentMenu" @keydown.esc="closeFilesMenu">
+                <template #reference><button ref="addAttachment" type="button" class="attachment-add-button" aria-label="添加附件" :aria-expanded="fileMenuOpen" :disabled="loading || choosingDataset">＋</button></template>
+                <div class="attachment-menu"><button type="button" @click="upload(); closeFilesMenu()">上传文件</button><button type="button" @click="openAttachmentSettings">选择已有数据</button><button v-if="capabilities.artifact_references" type="button" @click="openAttachmentSettings">引用已有成果</button><button type="button" @click="openAttachmentSettings">附件设置</button></div>
+              </el-popover>
+            </template>
+            <template #attachments>
+              <div v-if="inputDatasets.length" class="session-attachments" aria-label="会话数据附件"><span v-for="item in inputDatasets" :key="item.id"><button type="button" :disabled="loading" :title="item.original_name" @click="openAttachmentSettings">{{ item.original_name }}<small v-if="dataset?.id === item.id"> · v{{ item.current_version_id || '未记录' }}</small></button><button type="button" :disabled="loading || attachmentBindings > 0" :aria-label="`移除附件 ${item.original_name}`" @click="dataset?.id === item.id ? openAttachmentSettings() : removeAttachment(item.id)">{{ dataset?.id === item.id ? '⌄' : '×' }}</button></span></div>
+              <div v-if="selectedReferences.length" class="session-attachments"><button v-for="item in selectedReferences" :key="item.id || item.artifact_id" type="button" :title="item.name || item.title" @click="openAttachmentSettings">@ {{ item.name || item.title }}</button></div>
           <UploadQueue ref="uploadQueue" :session-id="Number(sessionId) || undefined" :prepare-session="ensureSession" @document="documentReady" @document-hidden="documentFileId === $event && (documentFileId = null)" :formats="[...(capabilities.file_formats || []), ...(capabilities.document_formats || [])]" :attached-ids="attachedDatasets.map(item => item.id)" :max-files="capabilities.max_files || 10" :max-bytes="capabilities.max_upload_bytes || 20971520" @busy="uploadBusy = $event" @started="startUpload" @ready="attachDataset" @removed="removeAttachment" />
-          <div v-if="attachedDocuments.length" class="session-attachments" aria-label="会话文档附件"><el-button v-for="file in attachedDocuments" :key="file.id" @click="documentFileId = file.id">{{ file.name }} · 文档</el-button><el-button :disabled="documentPage === 1" @click="documentPage--; loadDocuments()">上一页文档</el-button><el-button :disabled="documentPage * 20 >= documentTotal" @click="documentPage++; loadDocuments()">下一页文档</el-button></div>
-          <div v-if="documentFileId"><DocumentCandidatePreview :file-id="documentFileId" :session-id="Number(sessionId)" @ready="extractedDataset" /><el-button @click="documentFileId = null">收起附件预览</el-button><p class="caption">收起只关闭预览，文档仍在会话中，刷新可恢复。</p></div>
-          <div v-if="attachedDatasets.length" class="session-attachments" aria-label="会话数据附件"><span v-for="item in attachedDatasets" :key="item.id"><button type="button" :disabled="loading" @click="chooseDataset(item.id)">{{ item.original_name }}{{ dataset?.id === item.id ? ' · 当前' : '' }}</button><button type="button" :disabled="loading || attachmentBindings > 0" :aria-label="`移除附件 ${item.original_name}`" @click="removeAttachment(item.id)">×</button></span></div>
-          </template>
-        </PromptComposer>
-        <fieldset v-if="capabilities.multi_dataset_execution && dataset && attachedDatasets.some(item => item.id !== dataset.id)" class="analysis-inputs"><legend>同时分析其他附件</legend><label v-for="item in attachedDatasets.filter(item => item.id !== dataset.id)" :key="item.id"><input v-model="additionalInputIds" type="checkbox" :value="item.id" :disabled="loading || choosingDataset" />{{ item.original_name }}</label><p class="caption">所选附件会固定版本参与分析；需要合并数据时，可在数据集页按关联键预览并确认保存。</p></fieldset>
-        <SemanticMappingEditor v-if="capabilities.profile_execution && sessionId && dataset" :session-id="Number(sessionId)" :dataset-id="dataset.id" :busy="loading || choosingDataset" />
-        <div v-if="isLanding" class="workspace-suggestions"><button type="button" @click="question = '帮我分析一下这个表'">探索这份数据</button><button type="button" @click="question = '检查缺失值、重复数据和异常值'">检查数据质量</button><button type="button" @click="question = '按地区汇总销售额，并生成柱状图'">比较业务表现</button><button type="button" @click="$router.push('/templates')">浏览分析模板 ↗</button></div>
-        <p v-if="!dataset && isLanding" class="workspace-help">可先聊天，分析前请选择数据集或上传文件。</p>
-      </div>
+          <div v-if="attachedDocuments.length" class="session-attachments" aria-label="会话文档附件"><el-button v-for="file in attachedDocuments" :key="file.id" @click="documentFileId = file.id; openAttachmentSettings()">{{ file.name }} · 文档</el-button><el-button :disabled="documentPage === 1" @click="documentPage--; loadDocuments()">上一页文档</el-button><el-button :disabled="documentPage * 20 >= documentTotal" @click="documentPage++; loadDocuments()">下一页文档</el-button></div>
 
-      <button v-if="artifactPanelOpen" type="button" class="artifact-panel-backdrop" aria-label="关闭工件面板" @click="toggleArtifactPanel"></button>
-      <aside v-if="artifactPanelOpen" class="panel evidence-panel artifact-panel" aria-label="工件与分析证据">
+            </template>
+          </PromptComposer>
+          <div v-if="isLanding" class="workspace-suggestions"><button type="button" @click="question = '概览这份数据'">概览数据</button><button type="button" @click="question = '检查缺失值、重复数据和异常值'">检查质量</button><button type="button" @click="question = '根据这份数据生成合适的图表'">生成图表</button></div>
+        </div>
+      </div>
+      <button v-if="artifactPanelOpen" type="button" class="artifact-panel-backdrop" aria-label="关闭预览" @click="toggleArtifactPanel"></button>
+      <aside v-if="artifactPanelOpen" class="panel evidence-panel artifact-panel" :role="compactViewport ? 'dialog' : 'complementary'" :aria-modal="compactViewport ? 'true' : undefined" aria-label="结果与文件预览" @keydown="previewKeydown">
         <div v-if="!artifactPanelMaximized" class="artifact-panel-resizer" tabindex="0" role="separator" aria-label="调整工件面板宽度" aria-orientation="vertical" :aria-valuenow="artifactPanelWidth" aria-valuemin="420" aria-valuemax="720" @keydown.left.prevent="artifactPanelWidth = Math.min(720, artifactPanelWidth + 20); savePanelPreference()" @keydown.right.prevent="artifactPanelWidth = Math.max(420, artifactPanelWidth - 20); savePanelPreference()" @pointerdown="startPanelResize" @pointermove="movePanelResize" @pointerup="endPanelResize" @pointercancel="endPanelResize"><span></span></div>
-        <div class="evidence-panel-heading"><span class="evidence-dot"></span><div><h2>工件与证据</h2><p>图表、结果表和工具轨迹</p></div><el-button v-if="loading" class="run-stop-button is-compact" aria-label="中断当前分析" :title="cancelRequested ? '正在中断，等待服务端确认' : '中断分析'" :disabled="!canInterrupt || cancelRequested" :aria-busy="cancelRequested" @click="cancelTask"><span v-if="cancelRequested" class="run-stop-spinner" aria-hidden="true"></span><span class="run-stop-glyph" aria-hidden="true"></span><span class="sr-only">{{ cancelRequested ? '正在中断…' : '中断' }}</span></el-button><el-button v-else-if="canCreateReport" size="small" plain @click="openReport()">生成报告</el-button><el-button text aria-label="最大化工件面板" @click="toggleArtifactPanelSize">{{ artifactPanelMaximized ? '还原' : '展开' }}</el-button><el-button text aria-label="关闭工件面板" @click="toggleArtifactPanel">关闭</el-button></div>
-        <p v-if="loading && activeResult?.progress?.total" class="caption">已完成 {{ activeResult.progress.completed }} / {{ activeResult.progress.total }} 步</p>
-        <AnalysisScope :context="(loading ? activeResult : latestEvidence)?.analysis_context" :dataset="dataset" />
-        <AgentSteps :trace="activeTrace || (latestEvidence?.plan ? { plan: latestEvidence.plan, steps: latestEvidence.tool_calls, error_info: latestEvidence.error_info } : null)" :calls="loading ? [] : latestEvidence?.tool_calls || []" />
-        <AnalysisResult v-if="loading && activeResult" :evidence="activeResult" />
-        <AnalysisResult v-else-if="latestEvidence" :evidence="latestEvidence" />
-        <ArtifactWorkspace v-if="sessionId && capabilities.artifact_references" :session-id="sessionId" @report="openReport" @reference="referenceArtifact" />
+
+        <header class="evidence-panel-heading"><h2>{{ previewSelection?.kind === 'workspace' ? '会话文件' : previewSelection?.kind === 'files' ? '本轮文件' : previewSelection?.kind === 'chart' ? '图表' : '完整数据' }}</h2><el-button text aria-label="最大化预览" @click="toggleArtifactPanelSize">{{ artifactPanelMaximized ? '还原' : '展开' }}</el-button><button ref="previewClose" type="button" class="preview-close" aria-label="关闭预览" @click="toggleArtifactPanel">×</button></header>
+        <p v-if="previewSelection?.evidence" class="caption">分析记录 #{{ previewSelection.evidence.record_id }} · 版本 {{ previewSelection.evidence.dataset_version_id || '未记录' }}</p>
+        <p v-if="previewBusy && previewSelection?.kind === 'table'" role="status">正在读取完整数据…</p><p v-if="previewError && previewSelection?.kind === 'table'" role="alert">{{ previewError }}</p>
+        <AnalysisResult v-if="['table','chart'].includes(previewSelection?.kind) && !previewBusy" :key="`${previewSelection.evidence.record_id}-${previewSelection.value.artifact_id || previewSelection.value.source_ref}`" :evidence="previewEvidence()" />
+        <template v-if="previewSelection?.kind === 'files'">
+          <p v-if="previewBusy" role="status">正在读取文件…</p><p v-if="previewError" role="alert">{{ previewError }}</p>
+          <p v-if="!previewBusy && !previewError && !previewFiles.length" class="caption">本轮尚无可下载文件，可从“更多”生成报告。</p>
+          <div class="message-file-list"><div v-for="file in previewFiles" :key="file.artifact_id || file.id"><button type="button" @click="previewFile(file)">{{ file.file_name || file.name || file.title || `成果 #${file.artifact_id || file.id}` }}</button><span v-if="file.status === 'EXPIRED'">已过期</span><a v-else :href="file.download_url" :download="file.file_name || file.name">下载</a></div></div>
+          <ArtifactPreview v-if="previewSelection.filePreview && !previewBusy" :preview="previewSelection.filePreview" :title="previewSelection.file?.file_name || '文件预览'" />
+        </template>
+        <ArtifactWorkspace v-if="previewSelection?.kind === 'workspace' && sessionId && capabilities.artifact_references" :session-id="sessionId" @report="openReport" @reference="referenceArtifact" />
+        <p v-else-if="previewSelection?.kind === 'workspace' && !sessionId" class="caption">添加文件后会显示在这里。</p>
       </aside>
     </section>
-    <ReportWorkbench v-if="sessionId" :key="`${sessionId}-${selectedReportId || 'new'}`" v-model="reportDialogVisible" :session-id="sessionId" :report-id="selectedReportId" :source="latestEvidence" @changed="reportsChanged" />
+    <el-dialog v-model="attachmentSettings" title="附件设置" width="min(520px, calc(100vw - 32px))" class="attachment-settings-dialog">
+      <div class="analysis-dataset-picker"><label for="analysis-dataset">当前数据</label><el-select id="analysis-dataset" v-model="selectedDatasetId" filterable remote clearable :remote-method="searchDatasets" placeholder="选择已有数据" :disabled="loading" @change="chooseDataset"><el-option v-for="option in datasetChoices" :key="option.id" :label="option.original_name" :value="option.id" /></el-select></div>
+      <el-button v-if="dataset" text @click="$router.push(`/datasets/${dataset.id}`)">查看数据集详情</el-button>
+      <div v-if="attachedDatasets.length" class="attachment-settings-list"><div v-for="item in attachedDatasets" :key="item.id"><button type="button" :disabled="loading" @click="chooseDataset(item.id)">{{ item.original_name }}{{ dataset?.id === item.id ? ' · 当前' : '' }}</button><button type="button" :disabled="loading || attachmentBindings > 0 || dataset?.id === item.id" :aria-label="`移除附件 ${item.original_name}`" @click="removeAttachment(item.id)">移除</button></div></div>
+      <MentionPicker v-if="capabilities.artifact_references" :items="workspaceArtifacts" :model-value="runOptions.artifact_refs || []" :busy="loading" @update:model-value="runOptions = { ...runOptions, artifact_refs: $event }" />
+        <fieldset v-if="capabilities.multi_dataset_execution && dataset && attachedDatasets.some(item => item.id !== dataset.id)" class="analysis-inputs"><legend>同时分析其他附件</legend><label v-for="item in attachedDatasets.filter(item => item.id !== dataset.id)" :key="item.id"><input v-model="additionalInputIds" type="checkbox" :value="item.id" :disabled="loading || choosingDataset" />{{ item.original_name }}</label><p class="caption">所选附件会固定版本参与分析；需要合并数据时，可在数据集页按关联键预览并确认保存。</p></fieldset>
+        <SemanticMappingEditor v-if="capabilities.profile_execution && sessionId && dataset" :session-id="Number(sessionId)" :dataset-id="dataset.id" :busy="loading || choosingDataset" />
+          <div v-if="documentFileId"><DocumentCandidatePreview :file-id="documentFileId" :session-id="Number(sessionId)" @ready="extractedDataset" /><el-button @click="documentFileId = null">收起附件预览</el-button><p class="caption">收起只关闭预览，文档仍在会话中，刷新可恢复。</p></div>
+
+    </el-dialog>
+    <ReportWorkbench v-if="sessionId" :key="`${sessionId}-${selectedReportId || reportSource?.record_id || 'new'}`" v-model="reportDialogVisible" :session-id="sessionId" :report-id="selectedReportId" :source="reportSource" @changed="reportsChanged" />
   </AppShell>
 </template>
 
 <style scoped>
-.workspace-landing { margin: 5vh auto 0; max-width: 1100px; }
-.workspace-landing .conversation-panel { min-height: 0; width: 100%; max-width: 940px; background: transparent; border: 0; box-shadow: none; overflow: visible; }
-.workspace-landing .conversation-stream { min-height: 0; padding: 0; order: -2; }
-.workspace-landing .conversation-empty { min-height: 160px; padding: 16px 0 30px; }
-.conversation-empty h1 { font-size: clamp(22px, 2.5vw, 32px); font-weight: 550; margin: 8px 0 14px; letter-spacing: -.6px; }
-.conversation-empty p { font-size: 13px; }
-.conversation-empty .workspace-wordmark { color: var(--muted); font-size: 10px; letter-spacing: 2px; }
-.workspace-landing .analysis-dataset-picker { order: 2; background: transparent; padding: 16px 0; border: 0; }
-.conversation-panel > .prompt-composer { width: auto; margin: 12px; }
-.workspace-landing .conversation-panel > .prompt-composer { width: 100%; margin: 0; }
-.workspace-suggestions, .session-attachments { display: flex; flex-wrap: wrap; gap: 8px; }
-.workspace-suggestions { justify-content: center; margin: 18px 0 2px; }
-.workspace-suggestions button, .session-attachments button { cursor: pointer; border: 1px solid var(--line); padding: 8px 12px; border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 12px; }
-.workspace-suggestions button:hover, .session-attachments button:hover { color: var(--ink); background: var(--canvas); }
-.session-attachments { margin-bottom: 8px; }
-.session-attachments > span { display: inline-flex; min-width: 0; max-width: 100%; }
-.session-attachments button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.session-attachments > span > button:first-child { min-width: 0; }
-.session-attachments > span > button:last-child { flex-shrink: 0; }
-.workspace-help { color: var(--muted); text-align: center; font-size: 12px; }
-.capability-warning { font-size: 12px; color: var(--muted); }
-.analysis-inputs { border: 1px solid var(--line); border-radius: var(--radius-sm); margin: 12px 0; font-size: 12px; color: var(--muted); }
-.analysis-inputs label { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; }
-.capability-warning button { border: 0; background: none; color: var(--brand); cursor: pointer; }
-@media (max-width: 700px) { .workspace-landing { margin-top: 10px; } .workspace-landing .conversation-empty { min-height: 135px; } }
+.chat-layout { height: 100%; min-height: 0; gap: 0; }
+.chat-layout .conversation-panel { position: relative; height: 100%; min-height: 0; max-width: none; width: 100%; margin: 0; border: 0; background: var(--surface); overflow: hidden; }
+.chat-layout .conversation-stream { min-height: 0; width: 100%; padding: 36px 32px 8px; overscroll-behavior: contain; }
+.stream-content { width: 100%; max-width: 760px; margin: auto; }
+.conversation-empty { min-height: 0; padding: 0 0 26px; }
+.conversation-empty h1 { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -.7px; line-height: 1.4; }
+.chat-layout.workspace-landing .conversation-panel { justify-content: center; padding-bottom: 10vh; }
+.chat-layout.workspace-landing .conversation-stream { flex: 0 0 auto; padding-bottom: 0; }
+.composer-dock { position: relative; width: 100%; max-width: 824px; margin: 0 auto; padding: 12px 32px 16px; background: var(--surface); }
+.back-to-latest { position: absolute; z-index: 3; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); padding: 8px 14px; font-size: 12px; cursor: pointer; box-shadow: 0 3px 12px #2634490c; }
+.workspace-suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 18px; }
+.workspace-suggestions button { border: 1px solid var(--line); border-radius: 9px; background: transparent; color: var(--muted); padding: 9px 16px; font-size: 12px; cursor: pointer; }
+.workspace-suggestions button:hover { color: var(--ink); background: #f6f7f9; }
+.attachment-add-button { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; font-size: 24px; cursor: pointer; }
+.attachment-add-button:hover { background: var(--canvas); color: var(--ink); }
+.session-attachments { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.session-attachments > span { display: inline-flex; max-width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 9px; background: #fafbfc; }
+.session-attachments button { min-width: 0; max-width: 100%; padding: 7px 9px; border: 0; border-radius: 7px; background: transparent; font-size: 12px; cursor: pointer; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-attachments small { font-size: 11px; color: var(--muted); }
+.pending-block { margin: 0 auto 24px; max-width: 760px; }
+.agent-pending { padding: 0; margin: 0 0 6px; font-size: 14px; }
+.running-details { padding-top: 4px; font-size: 12px; color: var(--muted); }
+.running-details summary { cursor: pointer; }
+.chat-layout .artifact-panel { height: 100%; min-height: 0; border-width: 0 0 0 1px; border-radius: 0; padding: 20px; overflow: auto; box-shadow: none; }
+.evidence-panel-heading { gap: 8px; margin-bottom: 20px; }
+.evidence-panel-heading h2 { flex: 1; font-size: 14px; }
+.preview-close { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; font-size: 23px; color: var(--muted); cursor: pointer; }
+.preview-close:hover { background: var(--canvas); }
+.message-file-list { display: grid; gap: 8px; margin: 14px 0; }
+.message-file-list > div { display: flex; align-items: center; gap: 12px; }
+.message-file-list button { min-width: 0; flex: 1; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); overflow-wrap: anywhere; cursor: pointer; }
+.message-file-list a { font-size: 12px; color: var(--brand); }
+.attachment-settings-list > div { display: flex; justify-content: space-between; gap: 8px; }
+.attachment-settings-list button { border: 0; padding: 10px 0; background: transparent; text-align: left; color: var(--muted); overflow-wrap: anywhere; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.analysis-inputs { max-width: 100%; }
+@media (max-width: 1100px) { .chat-layout .artifact-panel { position: fixed; inset: 68px 0 0 auto; width: min(680px, 90vw); height: calc(100dvh - 68px); z-index: 601; } }
+@media (max-width: 600px) { .chat-layout .conversation-stream { padding: 24px 16px 8px; } .composer-dock { padding: 10px 16px max(14px, env(safe-area-inset-bottom)); } .conversation-empty h1 { font-size: 26px; } .chat-layout .artifact-panel { inset: 58px 0 0; width: 100%; height: calc(100dvh - 58px); z-index: 651; } .workspace-suggestions { gap: 8px; } .workspace-suggestions button { padding: 8px 12px; } }
 </style>
