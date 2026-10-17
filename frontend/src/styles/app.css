@@ -324,6 +324,17 @@
 .recent-analysis-item small, .recent-empty { color: #8793a4; font-size: 8px; }
 .recent-empty { margin: 10px 0 0; }
 .evidence-panel-heading .el-button { margin-left: auto; }
+/* 发送位置的停止操作：圆形底、方形图标；进度环只在等待终止确认时出现。 */
+.el-button.run-stop-button { --el-button-bg-color: var(--ink); --el-button-text-color: #fff; --el-button-border-color: transparent; --el-button-hover-bg-color: #293a52; --el-button-hover-text-color: #fff; --el-button-hover-border-color: transparent; --el-button-active-bg-color: #0b1628; --el-button-active-text-color: #fff; --el-button-active-border-color: transparent; --el-button-disabled-bg-color: #e9edf3; --el-button-disabled-text-color: #95a0b1; --el-button-disabled-border-color: transparent; flex-shrink: 0; width: 44px; height: 44px; padding: 0; border-radius: 50%; transition: background-color .15s, box-shadow .15s; }
+.el-button.run-stop-button > span { position: relative; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+.el-button.run-stop-button.is-compact { width: 36px; height: 36px; }
+.run-stop-glyph { display: block; width: 14px; height: 14px; border-radius: 2px; background: currentColor; }
+.is-compact .run-stop-glyph { width: 12px; height: 12px; }
+.el-button.run-stop-button[aria-busy="true"] { background: var(--ink); color: #fff; border-color: transparent; cursor: wait; }
+.run-stop-spinner { position: absolute; inset: 5px; border: 2px solid rgb(255 255 255 / 25%); border-top-color: #fff; border-radius: 50%; animation: run-stop-spin .8s linear infinite; }
+.el-button.run-stop-button:focus-visible { outline: 3px solid rgb(47 107 255 / 40%); outline-offset: 3px; }
+@keyframes run-stop-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .run-stop-spinner { animation: none; } .el-button.run-stop-button { transition: none; } }
 .report-dialog .el-dialog__body { padding-top: 6px; }
 .report-dialog-heading { display: flex; align-items: center; justify-content: space-between; padding-right: 18px; }
 .report-dialog-heading h2 { margin: 3px 0 0; color: #17263d; font-size: 19px; }

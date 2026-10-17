@@ -66,8 +66,8 @@ export default {
       <label class="composer-choice">分析深度<select v-model="depth" aria-label="分析深度" :disabled="busy || !capabilities.depth_selection" @change="$emit('option-change', { depth })"><option v-for="value in capabilities.depths || ['STANDARD']" :key="value" :value="value">{{ { FAST: '快速', STANDARD: '标准', DEEP: '深度' }[value] }}</option></select></label>
       <label class="composer-choice">报告类型<select v-model="reportTemplate" aria-label="报告类型" :disabled="busy || !capabilities.automatic_reports" @change="$emit('option-change', { report_template: reportTemplate || null, output_formats: reportTemplate ? ['xlsx', 'docx', 'pdf', 'python'] : [] })"><option value="">手动生成</option><option v-for="item in capabilities.report_templates || []" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
       <label class="composer-choice model-choice">模型<select v-model="modelId" aria-label="模型" :disabled="busy || !capabilities.model_selection" @change="$emit('option-change', { model_id: modelId || null })"><option value="">{{ capabilities.models?.[0]?.id || '服务端配置' }}</option><option v-for="model in capabilities.models || []" :key="model.id" :value="model.id" :disabled="!model.configured">{{ model.id }}</option></select></label>
-      <el-button v-if="busy && interruptible" native-type="button" type="danger" class="composer-send composer-interrupt" :disabled="interruptDisabled || interrupting" :loading="interrupting" :aria-busy="interrupting" @click="interrupt"><span v-if="!interrupting" class="interrupt-icon" aria-hidden="true"></span><span>{{ interrupting ? '正在中断…' : '中断' }}</span></el-button>
-      <el-button v-else native-type="submit" type="primary" class="composer-send" :disabled="busy || uploading || !modelValue.trim()" :loading="busy" :aria-busy="busy"><span>{{ busy ? '处理中' : '发送问题' }}</span><el-icon v-if="!busy"><Top /></el-icon></el-button>
+      <el-button v-if="busy && interruptible" native-type="button" class="composer-send composer-interrupt run-stop-button" :disabled="interruptDisabled || interrupting" :aria-label="interrupting ? '正在中断分析' : '中断分析'" :title="interrupting ? '正在中断，等待服务端确认' : '中断分析'" :aria-busy="interrupting" @click="interrupt"><span v-if="interrupting" class="run-stop-spinner" aria-hidden="true"></span><span class="run-stop-glyph" aria-hidden="true"></span><span class="sr-only">{{ interrupting ? '正在中断…' : '中断' }}</span></el-button>
+      <el-button v-else native-type="submit" type="primary" class="composer-send" :disabled="busy || uploading || !modelValue.trim()" :loading="busy" :aria-busy="busy" :aria-label="busy ? '处理中' : '发送问题'" :title="busy ? '处理中' : '发送问题'"><span class="sr-only">{{ busy ? '处理中' : '发送问题' }}</span><el-icon v-if="!busy"><Top /></el-icon></el-button>
     </div>
     <p v-if="selectedTemplate?.availability === 'limited'" class="composer-note">{{ selectedTemplate.constraints?.[1] }}</p>
     <p v-if="reportTemplate" class="composer-note">分析后自动生成 Excel、Word、PDF 和 Python 文件；缺少来源或格式失败会保留部分结果。</p>
@@ -80,17 +80,16 @@ export default {
 .prompt-composer:focus-within, .prompt-composer.is-dragging { border-color: var(--brand); }
 textarea { width: 100%; height: 112px; min-height: 96px; max-height: 280px; resize: none; border: 0; background: transparent; outline: none; color: var(--ink); font: inherit; line-height: 1.7; }
 textarea:disabled { opacity: .65; }
-.prompt-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.prompt-toolbar { position: relative; display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; padding-right: 56px; min-height: 44px; }
 .prompt-toolbar .el-button { height: 36px; margin-left: 0; padding: 0 14px; border-radius: var(--radius-sm); font-size: 12px; }
 .prompt-toolbar .el-button :deep(.el-icon) { font-size: 14px; }
 .composer-file :deep(.el-icon) { margin-right: 6px; }
-.composer-send :deep(.el-icon) { margin-left: 6px; }
+.composer-send :deep(.el-icon) { margin: 0; font-size: 20px; }
 select { cursor: pointer; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); height: 36px; }
 .composer-choice { display: grid; gap: 3px; font-size: 10px; color: var(--muted); }
 select { max-width: 150px; font-size: 12px; padding: 3px 5px; }
 select:disabled { cursor: default; opacity: .55; }
-.prompt-toolbar .composer-send { margin-left: auto; min-width: 110px; }
-.interrupt-icon { display: inline-block; width: 10px; height: 10px; margin-right: 7px; border-radius: 1px; background: currentColor; }
+.prompt-toolbar .composer-send { position: absolute; right: 0; bottom: 0; width: 44px; height: 44px; min-width: 44px; margin: 0; padding: 0; border-radius: 50%; }
 .composer-note { color: var(--muted); font-size: 11px; margin: 10px 0 0; line-height: 1.6; }
 @media (max-width: 600px) { .model-choice { display: none; } .prompt-composer { padding: 12px; } select { max-width: 120px; } }
 </style>
