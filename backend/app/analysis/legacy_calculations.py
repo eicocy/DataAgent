@@ -22,7 +22,7 @@ def _aggregation(series,operation):
 class LegacyCalculations:
     def _check_column(self, column: str) -> None:
         if column not in self.schema:
-            raise ToolInputError('COLUMN_NOT_FOUND')
+            raise ToolInputError('COLUMN_NOT_FOUND', details={'column': column})
 
 
     def _filtered(self, frame, conditions, logic="and"):
@@ -142,24 +142,27 @@ class LegacyCalculations:
     def generate_chart(self, args: ChartArgs) -> dict[str, Any]:
         source = self.call_results.get(args.source_tool_call_id)
         if source is None:
-            raise ValueError("source_tool_call_id does not reference a completed tool result")
+            raise ToolInputError('CHART_SOURCE_NOT_READY', '绘图没有可用的已完成计算结果。', suggestion='先完成来源步骤，再用其 step_id 作为图表 source_ref。')
         full_frame = self.frame_results.get(args.source_tool_call_id)
         if full_frame is not None and args.group_column and args.selected_groups is not None:
             if args.group_column not in full_frame.columns:
-                raise ValueError('chart group field is missing')
+                raise ToolInputError('CHART_COLUMN_NOT_FOUND', details={'column': args.group_column})
             full_frame = full_frame.loc[full_frame[args.group_column].isin(args.selected_groups)]
         columns = list(full_frame.columns) if full_frame is not None else source.get("columns") or (list(source["rows"][0]) if source.get("rows") else [])
         rows = _records(full_frame) if full_frame is not None else source.get("rows") or source.get("preview_rows") or source.get("sorted_rows") or []
         if not rows:
-            raise ValueError('chart source is empty')
-        if args.dimension not in columns or any(metric.field not in columns for metric in args.metrics):
-            raise ToolInputError('CHART_COLUMN_NOT_FOUND')
+            raise ToolInputError('CHART_SOURCE_EMPTY', '绘图来源没有可绘制的数据行。', suggestion='检查筛选条件是否过严、来源结果是否为空，调整筛选后重试。')
+        for column in [args.dimension, *(metric.field for metric in args.metrics)]:
+            if column not in columns:
+                raise ToolInputError('CHART_COLUMN_NOT_FOUND', details={'column': column})
         if args.type == "pie" and (len(args.metrics) != 1 or len(rows) > 20):
-            raise ValueError("pie charts require one metric and at most 20 categories")
+            raise ToolInputError('PIE_CHART_LIMIT_EXCEEDED', '饼图只支持一个指标，且类别不能超过 20 个。',
+                                 details={'actual_count': len(rows), 'max_count': 20}, suggestion='选择一个指标并取前 20 个类别，或改用柱状图。')
         dimension_values = pd.Series([row[args.dimension] for row in rows])
         date_like = pd.to_datetime(dimension_values, errors='coerce', format='mixed').notna().all() if not pd.api.types.is_numeric_dtype(dimension_values) else False
         if args.type == "line" and not date_like and not pd.api.types.is_numeric_dtype(dimension_values) and self.schema.get(args.dimension) and self.schema[args.dimension].data_type not in {"date", "datetime", "integer", "decimal"}:
-            raise ValueError("line chart dimension must be ordered or date-like")
+            raise ToolInputError('CHART_DIMENSION_TYPE_INVALID', '折线图的维度必须是日期或有序数值。',
+                                 details={'column': args.dimension}, suggestion='改选日期或数值作为横轴；普通类别比较请改用柱状图。')
         for metric in args.metrics:
             for row in rows:
                 raw = row[metric.field]
@@ -167,32 +170,34 @@ class LegacyCalculations:
                     row[metric.field] = None
                     continue
                 if isinstance(raw, bool):
-                    raise ValueError('chart metrics must be numeric')
+                    raise ToolInputError('NUMERIC_COLUMN_REQUIRED', details={'column': metric.field, 'expected_type': '数值', 'actual_type': '布尔值'})
                 try:
                     number = float(raw)
                 except (TypeError, ValueError):
-                    raise ValueError('chart metrics must be numeric') from None
+                    raise ToolInputError('NUMERIC_COLUMN_REQUIRED', details={'column': metric.field, 'expected_type': '数值', 'actual_type': '包含非数值内容'}) from None
                 if not math.isfinite(number) or (args.type == 'pie' and number < 0):
-                    raise ValueError('invalid chart numeric value')
+                    raise ToolInputError('CHART_NUMERIC_VALUE_INVALID', '图表指标包含无穷值，或饼图指标包含负值。',
+                                         details={'column': metric.field}, suggestion='清理非有限数值；有负值的指标请改用柱状图。')
                 row[metric.field] = number
         if args.type in {'line', 'scatter'}:
             rows.sort(key=lambda row: (row[args.dimension] is None, str(row[args.dimension]) if date_like else row[args.dimension]))
         if args.type == 'histogram':
             values = pd.Series([row[args.metrics[0].field] for row in rows]).dropna()
             if values.empty:
-                raise ValueError('histogram requires numeric values')
+                raise ToolInputError('CHART_NO_NUMERIC_VALUES', '直方图指标没有有效数值。', suggestion='改选包含有效数值的指标，或检查当前筛选范围。')
             buckets = pd.cut(values, bins=args.bins).value_counts(sort=False)
             rows = [{args.dimension: str(interval), args.metrics[0].field: int(count)} for interval, count in buckets.items()]
         if len(rows) > 500:
-            raise ValueError('chart exceeds 500 point budget')
+            raise ToolInputError('CHART_POINT_LIMIT_EXCEEDED', details={'actual_count': len(rows), 'max_count': 500})
         series = []
         groups = [None]
         if args.group_column:
             if args.group_column not in columns:
-                raise ValueError('chart group field is missing')
+                raise ToolInputError('CHART_COLUMN_NOT_FOUND', details={'column': args.group_column})
             groups = args.selected_groups if args.selected_groups is not None else list(dict.fromkeys(row[args.group_column] for row in rows))
             if len(groups) > 20:
-                raise ValueError('chart exceeds series budget')
+                raise ToolInputError('CHART_SERIES_LIMIT_EXCEEDED', '图表分组系列超过 20 个的上限。',
+                                     details={'actual_count': len(groups), 'max_count': 20}, suggestion='用 selected_groups 选择最多 20 个系列，或先合并较小的分组。')
         for group in groups:
             for metric in args.metrics:
                 series_rows = [row for row in rows if group is None or row[args.group_column] == group]

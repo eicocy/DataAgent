@@ -2,6 +2,8 @@
 
 V2.0.6: utils/errorInfo.js 归一化任务错误和安全复制；ErrorInfoPanel.vue Options API 展示原因/建议/详情/手动复制，业务页负责 retry；api/client.js 区分 HTTP_REQUEST_TIMEOUT 并保留 Error.info；AnalysisScope.vue 显示提交快照；AgentSteps 用中文操作名，工具与参数折叠。
 
+诊断补修：ErrorInfoPanel 默认显示醒目类别、具体原因、如何处理与完成步骤，技术信息折叠且省略空项；api/client 和 taskError 优先 Error.info.reason；诊断副本支持实际数量/长度及离线复核来源标记，不复制原始数据。
+
 ## Files
 
 frontend/src/App.vue；router/；stores/auth.js；api/client.js

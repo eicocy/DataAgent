@@ -26,7 +26,9 @@ export default {
         ['分析记录', info.record_id], ['后台任务', info.job_id], ['数据版本', info.dataset_version_id],
         ['校验规则', info.validation_rule],
         ['相关字段', info.column], ['期望类型', info.expected_type], ['实际类型', info.actual_type],
-      ]
+        ['实际数据点', info.actual_count], ['数据点上限', info.max_count], ['实际字符数', info.actual_length], ['字符数上限', info.max_length],
+        ['诊断来源', info.diagnostic_source === 'saved_plan_replay' ? '保存计划离线复核' : info.diagnostic_source],
+      ].filter(([, value]) => value != null && value !== '未记录')
     },
   },
   watch: {
@@ -45,11 +47,15 @@ export default {
 
 <template>
   <section v-if="visible" class="error-info-panel" aria-label="错误原因与诊断信息">
+    <div class="error-heading"><span aria-hidden="true">!</span>{{ info?.title || '执行失败' }}</div>
     <p class="error-reason" role="alert">{{ info?.reason || message }}</p>
-    <p v-if="info?.suggestion" class="error-suggestion">建议：{{ info.suggestion }}</p>
+    <p v-if="info?.suggestion" class="error-suggestion"><strong>如何处理：</strong>{{ info.suggestion }}</p>
+    <ul v-if="info?.field_errors?.length > 3" class="field-errors"><li v-for="(field, index) in info.field_errors.slice(3)" :key="index">{{ field.message || `${field.path}：${field.rule}` }}</li></ul>
+    <p v-if="info?.diagnostic_source === 'saved_plan_replay'" class="error-suggestion">此原因由保存计划离线复核确认，原任务状态保留；未重新调用模型。</p>
+    <p v-if="info?.completed_steps?.length" class="error-suggestion">已完成 {{ info.completed_steps.length }} 个步骤，成功结果仍可查看。</p>
     <p v-if="info?.preserved_artifact_ids?.length" class="error-suggestion">已保留 {{ info.preserved_artifact_ids.length }} 项成果，可继续查看。</p>
     <details>
-      <summary>查看详细原因</summary>
+      <summary>查看详细原因与技术信息</summary>
       <p v-if="!info || info.legacy" class="error-suggestion">历史信息有限，未记录的诊断字段无法补造。</p>
       <dl><template v-for="[label, value] in fields" :key="label"><dt>{{ label }}</dt><dd>{{ value ?? '未记录' }}</dd></template></dl>
       <ul v-if="info?.field_errors?.length"><li v-for="(field, index) in info.field_errors" :key="index">{{ field.path }}：{{ field.rule }}</li></ul>
@@ -62,8 +68,10 @@ export default {
 </template>
 
 <style scoped>
-.error-info-panel { padding: 12px 14px; margin: 10px 0; border: 1px solid #e6b4ac; border-radius: 10px; background: #fff8f6; color: #70372f; font-size: 12px; overflow-wrap: anywhere; }
-.error-reason { font-weight: 600; margin: 0 0 6px; white-space: pre-wrap; }
+.error-info-panel { padding: 14px 16px; margin: 12px 0; border: 1px solid #e6b4ac; border-left: 4px solid #c33f30; border-radius: 10px; background: #fff8f6; color: #70372f; font-size: 13px; overflow-wrap: anywhere; }
+.error-heading { display: flex; gap: 8px; align-items: center; color: #a52a20; font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+.error-heading span { display: inline-grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; background: #b8382a; color: white; font-size: 14px; }
+.error-reason { font-weight: 600; margin: 0 0 6px; white-space: pre-wrap; line-height: 1.7; }
 .error-suggestion { margin: 6px 0; line-height: 1.6; }
 summary, button { cursor: pointer; }
 summary { padding: 6px 0; }

@@ -22,7 +22,7 @@ client.interceptors.response.use(
       window.dispatchEvent(new CustomEvent('datalens:auth-expired'))
     }
     const timedOut = ['ECONNABORTED', 'ETIMEDOUT'].includes(error.code)
-    const appError = new Error(body?.message || (timedOut ? '接口请求等待超时，后台任务结果尚未确认。' : '无法连接服务，请检查网络与服务状态。'))
+    const appError = new Error(body?.data?.error_info?.reason || body?.message || (timedOut ? '接口请求等待超时，后台任务结果尚未确认。' : '无法连接服务，请检查网络与服务状态。'))
     appError.code = body?.code || (timedOut ? 'HTTP_REQUEST_TIMEOUT' : 'NETWORK_ERROR')
     appError.status = error.response?.status || 0
     appError.fieldErrors = body?.data?.field_errors || []

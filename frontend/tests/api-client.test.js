@@ -14,3 +14,9 @@ it('preserves Axios cancellation rather than exposing it as a retryable network 
   const rejectResponse = client.interceptors.response.handlers[0].rejected
   await expect(Promise.resolve().then(() => rejectResponse(cancelled))).rejects.toBe(cancelled)
 })
+it('uses the actionable reason when the HTTP envelope has only a generic message', () => {
+  const reject = client.interceptors.response.handlers[0].rejected
+  expect(() => reject({ response: { status: 422, data: { code: 'VALIDATION_ERROR', message: '请求参数不符合要求',
+    data: { error_info: { reason: '缺少必填参数 dataset_id。', retryable: false } } } }, config: {} }))
+    .toThrow('缺少必填参数 dataset_id。')
+})

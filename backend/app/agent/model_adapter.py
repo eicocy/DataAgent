@@ -28,14 +28,16 @@ class ModelAdapter:
             import json
             from app.agent.executor import clip_context
             content = json.loads(payload)
-            if 'tools' in content and 'dataset' in content:
+            if 'tools' in content and ('dataset' in content or 'datasets' in content):
                 # 工具参数与授权字段不能被静默裁剪；只缩短可选会话背景。
                 for key in ('summary', 'previous_analysis', 'previous_plan'):
                     if len(json.dumps(content, ensure_ascii=False, default=str)) <= 60000:
                         break
                     content[key] = None
                 if len(json.dumps(content, ensure_ascii=False, default=str)) > 60000:
-                    raise ValueError('MODEL_CONTEXT_BUDGET_EXCEEDED')
+                    error = ValueError('MODEL_CONTEXT_BUDGET_EXCEEDED')
+                    error.details = {'actual_length': len(json.dumps(content, ensure_ascii=False, default=str)), 'max_length': 60000}
+                    raise error
             else:
                 content = clip_context(content)
             payload = json.dumps(content, ensure_ascii=False, default=str)

@@ -3,6 +3,7 @@ import ErrorInfoPanel from './ErrorInfoPanel.vue'
 const toolLabels = { dataset_overview: '查看数据概况', get_dataset_info: '查看数据概况', preview_data: '预览数据',
   filter_rows: '筛选数据', filter_data: '筛选数据', aggregate: '汇总指标', aggregate_data: '汇总指标',
   groupby_aggregate: '按维度汇总', group_by_analysis: '按维度汇总', descriptive_statistics: '计算描述统计',
+  top_n: '提取排名靠前的数据', bottom_n: '提取排名靠后的数据',
   column_summary: '统计字段', missing_value_analysis: '检查缺失值', duplicate_analysis: '检查重复数据',
   generate_chart: '绘制图表', forecast: '生成预测', sql_query: '查询数据', sort_data: '排序结果' }
 const labels = { pending: '等待执行', running: '执行中', succeeded: '已完成', partial: '部分完成', failed: '失败', skipped: '未执行',

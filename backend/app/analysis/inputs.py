@@ -74,7 +74,7 @@ class RatioInput(DataInput):
 
 class RankInput(DataInput):
     column: str
-    group_by: list[str]=Field(default_factory=list)
+    group_by: list[str]=Field(default_factory=list, description='组内排名的分区列。全局前N（包括分组汇总后选前N组）必须为空列表；仅每组分别取前N时填写。')
     direction: Literal['asc','desc']='desc'
     method: Literal['dense','min','max','first','average']='dense'
     n: int=Field(default=10, ge=1, le=500)

@@ -1,9 +1,26 @@
 import json
+import re
 from pydantic import ValidationError
 from app.agent.schemas import ExecutionPlan, AnalysisPlan, AnalysisStep
 from app.agent.prompts import PLAN
 from app.services.analysis_tools import model_tool_schemas
 from app.tools.registry import tool_registry
+
+
+def validate_top_n_scope(plan, question):
+    """Reject the unambiguous global-groups vs within-group ranking confusion."""
+    if not re.search(r'前\s*\d+\s*组', question) or re.search(r'每组|各组|组内|每个.{0,12}组', question):
+        return
+    steps = {step.step_id: step for step in plan.steps}
+    for step in plan.steps:
+        source = steps.get(step.source_ref)
+        groups = step.arguments.get('group_by', [])
+        if (step.tool_name in {'top_n', 'bottom_n'} and groups and source
+                and source.tool_name in {'aggregate', 'groupby_aggregate'}
+                and set(source.arguments.get('dimensions', [])) <= set(groups)):
+            error = ValueError('TOP_N_GROUP_SCOPE_INVALID')
+            error.details = {'step_id': step.step_id, 'tool_name': step.tool_name}
+            raise error
 
 
 def compact_tool_schema(schema):
@@ -136,6 +153,7 @@ class Planner:
                 plan.semantic_snapshot = config['semantic_snapshot']
                 plan.semantic_version = config['semantic_version']
                 plan.depth, plan.budget = config['depth'], budget.snapshot()
+                validate_top_n_scope(plan, question)
                 validate_graph(plan, columns, permissions, budget.max_tasks,metadata_by_input)
                 plan.steps, aliases = deduplicate_steps(plan.steps, {i.alias: i.dataset_version_id for i in plan.inputs}, plan.semantic_version)
                 plan.expected_outputs = list(dict.fromkeys(aliases.get(k, k) for k in plan.expected_outputs))

@@ -2,6 +2,8 @@
 
 V2.0.6: diagnostics.py -> errors/main HTTP + services/analysis/jobs/report/file 诊断落库 -> run/trace/history/session/parse 授权读取；agent/context.conversation_payload/ContextPatch/extract_plan_state 统一最近消息、条件和旧参数；budget.task_deadline_context 从持久 started_at 绑定到 worker/ModelAdapter/Executor，默认模型单次 90 秒，总预算不变。迁移 0013。
 
+诊断补修：diagnostics.validation_fields/actionable_info 将缺少参数、长度/类型与上下文上限转成可操作原因；legacy_calculations.generate_chart 保留点数等具体 ToolInputError；planner.validate_top_n_scope 拒绝明确全局前 N 组误用组内排名，仍走一次规划纠错。tests/test_actionable_diagnostics.py 覆盖真实 Registry/HTTP/Planner 边界。
+
 Phase 4 增量：artifacts/{manager,references}.py 统一授权 DTO/配额/长期留存与固定来源引用；services/input_workspace.py 加载完整可复用 DAG 结果；reports/{templates,result_tables,code_exporter,delivery}.py 从验证结果生成模板/完整明细/代码，自动交付不提交子 Job。迁移 0012；API 为 sessions workspace、artifacts 过滤/再生成、reports 稳定 request_id；细节和验证边界见 docs/phase4-workspace.md。
 
 ## Files

@@ -4,10 +4,11 @@ from fastapi.responses import JSONResponse
 
 
 async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
-    from app.diagnostics import error_info
+    from app.diagnostics import error_info, validation_fields, actionable_info
     fields = [".".join(str(item) for item in error["loc"][1:]) for error in exc.errors()]
     info = error_info('VALIDATION_ERROR', '请求参数没有通过校验。', stage='request', retryable=False)
-    info['field_errors'] = [{'path': '.'.join(str(i) for i in e['loc'][1:]), 'rule': e['type']} for e in exc.errors()[:20]]
+    info['field_errors'] = validation_fields(exc.errors())
+    info = actionable_info(info)
     return JSONResponse(
         status_code=422,
         content={
