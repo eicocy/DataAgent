@@ -1,6 +1,7 @@
 """Structured intent classification; rules are not the primary classifier."""
 from typing import Literal
 from pydantic import BaseModel, Field, ValidationError
+from app.agent.context import ContextPatch, conversation_payload
 
 
 IntentName = Literal[
@@ -24,6 +25,7 @@ class IntentDecision(BaseModel):
     requires_analysis: bool = False
     dataset_reference: DatasetReference | None = None
     follow_up: bool = False
+    context_patch: ContextPatch | None = None
 
 
 class IntentRouter:
@@ -31,7 +33,7 @@ class IntentRouter:
         self.provider = provider
 
     def route(self, question, context):
-        payload = {"question": question[:2000], "summary": context.messages_summary[:2000],
+        payload = {"question": question[:2000], **conversation_payload(context, question),
                    "active_dataset_id": context.active_dataset_id,
                    "current_intent": context.current_intent}
         for attempt in range(2):

@@ -45,7 +45,13 @@ def _iso(value: datetime | None) -> str | None:
 
 
 def _summary(dataset: Dataset) -> dict:
+    from sqlalchemy.orm import object_session
+    from app.models import BackgroundJob
+    from app.diagnostics import error_info
+    db = object_session(dataset)
+    job = db.scalar(select(BackgroundJob).where(BackgroundJob.kind=='parse',BackgroundJob.resource_id==dataset.id)) if db and dataset.parse_error_code else None
     return {
+        'error_info': (job.error_info_json if job else None) or (error_info(dataset.parse_error_code,dataset.parse_error_message,stage='parse',legacy=True) if dataset.parse_error_code else None),
         "id": dataset.id,
         "uploaded_file_id": dataset.uploaded_file_id,
         "origin_metadata": dataset.origin_metadata_json,

@@ -1,5 +1,7 @@
 # frontend
 
+V2.0.6: utils/errorInfo.js 归一化任务错误和安全复制；ErrorInfoPanel.vue Options API 展示原因/建议/详情/手动复制，业务页负责 retry；api/client.js 区分 HTTP_REQUEST_TIMEOUT 并保留 Error.info；AnalysisScope.vue 显示提交快照；AgentSteps 用中文操作名，工具与参数折叠。
+
 ## Files
 
 frontend/src/App.vue；router/；stores/auth.js；api/client.js

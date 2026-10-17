@@ -94,6 +94,8 @@ def get_history(record_id: int, user: User = Depends(current_user), db: Session 
         "status": record.status,
         "error_code": record.error_code,
         "error_message": record.error_message,
+        'error_info': __import__('app.diagnostics', fromlist=['record_error_info']).record_error_info(record),
+        'analysis_context': (record.request_config_json or {}).get('effective_context'),
         "execution_time_ms": record.execution_time_ms,
         "created_at": record.created_at.isoformat(),
         "completed_at": record.completed_at.isoformat() if record.completed_at else None,

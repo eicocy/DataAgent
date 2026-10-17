@@ -46,6 +46,11 @@ def main():
         job = db.get(BackgroundJob, args.job_id)
         if not job or job.status != "running" or job.lease_token != args.lease:
             return
+        from app.agent.budget import bind_task_deadline, execution_seconds
+        from app.config import get_settings
+        from app.models import AnalysisRecord
+        record = db.get(AnalysisRecord, job.resource_id) if job.kind in {'analysis','report'} else None
+        bind_task_deadline(job, execution_seconds(job, get_settings(), record))
         if job.kind == "analysis":
             execute_record(db, job.resource_id, DeepSeekAgent(), engine, projection_engine, readonly_engine, job.id, args.lease)
         elif job.kind=='tool':
@@ -83,6 +88,9 @@ def main():
             job.error_code = None if job.status == 'succeeded' else (
                 dataset.parse_error_code if dataset and dataset.parse_error_code else 'DATASET_PARSE_FAILED')
             job.completed_at = datetime.now(UTC).replace(tzinfo=None)
+            if job.error_code:
+                from app.diagnostics import error_info
+                job.error_info_json = error_info(job.error_code, dataset.parse_error_message if dataset else None, job=job, stage='parse')
             db.commit()
 
 

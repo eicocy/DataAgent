@@ -124,3 +124,6 @@ Pre-flight: Composer 上传复用 Dataset API/Store；附件存 Session JSON，�
 ## V2.0.4 — Phase 4 发行收口
 
 用户已验收 Phase 4，并授权提交、推送与 GitHub 正式发行，随后实施 Phase 5。前后端版本号同步为 2.0.4；发行内容仅包含 Phase 4 与其文档，排除本地配置、plan/ 和运行数据。复用本阶段已通过的验收证据，收口仅检查版本契约、暂存内容及 whitespace；远程 CI 将执行仓库强制检查。详见 [V2.0.4 发行说明](releases/v2.0.4.md)。
+# V2.0.6 可靠性优化
+
+基于 V2.0.5，新增诊断持久化、共享超时预算、有界多轮上下文、统计路由与前端诊断面板。迁移头 `0013_error_diagnostics`。实际验收记录见 [V2.0.6](v2.0.6-reliability.md)，版本说明见 [发行说明](releases/v2.0.6.md)。本轮不自动推送、打标签或发布。

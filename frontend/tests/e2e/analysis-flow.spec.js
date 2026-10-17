@@ -42,6 +42,8 @@ test('signup, upload, preview, queued analysis and history with mocked APIs', as
   await expect(page.getByRole('button', { name: '取消任务' })).toBeVisible()
   await page.reload()
   await expect(page.getByText('总销售额为 12。')).toBeVisible()
+  await expect(page.getByText('汇总指标', { exact: true })).toBeVisible()
+  await page.getByText('查看工具与参数', { exact: true }).first().click()
   await expect(page.getByText('aggregate_data', { exact: true })).toBeVisible()
   await page.goto('/history/9')
   await expect(page.getByText('总销售额为 12。')).toBeVisible()

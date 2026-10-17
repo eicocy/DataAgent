@@ -12,6 +12,7 @@ from app.services.artifacts import ArtifactStore
 from app.services.analysis_tools import DatasetTools
 from app.services.datasets import DatasetService
 from app.agent.executor import clip_context
+from app.diagnostics import error_info, record_error_info, request_id_context
 
 resource_lock = threading.RLock()
 ACTIVE = ("pending", "running")
@@ -89,7 +90,8 @@ def _submit_analysis_locked(db, user_id, request, allow_switch=False):
             raise domain_error(409, 'DATASET_VERSION_UNAVAILABLE', '数据版本不可用')
         if requested_inputs and dataset and requested_inputs[0].dataset_id == dataset.id and requested_inputs[0].dataset_version_id:
             version = DatasetService(db).get_version(dataset, requested_inputs[0].dataset_version_id)
-        configuration = snapshot_config(db, user_id, session, request, dataset, version)
+        configuration = snapshot_config(db, user_id, session, request, dataset, version) or {}
+        configuration['http_request_id'] = request_id_context.get()
         active_records = list(db.scalars(select(AnalysisRecord).where(AnalysisRecord.user_id == user_id, AnalysisRecord.status.in_(ACTIVE)).with_for_update().execution_options(populate_existing=True)))
         if any(item.session_id == session.id for item in active_records):
             raise domain_error(409, "ANALYSIS_SESSION_BUSY", "此会话已有分析任务")
@@ -275,10 +277,13 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
                 job.active_stage = payload["stage"]
                 job.stage_timeout_seconds=payload.get('timeout_seconds')
                 job.stage_started_at = datetime.now(UTC).replace(tzinfo=None)
+                runtime = (job.task_payload_json or {}).get('runtime', {})
+                if payload.get('operation'):
+                    job.task_payload_json = {**(job.task_payload_json or {}), 'runtime': {**runtime, 'operation': payload['operation']}}
             if payload['stage'] != 'idle':
                 append_event(db, record, 'stage_changed', {'stage': payload['stage']})
         elif kind in {'plan_validated', 'step_ready', 'result_validated', 'retry', 'replan',
-                      'plan_completed', 'interpretation_started', 'interpretation_rejected', 'interpretation_retry', 'profile_selected', 'exploration_created'}:
+                      'plan_completed', 'interpretation_started', 'interpretation_rejected', 'interpretation_retry', 'profile_selected', 'exploration_created', 'plan_rejected'}:
             append_event(db, record, kind, payload)
         db.commit()
 
@@ -288,6 +293,9 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
             session = db.get(AnalysisSession, record.session_id)
             context = ConversationContext.from_session(session,
                 active_dataset_version_id=record.dataset_version_id if session.dataset_id == record.dataset_id else None)
+            history = db.scalars(select(AnalysisMessage).where(AnalysisMessage.session_id==session.id,
+                AnalysisMessage.id < record.user_message_id).order_by(AnalysisMessage.id.desc()).limit(6)).all() if record.user_message_id else []
+            context.recent_messages = [{'role':m.role, 'content':m.content[-1200:]} for m in reversed(history) if m.role in {'user','assistant'}]
             owned = db.scalars(select(Dataset).where(Dataset.user_id == record.user_id,
                                                      Dataset.status == 'ready').order_by(Dataset.id.asc())).all()
             candidates = []
@@ -388,6 +396,13 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
             from app.datasets.schemas import DatasetSchema,column_storage_type
             schema=DatasetSchema.model_validate(pinned_version.schema_json)
             tools.version_schema=schema
+            if prepared:
+                from app.agent.context import apply_context_patch, conversation_payload
+                context = apply_context_patch(context, getattr(prepared[1], 'context_patch', None), [c.name for c in schema.columns], record.question)
+                tools.conversation_state = context
+                record.request_config_json = {**(record.request_config_json or {}), 'effective_context': conversation_payload(context, record.question)}
+                session.context_json = {**(session.context_json or {}), **context.model_dump(mode='json')}
+                db.commit()
             from app.datasets.schemas import DatasetProfile
             tools.version_profile=DatasetProfile.model_validate(pinned_version.profile_json)
             columns=[SimpleNamespace(name=column.name,original_name=column.original_name,data_type=column_storage_type(column),nullable=bool(tools.frame[column.name].isna().any()),missing_count=int(tools.frame[column.name].isna().sum()),unique_count=int(tools.frame[column.name].nunique()),sample_values_json=[]) for column in schema.columns]
@@ -411,7 +426,7 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
                     outcome.report['answer'] = outcome.answer
                     outcome.report.setdefault('warnings', []).append(notice)
         else:
-            outcome = agent.respond_without_analysis(record.question, prepared)
+            outcome = agent.respond_without_analysis(record.question, prepared, context=context)
         record.tool_calls_json = outcome.tool_calls
         record.tool_result_json = clip_context(outcome.tool_result, max_rows=100)
         record.chart_json = outcome.chart
@@ -420,6 +435,12 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
         record.plan_json = getattr(outcome, "plan", None) or record.plan_json
         record.report_json = getattr(outcome, "report", None)
         record.usage_json = getattr(outcome, "usage", None)
+        failed_info = next((call.get('error_info') for call in outcome.tool_calls if call.get('status')=='failed' and call.get('error_info')), None)
+        if failed_info and record.status in {'partial','failed'}:
+            diagnostic = error_info(failed_info['code'],record=record,job=db.get(BackgroundJob,job_id) if job_id else None)
+            diagnostic.update({k:v for k,v in failed_info.items() if v is not None})
+            record.error_info_json = diagnostic
+            record.error_code,record.error_message = diagnostic['code'],diagnostic['reason']
         record.primary_tool_name = next((call["tool_name"] for call in outcome.tool_calls if call.get("status") == "succeeded" and call["tool_name"] not in {"get_dataset_info", "preview_data", "generate_chart"}), None)
     except WorkerLeaseLost:
         db.rollback()
@@ -445,14 +466,38 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
             if task.payload_json.get('analysis_record_id')==record.id:task.status='pending'
         code = getattr(exc, "code", "ANALYSIS_FAILED")
         message = getattr(exc, "public_message", "分析失败，请稍后重试")
+        job = db.get(BackgroundJob, job_id) if job_id else None
+        root_info, cause = None, exc
+        for _ in range(8):
+            if cause is None:
+                break
+            if getattr(cause, 'info', None):
+                root_info = cause.info
+                code = cause.code
+                message = cause.public_message
+                break
+            cause = cause.__cause__
+        reason = (root_info or {}).get('reason_code') or ('PLAN_INVALID' if code=='PLAN_INVALID' else code)
+        operation = ((job.task_payload_json or {}).get('runtime',{}).get('operation') if job else None)
+        diagnostic = error_info(code, message, reason_code=reason, record=record, job=job, exception=exc,
+                                operation=operation, stage='planning' if code=='PLAN_INVALID' else None,
+                                details=getattr(exc,'details',None), suggestion=getattr(exc,'suggestion',None), retryable=getattr(exc,'retryable',getattr(exc,'recoverable',None)))
+        if code=='PLAN_INVALID':
+            diagnostic['stage_elapsed_seconds'] = None
+        if root_info:
+            diagnostic.update({k:v for k,v in root_info.items() if v is not None})
+        diagnostic['preserved_artifact_ids'] = list(db.scalars(select(AnalysisArtifact.id).where(AnalysisArtifact.record_id==record.id)))
+        record.error_info_json = diagnostic
+        if job:
+            job.error_info_json = diagnostic
         for execution in db.scalars(select(ToolExecutionRecord).where(ToolExecutionRecord.analysis_record_id==record.id,ToolExecutionRecord.status=='running')):
             execution.status='failed';execution.finished_at=datetime.now(UTC)
-            execution.error_json={'code':code,'message':message,'details':{},'recoverable':False,'suggestion':'显式重试分析'}
-        record.status = "partial" if record.tool_result_json else "failed"
+            execution.error_json={'code':code,'message':message,'details':diagnostic,'recoverable':diagnostic['retryable'],'suggestion':diagnostic['suggestion']}
+        record.status = "partial" if record.tool_result_json or record.chart_json or diagnostic['preserved_artifact_ids'] else "failed"
         calls = list(record.tool_calls_json or [])
         for call in calls:
             if call.get("status") == "running":
-                call.update(status="failed", error_code=code, result_summary="执行中断")
+                call.update(status="failed", error_code=code, error_info=diagnostic, result_summary=diagnostic['reason'])
         record.tool_calls_json = calls
         record.error_code, record.error_message = code, message
         if record.status == "partial":
@@ -469,18 +514,26 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
                 job.active_stage,job.stage_started_at = 'report',datetime.now(UTC).replace(tzinfo=None)
             db.commit()
         try:
-            delivery = deliver_record(db,record,check_lease,delivery_event)
+            def delivery_lease():
+                check_lease()
+                from app.agent.budget import ensure_execution_time
+                ensure_execution_time('report')
+            delivery = deliver_record(db,record,delivery_lease,delivery_event)
             record.report_json = {**(record.report_json or {}),'delivery':delivery}
             if delivery['status']!='succeeded':
                 record.status = 'partial'
                 record.error_code = 'REPORT_DELIVERY_PARTIAL'
                 record.error_message = '分析结果已保留，部分交付未完成，请查看报告文件状态。'
+                record.error_info_json = error_info(record.error_code,record.error_message,record=record,job=db.get(BackgroundJob,job_id) if job_id else None,stage='report')
         except WorkerLeaseLost:
             db.rollback(); return
         except Exception as error:
             db.rollback(); record = db.get(AnalysisRecord,record_id)
             record.status,record.error_code = 'partial','REPORT_DELIVERY_FAILED'
             record.error_message = '分析结果已保留，报告交付失败，请从报告工作区重试。'
+            record.error_info_json = error_info('REPORT_DELIVERY_FAILED',record.error_message,record=record,stage='report',exception=error)
+            if getattr(error,'info',None):
+                record.error_info_json.update({k:v for k,v in error.info.items() if v is not None})
             record.report_json = {**(record.report_json or {}),'delivery':{'status':'partial','error_code':str(error)[:64],'formats':{}}}
     try:
         check_lease()
@@ -509,17 +562,8 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
             context.previous_result_ref = next((step.get('result_ref') for step in reversed(record.plan_json.get('steps', []))
                 if step.get('result_ref') and step.get('tool_name') != 'generate_chart'), None)
             context.last_chart_spec = record.chart_json if record.chart_json else context.last_chart_spec
-            filters, dimensions, metrics = [], [], []
-            for step in record.plan_json.get('steps', []):
-                args = step.get('arguments') or {}
-                filters.extend(args.get('conditions') or [])
-                dimensions.extend(value for key in ('group_column', 'date_column')
-                    if isinstance(value := args.get(key), str))
-                metrics.extend(item.get('column') for item in args.get('metrics', [])
-                    if isinstance(item, dict) and isinstance(item.get('column'), str))
-            context.active_filters = filters[:20]
-            context.active_dimensions = list(dict.fromkeys(dimensions))[:20]
-            context.active_metrics = list(dict.fromkeys(metrics))[:20]
+            from app.agent.context import extract_plan_state
+            extract_plan_state(context, record.plan_json)
         context.messages_summary = (context.messages_summary + '\n用户：' + record.question[:300] +
             '\n助手：' + (record.final_answer or record.error_message or '')[:500])[-4000:]
         session.context_json = {**(session.context_json or {}), **context.model_dump(mode='json')}
@@ -532,6 +576,6 @@ def execute_record(db, record_id, agent, business_bind, projection_bind, readonl
         job.error_code = record.error_code
     append_event(db, record, 'clarification_required' if record.status == 'waiting' else
                  'response_ready' if record.status in {'succeeded', 'partial'} else 'analysis_failed',
-                 {'status': record.status, 'record_id': record.id})
+                 {'status': record.status, 'record_id': record.id, 'error_info': record_error_info(record)})
     db.commit()
     return record

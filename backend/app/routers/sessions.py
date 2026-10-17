@@ -157,7 +157,10 @@ def _session_or_error(db: Session, session_id: int, user_id: int) -> AnalysisSes
 def _record_evidence(record: AnalysisRecord | None) -> dict | None:
     if record is None:
         return None
+    from app.diagnostics import record_error_info
     return {
+        'error_info': record_error_info(record),
+        'analysis_context': (record.request_config_json or {}).get('effective_context'),
         "id": record.id,
         "request_id": record.request_id,
         "request_options": (record.request_config_json or {}).get('public'),

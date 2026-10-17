@@ -81,6 +81,9 @@ class WorkflowExecutor:
         self.unrecoverable_steps = set()
         self.result_warnings = []
         self.deadline = time.monotonic() + settings.analysis_timeout_seconds
+        from app.agent.budget import task_deadline_context
+        if task_deadline_context.get() is not None:
+            self.deadline = min(self.deadline, task_deadline_context.get())
         self.tools.deadline=self.deadline
 
     @staticmethod
@@ -253,6 +256,9 @@ class WorkflowExecutor:
                 if step.tool_name == 'python_sandbox' or computed or (isinstance(exc, ResultValidationError) and not exc.recoverable) or isinstance(exc,ToolError) and not isinstance(exc,ToolInputError) or not isinstance(exc, (ValueError, KeyError, TypeError)):
                     self.unrecoverable_steps.add(step.step_id)
                 call.update(status='failed', error_code=getattr(exc, 'code', 'TOOL_EXECUTION_FAILED'), result_summary='工具参数、数据或执行结果未通过校验', duration_ms=int((time.monotonic() - started) * 1000))
+                from app.diagnostics import error_info
+                call['error_info'] = error_info(call['error_code'], getattr(exc,'public_message',None), stage='tool', exception=exc, details=getattr(exc,'details',None), suggestion=getattr(exc,'suggestion',None), retryable=getattr(exc,'recoverable',False))
+                call['error_info'].update(step_id=step.step_id, tool_name=step.tool_name, stage_elapsed_seconds=(time.monotonic()-started))
                 transition_step(step, 'FAILED')
                 step.error = call['error_code']
             call['completed_at'] = datetime.now(UTC).isoformat()

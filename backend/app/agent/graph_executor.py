@@ -197,6 +197,9 @@ class GraphExecutor(WorkflowExecutor):
                         raise
                     code = getattr(exc, 'code', None) or ('TOOL_TIMEOUT' if str(exc) == 'TOOL_TIMEOUT' else 'TOOL_EXECUTION_FAILED')
                     call.update(status='failed', error_code=code, result_summary='计算或持久化未通过校验')
+                    from app.diagnostics import error_info
+                    call['error_info'] = error_info(code,getattr(exc,'public_message',None),stage='tool',exception=exc,details=getattr(exc,'details',None),suggestion=getattr(exc,'suggestion',None),retryable=getattr(exc,'recoverable',False))
+                    call['error_info'].update(step_id=step.step_id,tool_name=step.tool_name,stage_elapsed_seconds=time.monotonic()-started)
                     step.error = code
                     transition_step(step, 'FAILED')
                     if (computed or code in {'TOOL_TIMEOUT', 'RESULT_BUDGET_EXCEEDED'}

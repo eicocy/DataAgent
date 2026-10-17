@@ -2,6 +2,7 @@
 import { mapState } from 'pinia'
 import { ArrowLeft, ChatLineRound, Refresh } from '@element-plus/icons-vue'
 import AppShell from '../components/AppShell.vue'
+import ErrorInfoPanel from '../components/ErrorInfoPanel.vue'
 import { datasetApi } from '../api/datasets'
 import DataQualityWorkbench from '../components/DataQualityWorkbench.vue'
 import CleaningWorkbench from '../components/CleaningWorkbench.vue'
@@ -10,7 +11,7 @@ import { useDatasetStore } from '../stores/datasets'
 
 export default {
   name: 'DatasetDetailView',
-  components: { AppShell, DataQualityWorkbench, CleaningWorkbench, JoinWorkbench, ArrowLeft, ChatLineRound, Refresh },
+  components: { ErrorInfoPanel, AppShell, DataQualityWorkbench, CleaningWorkbench, JoinWorkbench, ArrowLeft, ChatLineRound, Refresh },
   props: { datasetId: { type: String, required: true } },
   data() {
     return {
@@ -122,7 +123,7 @@ export default {
   <AppShell>
     <section class="page-heading dataset-detail-heading"><div><el-button text class="back-link" @click="$router.push('/datasets')"><el-icon><ArrowLeft /></el-icon>返回数据集</el-button><p class="eyebrow">数据集详情</p><h1>{{ currentDataset?.original_name || '正在加载…' }}</h1><p class="page-intro">{{ currentDataset?.row_count ?? '—' }} 行 · {{ currentDataset?.column_count ?? '—' }} 列 · {{ currentDataset?.file_type?.toUpperCase() }}</p></div><div class="detail-heading-actions"><span class="dataset-status" :class="`status-${currentDataset?.status}`"><i></i>{{ statusLabel(currentDataset?.status) }}</span><el-button type="primary" :disabled="!ready" @click="$router.push({ name: 'analysis', query: { datasetId } })"><el-icon><ChatLineRound /></el-icon>开始分析</el-button></div></section>
     <div v-if="errorMessage" class="inline-error"><span>{{ errorMessage }}</span><el-button text type="primary" @click="loadAll"><el-icon><Refresh /></el-icon>重试</el-button></div>
-    <section v-if="currentDataset?.status === 'failed'" class="panel parse-failure" role="alert"><h2>文件解析失败</h2><p>{{ currentDataset.parse_error_message || '文件无法解析，请检查格式后重新上传。' }}</p><el-button type="primary" @click="$router.push('/datasets/upload')">重新上传</el-button></section>
+    <section v-if="currentDataset?.status === 'failed'" class="panel parse-failure"><h2>文件解析失败</h2><ErrorInfoPanel :info="currentDataset.error_info" :message="currentDataset.parse_error_message || '文件无法解析，请检查格式后重新上传。'" /><el-button type="primary" @click="$router.push('/datasets/upload')">重新上传</el-button></section>
     <section v-else-if="!ready" class="panel parsing-panel" aria-live="polite"><span class="large-loader"></span><h2>正在准备数据</h2><p>系统正在识别字段并整理数据预览，请稍候。</p></section>
     <section v-else class="panel detail-panel">
       <p v-for="(warning, index) in currentDataset.quality_warnings || currentDataset.warnings || []" :key="index" class="summary-warning" role="status">{{ typeof warning === 'string' ? warning : warning.message }}</p>

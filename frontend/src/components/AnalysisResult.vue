@@ -1,5 +1,6 @@
 <script>
 import ChartView from './ChartView.vue'
+import ErrorInfoPanel from './ErrorInfoPanel.vue'
 import ForecastResult from './ForecastResult.vue'
 import BusinessResult from './BusinessResult.vue'
 import DataQualityWorkbench from './DataQualityWorkbench.vue'
@@ -8,7 +9,7 @@ import { hasTypedDetails, rawResultSource, sameResultSource, structuredKinds } f
 
 export default {
   name: 'AnalysisResult',
-  components: { ChartView, ForecastResult, BusinessResult, DataQualityWorkbench },
+  components: { ErrorInfoPanel, ChartView, ForecastResult, BusinessResult, DataQualityWorkbench },
   props: { evidence: { type: Object, required: true } },
   data() {
     return { pages: {}, loading: false, error: '' }
@@ -79,7 +80,7 @@ export default {
   <section class="result-evidence" aria-label="真实计算结果">
     <h3>计算结果</h3>
     <p v-if="evidence.status === 'partial'" class="partial-note" role="status">分析部分完成，下方保留已完成的真实计算结果。</p>
-    <p v-if="evidence.error_message" class="message-error" role="alert">{{ evidence.error_message }}</p>
+    <ErrorInfoPanel :info="evidence.error_info" :message="evidence.error_message || ''" />
     <p v-for="(warning, index) in evidence.report?.warnings || []" :key="index" class="summary-warning">
       {{ typeof warning === 'string' ? warning : warning.message }}
     </p>

@@ -1,6 +1,8 @@
 <script>
 import { reportsApi } from '../api/reports'
 import { analysisApi } from '../api/analysis'
+import ErrorInfoPanel from './ErrorInfoPanel.vue'
+import { taskError } from '../utils/errorInfo'
 
 const FORMATS = [
   { id: 'pdf', label: 'PDF' }, { id: 'docx', label: 'Word' },
@@ -12,6 +14,7 @@ const FORMATS = [
 
 export default {
   name: 'ReportWorkbench',
+  components: { ErrorInfoPanel },
   props: {
     modelValue: { type: Boolean, default: false },
     sessionId: { type: Number, required: true },
@@ -21,7 +24,7 @@ export default {
   emits: ['update:modelValue', 'changed'],
   data() {
     return { report: null, title: '', sections: [], loading: false, saving: false,
-      exporting: '', errorMessage: '', files: [], formats: FORMATS, requestGeneration: 0,
+      exporting: '', errorMessage: '', errorInfo: null, files: [], formats: FORMATS, requestGeneration: 0,
       createRequestId: null, exportRequestIds: {}, template: 'auto' }
   },
   watch: {
@@ -51,6 +54,7 @@ export default {
         const value = await this.waitForReportTask(response.record_id, generation)
         if (generation === this.requestGeneration) { this.applyReport(value.report || value); this.$emit('changed') }
       } catch (error) {
+        if (generation === this.requestGeneration) { this.errorInfo = error.info; if (error.recordId) this.createRequestId = null }
         if (generation === this.requestGeneration) this.errorMessage = error.message || '报告生成失败'
       } finally { if (generation === this.requestGeneration) this.loading = false }
     },
@@ -60,11 +64,7 @@ export default {
         if (generation !== this.requestGeneration) throw new Error('报告工作区已切换')
         const result = await analysisApi.run(recordId)
         if (result.status === "succeeded") return result.report || {}
-        if (["failed", "cancelled"].includes(result.status)) {
-          const error = new Error(result.error_message || "报告任务未完成")
-          error.code = result.error_code
-          throw error
-        }
+        if (["failed", "cancelled", "partial"].includes(result.status)) throw taskError(result)
         await new Promise((resolve) => window.setTimeout(resolve, 700))
       }
       throw new Error("报告任务超过 5 分钟，请稍后从任务记录查看状态")
@@ -89,6 +89,7 @@ export default {
         })
         if (generation === this.requestGeneration) { this.applyReport(response); this.$emit('changed') }
       } catch (error) {
+        if (generation === this.requestGeneration) this.errorInfo = error.info
         if (generation === this.requestGeneration) this.errorMessage = error.code === 'REPORT_VERSION_CONFLICT'
           ? '报告版本已更新，请重新打开后继续编辑。' : error.message || '报告保存失败'
       } finally { if (generation === this.requestGeneration) this.saving = false }
@@ -105,6 +106,10 @@ export default {
         const result = await this.waitForReportTask(task.record_id, generation)
         if (generation === this.requestGeneration) { this.files = [...(result.artifacts || []), ...this.files.filter(item => !result.artifacts?.some(file => file.artifact_id === item.artifact_id))]; this.$emit('changed') }
       } catch (error) {
+        if (generation === this.requestGeneration) {
+          this.errorInfo = error.info
+          if (error.recordId) delete this.exportRequestIds[`${this.report.id}:${this.report.version}:${format}`]
+        }
         if (generation === this.requestGeneration) this.errorMessage = error.message || '导出失败，请重试'
       } finally { if (generation === this.requestGeneration) this.exporting = '' }
     },
@@ -121,7 +126,7 @@ export default {
       <div class="report-dialog-heading"><div><p class="eyebrow">固定数据版本 · 可追溯来源</p><h2>报告工作区</h2></div><el-tag v-if="report" effect="plain">v{{ report.version }}</el-tag></div>
     </template>
     <div v-if="loading" class="report-loading" role="status">正在整理报告内容…</div>
-    <div v-else-if="errorMessage && !report" class="report-error" role="alert"><p>{{ errorMessage }}</p><el-button type="primary" @click="createReport">重试生成</el-button></div>
+    <ErrorInfoPanel v-else-if="errorMessage && !report" :info="errorInfo" :message="errorMessage" retryable retry-label="重试生成" @retry="createReport" />
     <div v-else-if="report" class="report-layout">
       <section class="report-preview">
         <label class="report-title-field">报告标题<el-input v-model="title" maxlength="255" /></label>
@@ -143,7 +148,7 @@ export default {
         <p class="report-help">计算指标来自固定版本证据。用户修改的标题和文案会在新版本中标记。</p>
         <div class="report-format-grid"><el-button v-for="item in formats" :key="item.id" plain :loading="exporting === item.id" :disabled="Boolean(exporting)" @click="exportReport(item.id)">{{ item.label }}</el-button></div>
         <div v-if="files.length" class="report-files"><h3>已生成文件</h3><a v-for="(file, index) in files" :key="`${file.artifact_id}-${index}`" :href="artifactUrl(file)"><span>{{ file.file_name }}</span><small>{{ Math.ceil(file.size_bytes / 1024) }} KB</small></a></div>
-        <p v-if="errorMessage" class="report-error" role="alert">{{ errorMessage }}</p>
+        <ErrorInfoPanel v-if="errorMessage" :info="errorInfo" :message="errorMessage" />
       </aside>
     </div>
   </el-dialog>

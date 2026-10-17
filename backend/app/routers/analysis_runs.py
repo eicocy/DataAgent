@@ -28,6 +28,8 @@ class RunSubmission(BaseModel):
 
 
 class RunData(BaseModel):
+    error_info: dict | None = None
+    analysis_context: dict | None = None
     request_options: dict | None = None
     record_id: int
     session_id: int
@@ -55,6 +57,7 @@ class RunData(BaseModel):
 
 
 class TraceData(BaseModel):
+    error_info: dict | None = None
     plan: dict | None = None
     steps: list[dict]
 
@@ -197,7 +200,8 @@ def status(record_id: int, user: User = Depends(current_user), db: Session = Dep
 @router.get("/{record_id}/trace", response_model=TraceResponse)
 def trace(record_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     record = owned_record(db, record_id, user.id)
-    return {"code": 200, "message": "success", "data": {"plan": record.plan_json, "steps": record.tool_calls_json or []}}
+    from app.diagnostics import record_error_info
+    return {"code": 200, "message": "success", "data": {"plan": record.plan_json, "steps": record.tool_calls_json or [], 'error_info': record_error_info(record)}}
 
 
 @router.get("/{record_id}/events")
@@ -241,6 +245,8 @@ def cancel(record_id: int, user: User = Depends(current_user), db: Session = Dep
         job.completed_at = record.completed_at = now
         record.error_code = job.error_code = 'TASK_CANCELLED'
         record.error_message = '任务已取消'
+        from app.diagnostics import error_info
+        record.error_info_json = job.error_info_json = error_info('TASK_CANCELLED',record=record,job=job,retryable=False)
         message = db.get(AnalysisMessage, record.assistant_message_id) if record.assistant_message_id else None
         if message:
             message.status, message.content = 'cancelled', '任务已取消'
@@ -249,7 +255,7 @@ def cancel(record_id: int, user: User = Depends(current_user), db: Session = Dep
             db.add(message)
             db.flush()
             record.assistant_message_id = message.id
-        append_event(db, record, 'analysis_cancelled', {'status': 'cancelled'})
+        append_event(db, record, 'analysis_cancelled', {'status': 'cancelled', 'error_info':record.error_info_json})
     else:
         job.cancel_requested = True
         append_event(db, record, 'cancel_requested', {'status': 'running'})

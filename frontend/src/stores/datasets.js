@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { datasetApi } from '../api/datasets'
 import { filesApi } from '../api/files'
+import { taskError } from '../utils/errorInfo'
 
 function delay(milliseconds, signal) {
   return new Promise((resolve, reject) => {
@@ -32,7 +33,7 @@ export const useDatasetStore = defineStore('datasets', {
         if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError')
         const result = await filesApi.detail(accepted.id, { signal })
         if (result.status === 'ready') return result
-        if (result.status === 'failed') throw new Error(result.error_message || '文档解析失败，请检查源文件。')
+        if (result.status === 'failed') throw taskError(result)
         await delay(1000, signal)
       }
       throw new Error('解析仍在处理，请稍后继续等待或到文件页面查看。')
@@ -86,7 +87,7 @@ export const useDatasetStore = defineStore('datasets', {
           if (result.status === 'ready') { this.uploadStatus = 'ready'; return result }
           if (result.status === 'failed') {
             this.uploadStatus = 'failed'
-            throw Object.assign(new Error(result.parse_error_message || '文件解析失败'), { code: 'DATASET_PARSE_FAILED' })
+            throw Object.assign(taskError(result), { code: 'DATASET_PARSE_FAILED' })
           }
           await delay(1000, signal)
         }

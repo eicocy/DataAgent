@@ -69,7 +69,9 @@ class PlanValidator:
             if (step.source_ref == "dataset" or known_source) and step.tool_name != "sql_query":
                 for field in self._referenced_fields(step.arguments):
                     if field not in step_columns:
-                        raise ValueError("COLUMN_NOT_FOUND")
+                        error = ValueError('COLUMN_NOT_FOUND')
+                        error.details = {'column':field, 'step_id':step.step_id, 'tool_name':step.tool_name}
+                        raise error
                 if step.tool_name in {"time_group_analysis", "growth_analysis"}:
                     if step_columns.get(step.arguments.get("date_column")) not in {"datetime", "date", "timestamp", "string"}:
                         raise ValueError("COLUMN_TYPE_MISMATCH")

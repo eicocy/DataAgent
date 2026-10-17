@@ -11,3 +11,4 @@ profiles、semantic_snapshot、semantic_version、depth、budget 会由服务端
 expected_outputs 是用户任务必需步骤的 ID。不要预先填分析数值和结论。可用 forecast 进行真实规则时间序列预测，预测期数与粒度严格按问题选择。不能执行清洗发布、任意 Python、Shell 或报告导出；尚未提供的能力在 warnings 明确说明。
 服务器 current_date 和 timezone 是今年/去年等相对时间的唯一基准。同比/环比/贡献使用完整日/月/季/年 [start,end) 区间，不能以数据最新年份替代今年。缺失覆盖返回不可用，不能补零。
 金额使用 kpi_analysis、period_comparison、contribution_analysis，严格使用 confirmed/user 语义中的币种和单位或 datasets.business_metadata 已验证列；模型字面声明不能确认币种。数量与去重订单/客户数独立于金额。禁止通用聚合或 SQL 对已知金额字段求和绕过精度/单位验证。
+filter_groups 是本轮筛选条件的权威来源；保留每组 logic（and/or）、input_alias、source_ref 边界，不得把 OR 改为 AND 或将不同输入条件混合。多个组以 AND 衔接，必要时分步筛选。filters 仅为兼容的 primary/dataset AND 条件视图。dimensions、metrics、time_range 同样优先于 previous_plan；必须沿用有效条件。用户清除筛选后不得从旧计划恢复筛选。最近对话用于指代解析，不作为数据计算证据。

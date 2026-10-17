@@ -2,13 +2,14 @@
 import { ArrowLeft, Clock, DataAnalysis, Document, Refresh, Timer } from '@element-plus/icons-vue'
 
 import AppShell from '../components/AppShell.vue'
+import ErrorInfoPanel from '../components/ErrorInfoPanel.vue'
 import AnalysisResult from '../components/AnalysisResult.vue'
 import AgentSteps from '../components/AgentSteps.vue'
 import { historyApi } from '../api/history'
 
 export default {
   name: 'HistoryDetailView',
-  components: { AppShell, ArrowLeft, AnalysisResult, AgentSteps, Clock, DataAnalysis, Document, Refresh, Timer },
+  components: { ErrorInfoPanel, AppShell, ArrowLeft, AnalysisResult, AgentSteps, Clock, DataAnalysis, Document, Refresh, Timer },
   props: { recordId: { type: String, required: true } },
   data() { return { record: null, loading: false, errorMessage: '' } },
   created() { this.load() },
@@ -81,7 +82,7 @@ export default {
         </div>
       </section>
       <section v-else-if="record.status === 'partial'" class="partial-note history-partial">分析部分完成；下方保留已完成步骤和计算证据。</section>
-      <section v-if="record.error_message" class="message-error" role="alert">{{ record.error_message }}</section>
+      <ErrorInfoPanel :info="record.error_info" :message="record.error_message || ''" />
       <section v-if="showEvidence" class="panel history-evidence-panel"><div class="evidence-panel-heading"><span class="evidence-dot"></span><div><h2>Tool 执行证据</h2><p>{{ record.primary_tool_name || '已保存的执行步骤与计算结果' }}</p></div></div>
         <AgentSteps :calls="record.tool_calls || []" /><AnalysisResult :evidence="{ ...record, record_id: record.id }" />
       </section>

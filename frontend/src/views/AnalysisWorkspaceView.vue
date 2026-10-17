@@ -2,6 +2,8 @@
 import { ChatLineRound, DataAnalysis, Refresh, Promotion } from '@element-plus/icons-vue'
 
 import AppShell from '../components/AppShell.vue'
+import ErrorInfoPanel from '../components/ErrorInfoPanel.vue'
+import AnalysisScope from '../components/AnalysisScope.vue'
 import AgentSteps from '../components/AgentSteps.vue'
 import AnalysisResult from '../components/AnalysisResult.vue'
 import ReportWorkbench from '../components/ReportWorkbench.vue'
@@ -22,7 +24,7 @@ import { useWorkspaceStore } from '../stores/workspace'
 
 export default {
   name: 'AnalysisWorkspaceView',
-  components: { ArtifactWorkspace, MentionPicker, AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, DocumentCandidatePreview, SemanticMappingEditor, ChatLineRound, DataAnalysis, Refresh, Promotion },
+  components: { ErrorInfoPanel, AnalysisScope, ArtifactWorkspace, MentionPicker, AppShell, AgentSteps, AnalysisResult, ReportWorkbench, PromptComposer, UploadQueue, DocumentCandidatePreview, SemanticMappingEditor, ChatLineRound, DataAnalysis, Refresh, Promotion },
   data() {
     return {
       dataset: null,
@@ -321,6 +323,7 @@ export default {
         this.question = question
         userMessage.error = error.message || '分析失败，请保留问题后重试。'
         userMessage.errorCode = error.code
+        userMessage.errorInfo = error.info
       } finally {
         if (this.isCurrent(controller)) this.loading = false
       }
@@ -339,6 +342,10 @@ export default {
         tool_calls: record.tool_calls || [],
         tool_result: record.tool_result,
         chart: record.chart,
+        error_info: record.error_info,
+        error_code: record.error_code,
+        error_message: record.error_message,
+        analysis_context: record.analysis_context,
         summary_error: record.status === 'partial' ? 'SUMMARY_UNAVAILABLE' : null,
       } : null
       return {
@@ -348,6 +355,7 @@ export default {
         status: message.status,
         evidence: message.role === 'assistant' ? evidence : null,
         error: message.status === 'failed' ? record?.error_message || '分析失败，请稍后重试' : '',
+        errorInfo: record?.error_info,
       }
     },
     async loadOlderMessages() {
@@ -434,13 +442,13 @@ export default {
       if (result && this.isCurrent(controller) && this.capabilities.artifact_references) await useWorkspaceStore().load(this.sessionId, { signal: controller.signal })
     },
     async retryMessage(message) {
-      if (message.errorCode === 'NETWORK_ERROR' && useAnalysisStore().pending) {
+      if (['NETWORK_ERROR', 'HTTP_REQUEST_TIMEOUT'].includes(message.errorCode) && useAnalysisStore().pending) {
         this.controller?.abort(); this.controller = new AbortController(); this.loading = true; message.error = ''
         const controller = this.controller
         try { await this.resumeTask(controller) }
-        catch (error) { if (this.isCurrent(controller) && error.code !== 'ERR_CANCELED' && error.name !== 'AbortError') { message.error = error.message; message.errorCode = error.code } }
+        catch (error) { if (this.isCurrent(controller) && error.code !== 'ERR_CANCELED' && error.name !== 'AbortError') { message.error = error.message; message.errorCode = error.code; message.errorInfo = error.info } }
         finally { if (this.isCurrent(controller)) this.loading = false }
-      } else { this.question = message.content; this.submitQuestion() }
+      } else { this.question = message.role === 'user' ? message.content : [...this.messages.slice(0, this.messages.indexOf(message))].reverse().find(m => m.role === 'user')?.content || ''; this.submitQuestion() }
     },
   },
 }
@@ -478,7 +486,7 @@ export default {
             <div v-if="message.role === 'assistant' && message.evidence?.agent_response?.clarification?.candidate_dataset_ids?.length" class="clarification-choices"><el-button v-for="id in message.evidence.agent_response.clarification.candidate_dataset_ids" :key="id" plain size="small" @click="useClarificationDataset(id)">选择 {{ datasetChoices.find((item) => item.id === id)?.original_name || `数据集 #${id}` }}</el-button></div>
             <div v-if="message.evidence?.status === 'cancelled'" class="partial-note" role="status">任务已取消，已完成的结果仍可查看。</div>
             <div v-if="message.evidence?.status === 'partial'" class="partial-note" role="status">分析部分完成，下面保留已完成的真实计算结果。</div>
-            <div v-if="message.error" class="message-error" role="alert"><span>{{ message.error }}</span><el-button text type="primary" @click="retryMessage(message)">保留问题并重试</el-button></div>
+            <ErrorInfoPanel v-if="message.error || message.evidence?.error_info" :info="message.errorInfo || message.evidence?.error_info" :message="message.error || ''" :retryable="!loading" :retry-label="['NETWORK_ERROR', 'HTTP_REQUEST_TIMEOUT'].includes(message.errorCode) ? '重新连接确认状态' : '保留问题并重试'" @retry="retryMessage(message)" />
           </article>
           <div v-if="loading" class="agent-pending" role="status"><span class="status-pulse"></span>{{ runningLabel }}<el-button text type="danger" :disabled="cancelRequested" @click="cancelTask">取消任务</el-button></div>
         </div>
@@ -501,7 +509,8 @@ export default {
         <div v-if="!artifactPanelMaximized" class="artifact-panel-resizer" tabindex="0" role="separator" aria-label="调整工件面板宽度" aria-orientation="vertical" :aria-valuenow="artifactPanelWidth" aria-valuemin="420" aria-valuemax="720" @keydown.left.prevent="artifactPanelWidth = Math.min(720, artifactPanelWidth + 20); savePanelPreference()" @keydown.right.prevent="artifactPanelWidth = Math.max(420, artifactPanelWidth - 20); savePanelPreference()" @pointerdown="startPanelResize" @pointermove="movePanelResize" @pointerup="endPanelResize" @pointercancel="endPanelResize"><span></span></div>
         <div class="evidence-panel-heading"><span class="evidence-dot"></span><div><h2>工件与证据</h2><p>图表、结果表和工具轨迹</p></div><el-button v-if="canCreateReport" size="small" plain @click="openReport()">生成报告</el-button><el-button text aria-label="最大化工件面板" @click="toggleArtifactPanelSize">{{ artifactPanelMaximized ? '还原' : '展开' }}</el-button><el-button text aria-label="关闭工件面板" @click="toggleArtifactPanel">关闭</el-button></div>
         <p v-if="loading && activeResult?.progress?.total" class="caption">已完成 {{ activeResult.progress.completed }} / {{ activeResult.progress.total }} 步</p>
-        <AgentSteps :trace="activeTrace || (latestEvidence?.plan ? { plan: latestEvidence.plan, steps: latestEvidence.tool_calls } : null)" :calls="loading ? [] : latestEvidence?.tool_calls || []" />
+        <AnalysisScope :context="(loading ? activeResult : latestEvidence)?.analysis_context" :dataset="dataset" />
+        <AgentSteps :trace="activeTrace || (latestEvidence?.plan ? { plan: latestEvidence.plan, steps: latestEvidence.tool_calls, error_info: latestEvidence.error_info } : null)" :calls="loading ? [] : latestEvidence?.tool_calls || []" />
         <AnalysisResult v-if="loading && activeResult" :evidence="activeResult" />
         <AnalysisResult v-else-if="latestEvidence" :evidence="latestEvidence" />
         <ArtifactWorkspace v-if="sessionId && capabilities.artifact_references" :session-id="sessionId" @report="openReport" @reference="referenceArtifact" />

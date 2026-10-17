@@ -101,7 +101,9 @@ class Planner:
         payload['current_date']=datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()
         payload['timezone']='Asia/Shanghai'
         payload.update(filters=context.active_filters[:20], metrics=context.active_metrics[:20], dimensions=context.active_dimensions[:20],
-            time_range=context.active_time_range, previous_plan=context.previous_plan, summary=context.messages_summary[:2000])
+            time_range=context.active_time_range, previous_plan=context.previous_plan)
+        from app.agent.context import conversation_payload
+        payload.update(conversation_payload(context, question))
         columns = {alias: {c['name']: c['data_type'] for c in meta.get('columns', [])} for alias, meta in metadata_by_input.items()}
         if correction:
             payload['correction'] = correction
@@ -139,7 +141,14 @@ class Planner:
             except BudgetExceeded:
                 raise
             except ValueError as exc:
-                payload['correction'] = {'code': str(exc)[:100], 'instruction': '只修正计划结构、工具参数和授权输入，不输出分析事实'}
+                from app.diagnostics import error_info
+                diagnostic = error_info('PLAN_INVALID',stage='planning',exception=exc)
+                rejected = {key:diagnostic[key] for key in ('validation_rule','field_errors','column','step_id','tool_name') if diagnostic.get(key)}
+                payload['correction'] = {'code': diagnostic.get('validation_rule','PLAN_INVALID'), **rejected,
+                    'instruction': '只修正计划结构、工具参数和授权输入；字段必须来自对应输入或上游结果，不输出分析事实'}
+                notify = getattr(self.adapter, 'emit', None)
+                if notify:
+                    notify('plan_rejected', {'stage':'planning','attempt':attempt+1,**rejected})
                 if attempt:
                     if unmet:
                         from app.sandbox.agent import UnknownToolCapability

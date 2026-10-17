@@ -52,10 +52,17 @@ def summary(file, db=None):
     result={'id':file.id,'name':file.original_name,'type':file.file_type,'size':file.file_size,'status':file.status,
         'error_code':file.error_code,'error_message':file.error_message,'created_at':file.created_at.isoformat()}
     if db is not None:
+        from app.diagnostics import error_info
+        job = db.scalar(select(BackgroundJob).where(BackgroundJob.kind=='file_parse', BackgroundJob.resource_id==file.id))
+        result['error_info'] = job.error_info_json if job else None
         datasets=list(db.scalars(select(Dataset).where(Dataset.uploaded_file_id==file.id)))
         result['dataset_ids']=[d.id for d in datasets]
         if file.file_type not in {'txt','pdf','docx'} and datasets:
             result.update(status=datasets[0].status,error_code=datasets[0].parse_error_code,error_message=datasets[0].parse_error_message)
+            job = db.scalar(select(BackgroundJob).where(BackgroundJob.kind=='parse', BackgroundJob.resource_id==datasets[0].id))
+            result['error_info'] = job.error_info_json if job else None
+        if result.get('error_code') and not result.get('error_info'):
+            result['error_info'] = error_info(result['error_code'],result['error_message'],stage='parse',legacy=True)
     return result
 
 
@@ -93,6 +100,9 @@ def process_document(file_id, factory, upload_dir, job_id=None, token=None):
             job=db.scalar(select(BackgroundJob).where(BackgroundJob.id==job_id).with_for_update().execution_options(populate_existing=True))
             if not job or job.status!='running' or job.lease_token!=token: return
             job.status='succeeded' if status=='ready' else 'failed';job.error_code=code;job.completed_at=datetime.now(UTC)
+            if code:
+                from app.diagnostics import error_info
+                job.error_info_json = error_info(code,message,job=job,stage='parse')
         if not file or file.status!='parsing': return
         file.status,file.error_code,file.error_message,file.parsed_json=status,code,message,parsed
         file.updated_at=datetime.now(UTC);db.commit()

@@ -65,7 +65,7 @@ class DeepSeekAgent:
                             'candidates': resolution.candidates})
         return provider, decision, resolution
 
-    def respond_without_analysis(self, question, prepared):
+    def respond_without_analysis(self, question, prepared, context=None):
         provider, decision, resolution = prepared
         if decision.intent == 'UNKNOWN':
             answer = '我还不能确定你的分析需求，请说明想分析的指标、范围或问题。'
@@ -74,7 +74,8 @@ class DeepSeekAgent:
             answer = '请指定要使用的数据集，再继续分析。'
             status = 'waiting'
         elif decision.intent == 'GENERAL_CHAT':
-            answer = provider.generate_text('general_chat', {'question': question[:2000]})
+            from app.agent.context import conversation_payload
+            answer = provider.generate_text('general_chat', {'question': question[:2000], **conversation_payload(context, question)})
             status = 'succeeded'
         elif decision.intent == 'DATA_CLEANING':
             answer = '可以先分析数据质量并给出清洗建议；当前聊天入口不能执行清洗或发布新版本。'
@@ -91,7 +92,7 @@ class DeepSeekAgent:
         if not self.settings.deepseek_api_key.strip():
             raise ModelUnavailable()
         return ChatOpenAI(api_key=self.settings.deepseek_api_key, base_url=self.settings.deepseek_base_url,
-                          model=self.settings.deepseek_model, temperature=0, timeout=self.settings.llm_timeout_seconds, max_retries=1)
+                          model=self.settings.deepseek_model, temperature=0, timeout=self.settings.llm_timeout_seconds, max_retries=0)
 
     def analyze(self, question, tools):
         if getattr(tools, 'configuration', None):
