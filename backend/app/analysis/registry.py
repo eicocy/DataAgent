@@ -1,6 +1,7 @@
 import time
 import warnings
 import re
+import logging
 from dataclasses import dataclass, field, replace
 from typing import Callable, Protocol
 import pandas as pd
@@ -90,7 +91,8 @@ class ToolRegistry:
         try:
             return self.get(name).input_schema.model_validate(parameters)
         except ValidationError as exc:
-            raise ToolInputError('TOOL_INPUT_INVALID', details={'fields': ['.'.join(map(str,e['loc'])) for e in exc.errors(include_input=False)[:10]]}) from None
+            from app.diagnostics import validation_fields
+            raise ToolInputError('TOOL_INPUT_INVALID', details={'field_errors': validation_fields(exc.errors())}) from None
 
     def get_llm_tool_manifest(self, permissions=frozenset({Permission.READ_DATA})):
         return [dict(name=t.metadata.name, description=t.metadata.description, category=t.metadata.category.value,
@@ -120,8 +122,17 @@ class ToolRegistry:
         except RuntimeWarning:
             raise ToolResultError('CALCULATION_OVERFLOW') from None
         except (ValueError, TypeError, KeyError, OverflowError) as exc:
+            from app.diagnostics import request_id_context
+            origin = exc.__traceback__
+            while origin.tb_next is not None:
+                origin = origin.tb_next
+            logging.getLogger(__name__).error('Tool calculation failed request_id=%s tool=%s type=%s location=%s',
+                request_id_context.get(), name, type(exc).__name__, f'{origin.tb_frame.f_code.co_name}:{origin.tb_lineno}')
             raise ToolExecutionError(getattr(exc, 'code', 'TOOL_CALCULATION_FAILED')) from None
-        except Exception:
+        except Exception as exc:
+            from app.diagnostics import request_id_context
+            logging.getLogger(__name__).error('Tool execution failed request_id=%s tool=%s type=%s',
+                                             request_id_context.get(), name, type(exc).__name__)
             raise ToolExecutionError('TOOL_EXECUTION_FAILED') from None
 
     def execute(self, name, context, parameters, permissions=frozenset({Permission.READ_DATA})):

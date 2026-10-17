@@ -58,6 +58,7 @@ def _error(status_code: int, code: str, message: str, data: dict | None = None) 
 
 
 def _response(record: AnalysisRecord, assistant_content: str | None = None) -> dict:
+    from app.diagnostics import record_error_info
     calls = record.tool_calls_json or []
     primary = next((item for item in calls if item.get("status") == "succeeded" and item.get("tool_name") != "generate_chart"), None)
     return {
@@ -76,6 +77,8 @@ def _response(record: AnalysisRecord, assistant_content: str | None = None) -> d
             "chart": record.chart_json,
             "execution_time": (record.execution_time_ms or 0) / 1000,
             "summary_error": "SUMMARY_UNAVAILABLE" if record.status == "partial" else None,
+            'error_info': record_error_info(record),
+            'analysis_context': (record.request_config_json or {}).get('effective_context'),
         },
     }
 

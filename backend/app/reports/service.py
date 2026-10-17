@@ -481,6 +481,10 @@ def _finish_report_failure(db: Session, record: AnalysisRecord, job: BackgroundJ
         return
     now = datetime.now(UTC).replace(tzinfo=None)
     message = "报告任务无法完成，请检查来源记录和报告版本后重试。"
+    from app.diagnostics import error_info, elapsed
+    record.error_info_json = job.error_info_json = error_info(code, message, record=record, job=job,
+        operation=(job.task_payload_json or {}).get('operation'))
+    record.execution_time_ms = int((elapsed(job.started_at,now) or 0)*1000)
     record.status, record.error_code, record.error_message = "failed", code[:64], message
     record.final_answer, record.completed_at = message, now
     record.report_json = {"version": "2.0", "operation": (job.task_payload_json or {}).get("operation"),
@@ -490,5 +494,5 @@ def _finish_report_failure(db: Session, record: AnalysisRecord, job: BackgroundJ
         assistant.status, assistant.content = "failed", message
     job.status, job.error_code, job.completed_at, job.active_stage = "failed", code[:64], now, "failed"
     db.add(AnalysisEvent(record_id=record.id, user_id=record.user_id, event_type="analysis_failed",
-        payload_json={"status": "failed", "error_code": code[:64]}, created_at=now))
+        payload_json={"status": "failed", "error_code": code[:64], 'error_info':record.error_info_json}, created_at=now))
     db.commit()

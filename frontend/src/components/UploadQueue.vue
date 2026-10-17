@@ -1,10 +1,12 @@
 <script>
 import { datasetApi } from '../api/datasets'
 import { useDatasetStore } from '../stores/datasets'
+import ErrorInfoPanel from './ErrorInfoPanel.vue'
 
 const working = new Set(['queued', 'inspecting', 'uploading', 'parsing'])
 export default {
   name: 'UploadQueue',
+  components: { ErrorInfoPanel },
   props: {
     formats: { type: Array, default: () => ['csv', 'tsv', 'json', 'xlsx', 'xls', 'parquet'] },
     maxFiles: { type: Number, default: 10 }, maxBytes: { type: Number, default: 20 * 1024 * 1024 },
@@ -70,6 +72,7 @@ export default {
             if (!this.alive) return
             item.status = controller.signal.aborted ? 'cancelled' : 'failed'
             item.error = controller.signal.aborted ? '已停止等待；已受理的解析仍可在数据集页面查看。' : error.message || '上传失败，请重试。'
+            item.errorInfo = controller.signal.aborted ? null : error.info
             // 网络/轮询超时不代表解析失败；保留已受理 ID 以恢复等待。
             if (['DATASET_PARSE_FAILED', 'DATASET_NOT_FOUND'].includes(error.code)) item.datasetId = null
           } finally { item.controller = null }
@@ -88,7 +91,7 @@ export default {
   <section v-if="items.length || queueError" class="upload-queue" aria-label="附件上传队列">
     <p v-if="queueError" class="form-error" role="alert">{{ queueError }}</p>
     <ul><li v-for="item in items" :key="item.id">
-      <div class="upload-file-info"><strong :title="item.file.name">{{ item.file.name }}</strong><small role="status">{{ label(item) }}</small><progress v-if="item.status === 'uploading'" :value="item.percent" max="100" :aria-label="`${item.file.name} 上传进度`"></progress><p v-if="item.error" class="form-error" role="alert">{{ item.error }}</p></div>
+      <div class="upload-file-info"><strong :title="item.file.name">{{ item.file.name }}</strong><small role="status">{{ label(item) }}</small><progress v-if="item.status === 'uploading'" :value="item.percent" max="100" :aria-label="`${item.file.name} 上传进度`"></progress><ErrorInfoPanel v-if="item.error" :info="item.errorInfo" :message="item.error" /></div>
       <label v-if="item.status === 'sheet'" class="sheet-choice">工作表<select v-model="item.sheet" :aria-label="`${item.file.name} 工作表`"><option v-for="sheet in item.sheets" :key="sheet" :value="sheet">{{ sheet }}</option></select><button type="button" @click="retry(item)">上传此工作表</button></label>
       <button v-if="['failed', 'cancelled'].includes(item.status)" type="button" @click="retry(item)">重试</button>
       <button v-if="busy && ['queued','inspecting','uploading','parsing'].includes(item.status)" type="button" @click="cancel(item)">停止等待</button>

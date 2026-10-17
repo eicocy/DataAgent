@@ -139,5 +139,5 @@ test('Phase 3 normalized-only forecast table stays honest about unavailable vali
  await expect(page.getByRole('cell', { name: '2025-01-01', exact: true })).toBeVisible()
  await expect(page.getByRole('region', { name: '预测结果', exact: true })).toHaveCount(0)
  await expect(page.getByRole('columnheader', { name: 'MAE', exact: true })).toHaveCount(0)
- await expect(page.getByText('仅保留预测点表，未提供验证详情')).toBeVisible()
+ await expect(page.getByText('仅保留预测点表，未提供验证详情', { exact: true })).toBeVisible()
 })

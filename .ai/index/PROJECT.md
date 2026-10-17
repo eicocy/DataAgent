@@ -1,5 +1,9 @@
 # DataLens Agent
 
+v2.0.6: docs/v2.0.6-reliability.md；diagnostics.py 公共诊断、0013_error_diagnostics；agent/context.py 有界会话与 ContextPatch；agent/budget.py 共享截止时间；ErrorInfoPanel/AnalysisScope 展示诊断与固定条件。
+
+会话 5 补修：具体字段/长度/上下文/绘图阈值诊断，默认醒目原因与处理说明；planner 校验全局前 N 组范围，已保存失败可离线复核补记来源。真实模型验收边界仍见版本文档。
+
 type: 单体全栈数据分析工作台，单实例部署
 stack: Python 3.12 / FastAPI / SQLAlchemy / Alembic / MySQL 8 / Pandas / SQLGlot / LangChain；Vue 3 / Vite / Pinia / ECharts 6
 architecture: 用户认证 -> 固定 DatasetVersion -> DatasetContext -> Registry/AnalysisEngine -> 类型化结果验证 -> 工件/执行记录 -> Agent 与内部调用方

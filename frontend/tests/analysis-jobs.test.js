@@ -104,5 +104,5 @@ it('sends cancellation for the active server run', async () => {
   store.pending = { session_id: 5, dataset_id: 7, question: 'sales', request_id: 'a', record_id: 9 }
   analysisApi.cancel.mockResolvedValue({ status: 'running' })
   await store.cancel()
-  expect(analysisApi.cancel).toHaveBeenCalledWith(9)
+  expect(analysisApi.cancel).toHaveBeenCalledWith(9, {})
 })

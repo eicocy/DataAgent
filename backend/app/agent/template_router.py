@@ -33,7 +33,7 @@ class AnalysisTemplateRouter:
                 ids.append('general-quality')
             if not ids:
                 ids = ['general-quality' if re.search(r'质量|问题|缺失|重复|错误', text) else 'general-clean' if '清洗' in text else 'general-eda' if re.search(r'eda|相关|分布|统计', text) else 'general-explore']
-                if not re.search(r'分析|数据|表|探索|统计|检查|看看', text):
+                if not re.search(r'分析|数据|表|探索|统计|检查|看看|平均|均值|求和|总和|最大|最小|计数|数量|中位数|mean|average|sum|count|median', text):
                     confidence = .5
         missing = []
         if len(ids) > 3:

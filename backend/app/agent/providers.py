@@ -87,6 +87,7 @@ class LangChainProvider:
         _, version, body = load_prompt(prompt)
         status, error_code = 'succeeded', None
         try:
+            self.adapter.operation = prompt
             result = self.adapter.invoke(body, json.dumps(payload, ensure_ascii=False, default=str), schema, function_name)
             return validate(result) if validate else result
         except Exception as exc:
@@ -145,13 +146,13 @@ def build_provider(settings, emit=None):
             raise ValueError('MODEL_UNAVAILABLE')
         model_name = settings.deepseek_model
         model = ChatOpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url,
-                          model=model_name, temperature=0, timeout=settings.llm_timeout_seconds, max_retries=1)
+                          model=model_name, temperature=0, timeout=settings.llm_timeout_seconds, max_retries=0)
     elif name == 'openai':
         if not settings.openai_api_key.strip():
             raise ValueError('MODEL_UNAVAILABLE')
         model_name = settings.openai_model
         model = ChatOpenAI(api_key=settings.openai_api_key, model=model_name,
-                          temperature=0, timeout=settings.llm_timeout_seconds, max_retries=1)
+                          temperature=0, timeout=settings.llm_timeout_seconds, max_retries=0)
     else:
         raise ValueError('MODEL_PROVIDER_INVALID')
     return LangChainProvider(model, settings, name, model_name, emit)

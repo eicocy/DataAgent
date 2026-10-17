@@ -1,5 +1,7 @@
 # Modules
 
+V2.0.6: `backend/app/diagnostics.py` 统一脱敏错误；`0013_error_diagnostics` 持久化 AnalysisRecord/BackgroundJob JSON；agent/budget 共享截止时间，agent/context 共享对话与校验补丁；前端 ErrorInfoPanel 和 AnalysisScope 复用到任务/历史/解析/报告。
+
 Phase 4 v2.0.0 additions: see `docs/phase4-implementation.md` for session workspace, expanded data formats, chart rendering, report versions/export, artifact preview/download, and acceptance status.
 
 V2.0.5 Phase 5: `backend/app/sandbox/` provides default-off restricted execution through `deploy/sandbox/broker.py` and fixed Docker images; `deploy/backup.py`, `compose.sandbox.yaml`, `docs/operations.md` provide backup and deployment preparation. No public arbitrary-code API; database head remains 0012. Scope and actual validation: `docs/phase5-workspace.md`.

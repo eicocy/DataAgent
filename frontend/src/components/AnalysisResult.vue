@@ -1,5 +1,8 @@
 <script>
+import LazyChart from './LazyChart.vue'
+import { chatResults } from '../utils/chatResults'
 import ChartView from './ChartView.vue'
+import ErrorInfoPanel from './ErrorInfoPanel.vue'
 import ForecastResult from './ForecastResult.vue'
 import BusinessResult from './BusinessResult.vue'
 import DataQualityWorkbench from './DataQualityWorkbench.vue'
@@ -8,12 +11,21 @@ import { hasTypedDetails, rawResultSource, sameResultSource, structuredKinds } f
 
 export default {
   name: 'AnalysisResult',
-  components: { ChartView, ForecastResult, BusinessResult, DataQualityWorkbench },
-  props: { evidence: { type: Object, required: true } },
+  components: { LazyChart, ErrorInfoPanel, ChartView, ForecastResult, BusinessResult, DataQualityWorkbench },
+  props: { evidence: { type: Object, required: true }, presentation: { type: String, default: 'full' } },
+  emits: ['preview'],
   data() {
-    return { pages: {}, loading: false, error: '' }
+    return { pages: {}, loading: false, error: '', expanded: false, pageController: null }
   },
+  watch: { evidence() { this.pageController?.abort(); this.pages = {}; this.loading = false; this.error = ''; this.expanded = false } },
+  beforeUnmount() { this.pageController?.abort() },
   computed: {
+    chat() { return this.presentation === 'chat' },
+    selection() { return chatResults(this.evidence) },
+    visibleEntries() { return this.expanded ? [...this.selection.primary, ...this.selection.more] : this.selection.primary },
+    visibleTyped() { return this.chat ? this.visibleEntries.filter(entry => entry.kind === 'table' && hasTypedDetails(entry.value)).map(entry => ({ result: entry.value, source: entry.source })) : this.typedEntries },
+    visibleCharts() { return this.chat ? this.visibleEntries.filter(entry => entry.kind === 'chart').map(entry => entry.value) : this.charts },
+    visibleTables() { return this.chat ? this.visibleEntries.filter(entry => entry.kind === 'table' && !hasTypedDetails(entry.value)).map(entry => ({ ...entry.value, ...entry.source })) : this.tables },
     typedEntries() {
       const entries = []
       const raw = this.evidence.tool_result
@@ -62,13 +74,17 @@ export default {
       if (this.loading) return
       this.loading = true
       this.error = ''
+      const controller = new AbortController()
+      this.pageController = controller
+      const recordId = this.evidence.record_id
       try {
-        this.pages[table.artifact_id] = await analysisApi.result(
-          this.evidence.record_id, table.artifact_id, { offset, limit: 100 })
+        const response = await analysisApi.result(recordId, table.artifact_id, { offset, limit: 100 }, { signal: controller.signal })
+        if (this.pageController !== controller || controller.signal.aborted || this.evidence.record_id !== recordId) return
+        this.pages[table.artifact_id] = response
       } catch (error) {
-        this.error = error.message || '结果加载失败'
+        if (!controller.signal.aborted) this.error = error.message || '结果加载失败'
       } finally {
-        this.loading = false
+        if (this.pageController === controller) this.loading = false
       }
     },
   },
@@ -76,17 +92,17 @@ export default {
 </script>
 
 <template>
-  <section class="result-evidence" aria-label="真实计算结果">
-    <h3>计算结果</h3>
-    <p v-if="evidence.status === 'partial'" class="partial-note" role="status">分析部分完成，下方保留已完成的真实计算结果。</p>
-    <p v-if="evidence.error_message" class="message-error" role="alert">{{ evidence.error_message }}</p>
+  <section class="result-evidence" :class="{ 'chat-results': chat }" :aria-label="chat ? '分析结果' : '真实计算结果'">
+    <h3 v-if="!chat">计算结果</h3>
+    <p v-if="!chat && evidence.status === 'partial'" class="partial-note" role="status">分析部分完成，下方保留已完成的真实计算结果。</p>
+    <ErrorInfoPanel v-if="!chat" :info="evidence.error_info" :message="evidence.error_message || ''" />
     <p v-for="(warning, index) in evidence.report?.warnings || []" :key="index" class="summary-warning">
       {{ typeof warning === 'string' ? warning : warning.message }}
     </p>
-    <section v-for="(entry, index) in typedEntries" :key="entry.source.artifact_id || entry.source.source_ref || index">
-      <ForecastResult v-if="entry.result.kind === 'forecast'" :result="entry.result" />
-      <BusinessResult v-else-if="['kpi', 'period_comparison', 'contribution'].includes(entry.result.kind)" :result="entry.result" />
-      <DataQualityWorkbench v-else-if="['quality', 'quality_score'].includes(entry.result.kind)" :result="entry.result" />
+    <section v-for="(entry, index) in visibleTyped" :key="entry.source.artifact_id || entry.source.source_ref || index">
+      <ForecastResult v-if="entry.result.kind === 'forecast'" :result="entry.result" :compact="chat" :hide-chart="chat && (visibleCharts.length >= 2 || visibleCharts.some(chart => chart.source_ref && chart.source_ref === entry.source.source_ref))" @expand="$emit('preview', { kind: 'chart', value: $event })" />
+      <BusinessResult v-else-if="['kpi', 'period_comparison', 'contribution'].includes(entry.result.kind)" :result="entry.result" :compact="chat" />
+      <DataQualityWorkbench v-else-if="['quality', 'quality_score'].includes(entry.result.kind)" :result="entry.result" :compact="chat" />
       <div v-else>
         <h3>{{ entry.result.kind === 'join' ? '合并结果' : '清洗结果' }}</h3>
         <p>{{ entry.result.row_count }} 行 · {{ entry.result.column_count ?? entry.result.columns?.length }} 列 · 输出版本 {{ entry.result.output_version ?? '未发布' }}</p>
@@ -95,9 +111,12 @@ export default {
           {{ step.operation }} · 改变 {{ step.changed_cells ?? '—' }} 个单元格 · 新增缺失 {{ step.added_missing ?? '—' }}
         </p>
       </div>
+      <button v-if="chat" type="button" class="result-text-action" @click="$emit('preview', { kind: 'table', value: { ...entry.result, ...entry.source } })">查看完整数据</button>
     </section>
-    <ChartView v-for="(chart, index) in charts" :key="chart.artifact_id || index" :spec="chart" />
-    <section v-for="(table, index) in tables" :key="table.artifact_id || index">
+    <component :is="chat ? 'LazyChart' : 'ChartView'" v-for="(chart, index) in visibleCharts" :key="chart.artifact_id || index" :spec="chart" @expand="$emit('preview', { kind: 'chart', value: chart })" />
+    <section v-for="(table, index) in visibleTables" :key="table.artifact_id || index">
+      <p v-if="chat && (table.currency || table.unit)" class="caption">{{ [table.currency, table.unit].filter(Boolean).join(' · ') }}</p>
+      <p v-for="note in chat && !tableOnly(table) ? table.limitations || [] : []" :key="note" class="summary-warning">{{ note }}</p>
       <template v-if="tableOnly(table)">
         <p class="summary-warning">当前仅提供结果表，完整计算信息未提供，无法展示完整指标或验证详情。</p>
         <p v-if="table.currency || table.unit">{{ table.currency || '币种未提供' }} · {{ table.unit || '单位未提供' }}</p>
@@ -109,21 +128,23 @@ export default {
         <table class="data-table">
           <thead><tr><th v-for="column in columns(table)" :key="column" scope="col">{{ column }}</th></tr></thead>
           <tbody>
-            <tr v-for="(row, rowIndex) in rows(table).slice(0, 100)" :key="rowIndex">
+            <tr v-for="(row, rowIndex) in rows(table).slice(0, chat ? 10 : 100)" :key="rowIndex">
               <td v-for="column in columns(table)" :key="column">{{ showValue(row[column]) }}</td>
             </tr>
           </tbody>
         </table>
       </div>
       <p v-else-if="tableOnly(table)">当前结果表没有展示行，不能据此判断原数据是否为空或没有质量问题。</p>
-      <pre v-else>{{ JSON.stringify(table, null, 2) }}</pre>
-      <p v-if="table.row_count != null" class="caption">结果表共 {{ table.row_count }} 行，当前展示最多 100 行。</p>
-      <p v-if="table.source_ref" class="caption">结果来源：{{ table.source_ref }}</p>
-      <div v-if="table.artifact_id && evidence.record_id && table.row_count > 100">
+      <details v-else-if="!chat"><summary>查看结果详情</summary><pre>{{ JSON.stringify(table, null, 2) }}</pre></details>
+      <p v-if="table.row_count != null" class="caption">结果表共 {{ table.row_count }} 行，当前展示最多 {{ chat ? 10 : 100 }} 行。</p>
+      <p v-if="!chat && table.source_ref" class="caption">结果来源：{{ table.source_ref }}</p>
+      <div v-if="!chat && table.artifact_id && evidence.record_id && table.row_count > 100">
         <el-button :disabled="loading || !(pages[table.artifact_id]?.offset > 0)" @click="page(table, Math.max(0, (pages[table.artifact_id]?.offset || 0) - 100))">上一页</el-button>
         <el-button :disabled="loading || (pages[table.artifact_id]?.offset || 0) + 100 >= table.row_count" @click="page(table, (pages[table.artifact_id]?.offset || 0) + 100)">下一页</el-button>
       </div>
+      <button v-if="chat" type="button" class="result-text-action" @click="$emit('preview', { kind: 'table', value: table })">查看完整数据</button>
     </section>
+    <button v-if="chat && selection.more.length" type="button" class="result-text-action more-results" :aria-expanded="expanded" @click="expanded = !expanded">{{ expanded ? '收起更多结果' : `查看其余 ${selection.more.length} 项结果` }}</button>
     <p v-if="error" role="alert">{{ error }}</p>
   </section>
 </template>
@@ -132,4 +153,10 @@ export default {
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--line, #e6ebf2); white-space: nowrap; }
 th { font-weight: 600; }
+.chat-results { min-width: 0; margin: 20px 0; }
+.chat-results > section { margin: 20px 0; }
+.chat-results .table-wrap { max-width: 100%; overflow: auto; }
+.result-text-action { border: 0; background: transparent; padding: 8px 0; color: var(--muted); font-size: 12px; cursor: pointer; }
+.result-text-action:hover { color: var(--brand); }
+.result-text-action:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 </style>

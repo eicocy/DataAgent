@@ -1,9 +1,26 @@
 import json
+import re
 from pydantic import ValidationError
 from app.agent.schemas import ExecutionPlan, AnalysisPlan, AnalysisStep
 from app.agent.prompts import PLAN
 from app.services.analysis_tools import model_tool_schemas
 from app.tools.registry import tool_registry
+
+
+def validate_top_n_scope(plan, question):
+    """Reject the unambiguous global-groups vs within-group ranking confusion."""
+    if not re.search(r'前\s*\d+\s*组', question) or re.search(r'每组|各组|组内|每个.{0,12}组', question):
+        return
+    steps = {step.step_id: step for step in plan.steps}
+    for step in plan.steps:
+        source = steps.get(step.source_ref)
+        groups = step.arguments.get('group_by', [])
+        if (step.tool_name in {'top_n', 'bottom_n'} and groups and source
+                and source.tool_name in {'aggregate', 'groupby_aggregate'}
+                and set(source.arguments.get('dimensions', [])) <= set(groups)):
+            error = ValueError('TOP_N_GROUP_SCOPE_INVALID')
+            error.details = {'step_id': step.step_id, 'tool_name': step.tool_name}
+            raise error
 
 
 def compact_tool_schema(schema):
@@ -65,6 +82,8 @@ class Planner:
             wanted.update(profile['preferred_tools'])
         import re
         if re.search(r'预测|未来|forecast',question,re.I):wanted.add('forecast')
+        if re.search(r'前\s*\d+|后\s*\d+|top\s*\d+|最多|最少|最高|最低|排名|排行',question,re.I):
+            wanted.update({'top_n','bottom_n'})
         if len(config['inputs'])>1:wanted.add('join_data')
         if intent == 'DATA_CLEANING':
             from app.agent.tool_policy import CLEANING_TOOLS
@@ -101,7 +120,9 @@ class Planner:
         payload['current_date']=datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()
         payload['timezone']='Asia/Shanghai'
         payload.update(filters=context.active_filters[:20], metrics=context.active_metrics[:20], dimensions=context.active_dimensions[:20],
-            time_range=context.active_time_range, previous_plan=context.previous_plan, summary=context.messages_summary[:2000])
+            time_range=context.active_time_range, previous_plan=context.previous_plan)
+        from app.agent.context import conversation_payload
+        payload.update(conversation_payload(context, question))
         columns = {alias: {c['name']: c['data_type'] for c in meta.get('columns', [])} for alias, meta in metadata_by_input.items()}
         if correction:
             payload['correction'] = correction
@@ -132,6 +153,7 @@ class Planner:
                 plan.semantic_snapshot = config['semantic_snapshot']
                 plan.semantic_version = config['semantic_version']
                 plan.depth, plan.budget = config['depth'], budget.snapshot()
+                validate_top_n_scope(plan, question)
                 validate_graph(plan, columns, permissions, budget.max_tasks,metadata_by_input)
                 plan.steps, aliases = deduplicate_steps(plan.steps, {i.alias: i.dataset_version_id for i in plan.inputs}, plan.semantic_version)
                 plan.expected_outputs = list(dict.fromkeys(aliases.get(k, k) for k in plan.expected_outputs))
@@ -139,7 +161,14 @@ class Planner:
             except BudgetExceeded:
                 raise
             except ValueError as exc:
-                payload['correction'] = {'code': str(exc)[:100], 'instruction': '只修正计划结构、工具参数和授权输入，不输出分析事实'}
+                from app.diagnostics import error_info
+                diagnostic = error_info('PLAN_INVALID',stage='planning',exception=exc)
+                rejected = {key:diagnostic[key] for key in ('validation_rule','field_errors','column','step_id','tool_name') if diagnostic.get(key)}
+                payload['correction'] = {'code': diagnostic.get('validation_rule','PLAN_INVALID'), **rejected,
+                    'instruction': '只修正计划结构、工具参数和授权输入；字段必须来自对应输入或上游结果，不输出分析事实'}
+                notify = getattr(self.adapter, 'emit', None)
+                if notify:
+                    notify('plan_rejected', {'stage':'planning','attempt':attempt+1,**rejected})
                 if attempt:
                     if unmet:
                         from app.sandbox.agent import UnknownToolCapability

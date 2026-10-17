@@ -36,11 +36,11 @@ class DatasetContext:
             raise DatasetColumnError('DUPLICATE_COLUMNS')
         for name in names:
             if name not in self.frame.columns:
-                raise DatasetColumnError('COLUMN_NOT_FOUND')
+                raise DatasetColumnError('COLUMN_NOT_FOUND', details={'column': name})
             if numeric:
                 series = self.frame[name]
                 if not pd.api.types.is_numeric_dtype(series.dtype) or pd.api.types.is_bool_dtype(series.dtype):
-                    raise DatasetTypeError('NUMERIC_COLUMN_REQUIRED')
+                    raise DatasetTypeError('NUMERIC_COLUMN_REQUIRED', details={'column': name, 'expected_type': '数值', 'actual_type': str(series.dtype)})
                 validate_numeric_series(series)
         return names
 

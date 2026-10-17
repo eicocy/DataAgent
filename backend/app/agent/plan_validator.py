@@ -19,6 +19,11 @@ class PlanValidator:
             raise ValueError("PLAN_STEP_LIMIT")
         registry = tool_registry(permissions)
         steps = {step.step_id: step for step in plan.steps}
+        def type_error(step, column, expected, actual):
+            error = ValueError('COLUMN_TYPE_MISMATCH')
+            error.details = {'column': column, 'expected_type': expected, 'actual_type': actual or '未记录',
+                             'step_id': step.step_id, 'tool_name': step.tool_name}
+            return error
         if len(steps) != len(plan.steps):
             raise ValueError("DUPLICATE_STEP")
         def source_schema(step,active=None):
@@ -67,14 +72,33 @@ class PlanValidator:
             except ValueError as exc:
                 raise ValueError("TOOL_ARGUMENTS_INVALID") from exc
             if (step.source_ref == "dataset" or known_source) and step.tool_name != "sql_query":
-                for field in self._referenced_fields(step.arguments):
+                source_arguments = step.arguments
+                if step.tool_name in {'aggregate', 'groupby_aggregate'}:
+                    # These tools sort after aggregation. Output aliases do not exist in the raw schema.
+                    source_arguments = {key:value for key,value in step.arguments.items() if key!='sort'}
+                    output_columns = set(step.arguments.get('dimensions', [])) | {
+                        metric.get('alias') or f"{metric['column']}_{metric['aggregation']}"
+                        for metric in step.arguments.get('metrics', [])
+                        if isinstance(metric.get('column'), str)
+                    }
+                    for sort in step.arguments.get('sort', []):
+                        if isinstance(sort.get('column'), str) and sort['column'] not in output_columns:
+                            error = ValueError('COLUMN_NOT_FOUND')
+                            error.details = {'column':sort['column'], 'step_id':step.step_id,
+                                             'tool_name':step.tool_name, 'expected_type':'聚合输出字段或分组字段'}
+                            raise error
+                for field in self._referenced_fields(source_arguments):
                     if field not in step_columns:
-                        raise ValueError("COLUMN_NOT_FOUND")
+                        error = ValueError('COLUMN_NOT_FOUND')
+                        error.details = {'column':field, 'step_id':step.step_id, 'tool_name':step.tool_name}
+                        raise error
                 if step.tool_name in {"time_group_analysis", "growth_analysis"}:
                     if step_columns.get(step.arguments.get("date_column")) not in {"datetime", "date", "timestamp", "string"}:
-                        raise ValueError("COLUMN_TYPE_MISMATCH")
+                        column = step.arguments.get('date_column')
+                        raise type_error(step, column, '日期或可解析日期文本', step_columns.get(column))
                     if step_columns.get(step.arguments.get("value_column")) not in {"integer", "decimal", "float", "numeric", "number"}:
-                        raise ValueError("COLUMN_TYPE_MISMATCH")
+                        column = step.arguments.get('value_column')
+                        raise type_error(step, column, '数值', step_columns.get(column))
                 numeric = {'integer', 'decimal', 'float', 'numeric', 'number'}
                 if step.tool_name in {'period_comparison','contribution_analysis'}:
                     from app.analysis.inputs import PeriodComparisonInput
@@ -85,7 +109,7 @@ class PlanValidator:
                         continue
                     operation = metric.get('aggregation') or metric.get('operation')
                     if operation in {'sum', 'avg', 'mean', 'median', 'std', 'var'} and step_columns.get(metric.get('column')) not in numeric:
-                        raise ValueError('COLUMN_TYPE_MISMATCH')
+                        raise type_error(step, metric.get('column'), '数值', step_columns.get(metric.get('column')))
         visited, active = set(), set()
         def walk(key):
             if key in active:

@@ -324,6 +324,17 @@
 .recent-analysis-item small, .recent-empty { color: #8793a4; font-size: 8px; }
 .recent-empty { margin: 10px 0 0; }
 .evidence-panel-heading .el-button { margin-left: auto; }
+/* 发送位置的停止操作：圆形底、方形图标；进度环只在等待终止确认时出现。 */
+.el-button.run-stop-button { --el-button-bg-color: var(--ink); --el-button-text-color: #fff; --el-button-border-color: transparent; --el-button-hover-bg-color: #293a52; --el-button-hover-text-color: #fff; --el-button-hover-border-color: transparent; --el-button-active-bg-color: #0b1628; --el-button-active-text-color: #fff; --el-button-active-border-color: transparent; --el-button-disabled-bg-color: #e9edf3; --el-button-disabled-text-color: #95a0b1; --el-button-disabled-border-color: transparent; flex-shrink: 0; width: 44px; height: 44px; padding: 0; border-radius: 50%; transition: background-color .15s, box-shadow .15s; }
+.el-button.run-stop-button > span { position: relative; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+.el-button.run-stop-button.is-compact { width: 36px; height: 36px; }
+.run-stop-glyph { display: block; width: 14px; height: 14px; border-radius: 2px; background: currentColor; }
+.is-compact .run-stop-glyph { width: 12px; height: 12px; }
+.el-button.run-stop-button[aria-busy="true"] { background: var(--ink); color: #fff; border-color: transparent; cursor: wait; }
+.run-stop-spinner { position: absolute; inset: 5px; border: 2px solid rgb(255 255 255 / 25%); border-top-color: #fff; border-radius: 50%; animation: run-stop-spin .8s linear infinite; }
+.el-button.run-stop-button:focus-visible { outline: 3px solid rgb(47 107 255 / 40%); outline-offset: 3px; }
+@keyframes run-stop-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .run-stop-spinner { animation: none; } .el-button.run-stop-button { transition: none; } }
 .report-dialog .el-dialog__body { padding-top: 6px; }
 .report-dialog-heading { display: flex; align-items: center; justify-content: space-between; padding-right: 18px; }
 .report-dialog-heading h2 { margin: 3px 0 0; color: #17263d; font-size: 19px; }
@@ -451,3 +462,22 @@
 .phase3-workbench .summary-warning { font-size: 12px; }
 .phase3-workbench dl { display: grid; grid-template-columns: minmax(90px, auto) minmax(0, 1fr); gap: 8px 16px; }
 .phase3-workbench dd { margin: 0; font-family: var(--font-data); overflow-wrap: anywhere; }
+
+/* 对话外壳独立约束滚动，管理页继续使用原有页面布局。 */
+.chat-shell { height: 100dvh; min-height: 0; overflow: hidden; background: var(--surface); }
+.chat-shell .workspace { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.chat-shell .topbar { flex: 0 0 68px; border-bottom: 0; padding-inline: 28px; }
+.chat-shell .breadcrumb { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 14px; font-weight: 500; }
+.topbar-actions { display: flex; margin-left: auto; flex: 0 0 auto; }
+.chat-shell .page-content { flex: 1; width: 100%; max-width: none; min-height: 0; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.chat-shell .page-content > .analysis-layout { flex: 1; min-height: 0; }
+.sidebar .brand { margin-bottom: 24px; }
+.sidebar .sidebar-conversations { max-height: none; flex: 1; }
+.attachment-menu { display: grid; }
+.attachment-menu button { width: 100%; padding: 10px 12px; border: 0; border-radius: 6px; text-align: left; background: transparent; color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+.attachment-menu button:hover { background: var(--canvas); }
+.attachment-settings-dialog .el-dialog__body { max-height: 65dvh; overflow: auto; }
+.attachment-settings-dialog .analysis-dataset-picker { margin: 0; padding: 0 0 16px; flex-direction: column; align-items: stretch; }
+.attachment-settings-dialog .analysis-dataset-picker .el-select { width: 100%; }
+.step-diagnostic-link { border: 0; padding: 4px 0; background: transparent; color: #a52a20; text-decoration: underline; cursor: pointer; font-size: 12px; }
+@media (max-width: 600px) { .chat-shell .topbar { flex-basis: 58px; padding-inline: 16px; } .chat-shell .sidebar { height: 100dvh; } }

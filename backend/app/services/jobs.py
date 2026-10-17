@@ -96,19 +96,36 @@ def claim_job(factory):
         return (job.id, token) if changed else None
 
 
-def terminate_job(factory, job_id, code="TASK_INTERRUPTED"):
+def terminate_job(factory, job_id, code="TASK_INTERRUPTED", diagnostic=None):
     with factory() as db:
         job = db.get(BackgroundJob, job_id)
         if not job or job.status not in {"pending", "running"}:
             return
         now = datetime.now(UTC).replace(tzinfo=None)
         cancelled = code == 'TASK_CANCELLED'
+        from app.diagnostics import error_info, elapsed
+        runtime = (job.task_payload_json or {}).get('runtime', {})
+        stage_limit = job.stage_timeout_seconds
+        scope = (diagnostic or {}).get('timeout_scope')
+        if code=='TASK_TIMEOUT' and not scope:
+            scope = 'stage' if stage_limit and job.stage_started_at and elapsed(job.stage_started_at, now)>=stage_limit else 'task'
+        reason = ('LLM_CALL_TIMEOUT' if job.active_stage=='llm' else 'TOOL_TIMEOUT') if scope=='stage' else 'ANALYSIS_TOTAL_TIMEOUT' if code=='TASK_TIMEOUT' else code
+        info = error_info(code, reason_code=reason, job=job, operation=runtime.get('operation'),
+                          limit_seconds=stage_limit if scope=='stage' else runtime.get('seconds'), timeout_scope=scope)
+        info.update(diagnostic or {})
+        job.error_info_json = info
         job.status, job.error_code, job.completed_at = ('cancelled' if cancelled else 'failed'), code, now
         if job.kind == "analysis":
             record = db.get(AnalysisRecord, job.resource_id)
             if record and record.status in {"pending", "running"}:
-                record.status = 'cancelled' if cancelled else ('partial' if record.tool_result_json else 'failed')
-                record.error_code, record.error_message, record.completed_at = code, ('任务已取消' if cancelled else '任务中断或超时，已保留完成的证据，请重新分析'), now
+                artifact_ids = list(db.scalars(select(AnalysisArtifact.id).where(AnalysisArtifact.record_id==record.id)))
+                record.status = 'cancelled' if cancelled else ('partial' if record.tool_result_json or record.chart_json or artifact_ids else 'failed')
+                enriched = error_info(code, reason_code=reason, record=record, job=job)
+                enriched.update({k:v for k,v in info.items() if v is not None})
+                enriched['preserved_artifact_ids'] = artifact_ids
+                record.error_info_json = job.error_info_json = enriched
+                record.execution_time_ms = int((elapsed(job.started_at, now) or 0)*1000)
+                record.error_code, record.error_message, record.completed_at = code, enriched['reason'], now
                 if cancelled and record.plan_json:
                     plan = dict(record.plan_json)
                     plan['status'] = 'CANCELLED'
@@ -117,16 +134,16 @@ def terminate_job(factory, job_id, code="TASK_INTERRUPTED"):
                 calls = list(record.tool_calls_json or [])
                 for call in calls:
                     if call.get("status") == "running":
-                        call.update(status='cancelled' if cancelled else 'failed', error_code=code, result_summary='任务已取消' if cancelled else '执行中断')
+                        call.update(status='cancelled' if cancelled else 'failed', error_code=code, error_info=enriched, result_summary=enriched['reason'])
                 record.tool_calls_json = calls
                 record.report_json = {"version": "1.0", "status": record.status, "answer": None, "tables": [record.tool_result_json] if record.tool_result_json else [], "charts": [record.chart_json] if record.chart_json else [], "warnings": [record.error_message], "evidence_refs": [], "incomplete_steps": [c.get("step_id", "") for c in calls if c.get("status") == "failed"]}
                 message = AnalysisMessage(session_id=record.session_id, role="assistant", content=record.error_message, status=record.status, created_at=now)
                 db.add(message)
                 db.flush()
                 record.assistant_message_id = message.id
-                if cancelled:
-                    from app.services.analysis import append_event
-                    append_event(db, record, 'analysis_cancelled', {'status': 'cancelled'})
+                from app.services.analysis import append_event
+                append_event(db, record, 'analysis_cancelled' if cancelled else 'analysis_failed',
+                             {'status': record.status, 'error_code': code, 'error_info': enriched})
             from app.models import ToolExecutionRecord
             for execution in db.scalars(select(ToolExecutionRecord).where(ToolExecutionRecord.analysis_record_id==job.resource_id,ToolExecutionRecord.status=='running')):
                 execution.status='failed';execution.finished_at=now
@@ -138,7 +155,11 @@ def terminate_job(factory, job_id, code="TASK_INTERRUPTED"):
             if record and record.status in {"pending", "running"}:
                 record.status = "cancelled" if cancelled else "failed"
                 record.error_code = code
-                record.error_message = "任务已取消" if cancelled else "报告任务中断或超时，请重新提交"
+                enriched = error_info(code, reason_code=reason, record=record, job=job)
+                enriched.update({k:v for k,v in info.items() if v is not None})
+                record.error_info_json = job.error_info_json = enriched
+                record.error_message = enriched['reason']
+                record.execution_time_ms = int((elapsed(job.started_at, now) or 0)*1000)
                 record.final_answer, record.completed_at = record.error_message, now
                 record.report_json = {"version": "2.0", "operation": (job.task_payload_json or {}).get("operation"), "status": record.status}
                 message = db.get(AnalysisMessage, record.assistant_message_id) if record.assistant_message_id else None
@@ -146,7 +167,7 @@ def terminate_job(factory, job_id, code="TASK_INTERRUPTED"):
                     message.status, message.content = record.status, record.error_message
                 from app.services.analysis import append_event
                 append_event(db, record, "analysis_cancelled" if cancelled else "analysis_failed",
-                             {"status": record.status, "error_code": code})
+                             {"status": record.status, "error_code": code, 'error_info': enriched})
         elif job.kind == 'file_parse':
             from app.models import UploadedFile
             file = db.get(UploadedFile, job.resource_id)
@@ -241,16 +262,18 @@ class TaskSupervisor:
         env["UPLOAD_DIR"], env["ARTIFACT_DIR"] = str(Path(self.settings.upload_dir).resolve()), str(Path(self.settings.artifact_dir).resolve())
         with self.factory() as db:
             job = db.get(BackgroundJob, job_id)
-            budget = self.settings.parse_timeout_seconds if job.kind in {"parse", "file_parse"} else self.settings.report_timeout_seconds if job.kind == "report" else self.settings.analysis_timeout_seconds
-            if job.kind == 'analysis':
-                record = db.get(AnalysisRecord, job.resource_id)
-                if record and record.request_config_json and record.request_config_json.get('inputs'):
-                    from app.agent.budget import LIMITS
-                    budget = LIMITS[record.request_config_json['depth']][3]
-        deadline = time.monotonic() + budget
+            from app.agent.budget import execution_seconds
+            from app.diagnostics import elapsed
+            record = db.get(AnalysisRecord, job.resource_id) if job.kind in {'analysis','report'} else None
+            budget = execution_seconds(job, self.settings, record)
+            age = elapsed(job.started_at) or 0
+            job.task_payload_json = {**(job.task_payload_json or {}), 'runtime': {'seconds': budget}}
+            db.commit()
+        deadline = time.monotonic() + max(0, budget-age)
         self.process = subprocess.Popen([sys.executable, "-m", "app.task_runner", "--job-id", str(job_id), "--lease", token, "--parent-pid", str(os.getpid())], cwd=str(Path(__file__).resolve().parents[2]), env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         timed_out = False
         cancelled = False
+        diagnostic = None
         process = self.process
         try:
             while process.poll() is None and not self.stop_event.is_set():
@@ -262,8 +285,12 @@ class TaskSupervisor:
                         cancelled = True
                         break
                     now = datetime.now(UTC).replace(tzinfo=None)
-                    stage_budget = job.stage_timeout_seconds if job.active_stage=='tool' else {"llm": self.settings.llm_timeout_seconds, "sql": self.settings.sql_timeout_seconds, "pandas": self.settings.pandas_timeout_seconds}.get(job.active_stage)
-                    timed_out = time.monotonic() >= deadline or bool(stage_budget and job.stage_started_at and (now - job.stage_started_at).total_seconds() > stage_budget)
+                    stage_budget = job.stage_timeout_seconds or {"llm": self.settings.llm_timeout_seconds, "sql": self.settings.sql_timeout_seconds, "pandas": self.settings.pandas_timeout_seconds}.get(job.active_stage)
+                    total_timeout = time.monotonic() >= deadline
+                    timed_out = total_timeout or bool(stage_budget and job.stage_started_at and (now - job.stage_started_at).total_seconds() > stage_budget)
+                    if timed_out:
+                        diagnostic = {'timeout_scope': 'task' if total_timeout else 'stage',
+                                      'limit_seconds': budget if total_timeout else stage_budget}
                     if not timed_out:
                         job.heartbeat_at = now
                         db.commit()
@@ -282,4 +309,4 @@ class TaskSupervisor:
                     process.kill()
                     process.wait(timeout=3)
             self.process = None
-            terminate_job(self.factory, job_id, 'TASK_CANCELLED' if cancelled else ("TASK_TIMEOUT" if timed_out else "TASK_INTERRUPTED"))
+            terminate_job(self.factory, job_id, 'TASK_CANCELLED' if cancelled else ("TASK_TIMEOUT" if timed_out else "TASK_INTERRUPTED"), diagnostic)
