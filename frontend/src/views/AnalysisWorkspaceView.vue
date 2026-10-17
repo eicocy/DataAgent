@@ -501,11 +501,13 @@ export default {
         </div>
 
         <PromptComposer v-model="question" :busy="loading || choosingDataset" :interruptible="loading" :interrupt-disabled="!canInterrupt" :interrupting="cancelRequested" :uploading="uploadBusy || attachmentBindings > 0" :catalog="catalog" :capabilities="capabilities" :options="runOptions" @interrupt="cancelTask" @option-change="runOptions = { ...runOptions, ...$event }" @submit="submitQuestion" @upload="$refs.uploadQueue.addFiles($event)" @templates="$router.push('/templates')">
+          <template #attachments>
           <MentionPicker v-if="capabilities.artifact_references" :items="workspaceArtifacts" :model-value="runOptions.artifact_refs || []" :busy="loading" @update:model-value="runOptions = { ...runOptions, artifact_refs: $event }" />
           <UploadQueue ref="uploadQueue" :session-id="Number(sessionId) || undefined" :prepare-session="ensureSession" @document="documentReady" @document-hidden="documentFileId === $event && (documentFileId = null)" :formats="[...(capabilities.file_formats || []), ...(capabilities.document_formats || [])]" :attached-ids="attachedDatasets.map(item => item.id)" :max-files="capabilities.max_files || 10" :max-bytes="capabilities.max_upload_bytes || 20971520" @busy="uploadBusy = $event" @started="startUpload" @ready="attachDataset" @removed="removeAttachment" />
           <div v-if="attachedDocuments.length" class="session-attachments" aria-label="会话文档附件"><el-button v-for="file in attachedDocuments" :key="file.id" @click="documentFileId = file.id">{{ file.name }} · 文档</el-button><el-button :disabled="documentPage === 1" @click="documentPage--; loadDocuments()">上一页文档</el-button><el-button :disabled="documentPage * 20 >= documentTotal" @click="documentPage++; loadDocuments()">下一页文档</el-button></div>
           <div v-if="documentFileId"><DocumentCandidatePreview :file-id="documentFileId" :session-id="Number(sessionId)" @ready="extractedDataset" /><el-button @click="documentFileId = null">收起附件预览</el-button><p class="caption">收起只关闭预览，文档仍在会话中，刷新可恢复。</p></div>
           <div v-if="attachedDatasets.length" class="session-attachments" aria-label="会话数据附件"><span v-for="item in attachedDatasets" :key="item.id"><button type="button" :disabled="loading" @click="chooseDataset(item.id)">{{ item.original_name }}{{ dataset?.id === item.id ? ' · 当前' : '' }}</button><button type="button" :disabled="loading || attachmentBindings > 0" :aria-label="`移除附件 ${item.original_name}`" @click="removeAttachment(item.id)">×</button></span></div>
+          </template>
         </PromptComposer>
         <fieldset v-if="capabilities.multi_dataset_execution && dataset && attachedDatasets.some(item => item.id !== dataset.id)" class="analysis-inputs"><legend>同时分析其他附件</legend><label v-for="item in attachedDatasets.filter(item => item.id !== dataset.id)" :key="item.id"><input v-model="additionalInputIds" type="checkbox" :value="item.id" :disabled="loading || choosingDataset" />{{ item.original_name }}</label><p class="caption">所选附件会固定版本参与分析；需要合并数据时，可在数据集页按关联键预览并确认保存。</p></fieldset>
         <SemanticMappingEditor v-if="capabilities.profile_execution && sessionId && dataset" :session-id="Number(sessionId)" :dataset-id="dataset.id" :busy="loading || choosingDataset" />
@@ -545,6 +547,10 @@ export default {
 .workspace-suggestions button, .session-attachments button { cursor: pointer; border: 1px solid var(--line); padding: 8px 12px; border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 12px; }
 .workspace-suggestions button:hover, .session-attachments button:hover { color: var(--ink); background: var(--canvas); }
 .session-attachments { margin-bottom: 8px; }
+.session-attachments > span { display: inline-flex; min-width: 0; max-width: 100%; }
+.session-attachments button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-attachments > span > button:first-child { min-width: 0; }
+.session-attachments > span > button:last-child { flex-shrink: 0; }
 .workspace-help { color: var(--muted); text-align: center; font-size: 12px; }
 .capability-warning { font-size: 12px; color: var(--muted); }
 .analysis-inputs { border: 1px solid var(--line); border-radius: var(--radius-sm); margin: 12px 0; font-size: 12px; color: var(--muted); }

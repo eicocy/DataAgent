@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { describe, it, expect, vi } from 'vitest'
 import PromptComposer from '../src/components/PromptComposer.vue'
@@ -10,7 +10,9 @@ vi.mock('../src/api/analysis', () => ({ analysisApi: { submit: vi.fn(async () =>
 
 describe('workspace Phase 2 runtime options', () => {
   it('enables only advertised depth/model options and emits selected depth', async () => {
-    const wrapper = mount(PromptComposer, { props: { capabilities: { depth_selection: true, depths: ['FAST', 'STANDARD', 'DEEP'], model_selection: true, models: [{ id: 'configured' }] } } })
+    const wrapper = mount(PromptComposer, { global: { stubs: { teleport: true } }, props: { capabilities: { depth_selection: true, depths: ['FAST', 'STANDARD', 'DEEP'], model_selection: true, models: [{ id: 'configured' }] } } })
+    await wrapper.get('.composer-settings-trigger').trigger('click')
+    await flushPromises()
     const depth = wrapper.get('select[aria-label="分析深度"]')
     expect(depth.attributes('disabled')).toBeUndefined()
     await depth.setValue('DEEP')

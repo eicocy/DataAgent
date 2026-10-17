@@ -1,10 +1,11 @@
 <script>
 import { ElButton, ElIcon } from 'element-plus'
 import { Plus, Top } from '@element-plus/icons-vue'
+import ComposerSettingsPopover from './ComposerSettingsPopover.vue'
 
 export default {
   name: 'PromptComposer',
-  components: { ElButton, ElIcon, Plus, Top },
+  components: { ComposerSettingsPopover, ElButton, ElIcon, Plus, Top },
   props: {
     modelValue: { type: String, default: '' }, busy: Boolean, uploading: Boolean,
     interruptible: Boolean, interruptDisabled: Boolean, interrupting: Boolean,
@@ -13,15 +14,18 @@ export default {
     options: { type: Object, default: () => ({}) },
   },
   emits: ['update:modelValue', 'submit', 'interrupt', 'upload', 'option-change', 'templates'],
-  data() { return { category: '', templateId: '', reportTemplate: '', depth: 'STANDARD', modelId: '', dragging: false, composing: false } },
+  data() { return { dragging: false, composing: false } },
   watch: {
-    options: { immediate: true, deep: true, handler(value) { this.category = value.category || ''; this.templateId = value.profile_ids?.[0] || ''; this.depth = value.depth || 'STANDARD'; this.modelId = value.model_id || ''; this.reportTemplate = value.report_template || '' } },
+    modelValue() { this.$nextTick(this.resizeInput) },
   },
   computed: {
     accept() { return [...(this.capabilities.file_formats || []), ...(this.capabilities.document_formats || [])].map(ext => `.${ext}`).join(',') },
-    templates() { return (this.catalog.items || []).filter(item => !this.category || item.category === this.category) },
-    selectedTemplate() { return this.templates.find(item => item.id === this.templateId) },
+    summary() {
+      const profile = (this.catalog.items || []).find(item => item.id === this.options.profile_ids?.[0])
+      return `${profile?.name || '自动'} · ${{ FAST: '快速', STANDARD: '标准', DEEP: '深度' }[this.options.depth || 'STANDARD'] || '标准'}`
+    },
   },
+  mounted() { this.resizeInput() },
   methods: {
     submit() { if (!this.busy && !this.uploading && this.modelValue.trim() && !this.composing) this.$emit('submit') },
     // 中断只发出操作事件，任务终止与确认交由工作台处理。
@@ -32,8 +36,13 @@ export default {
     },
     input(event) {
       this.$emit('update:modelValue', event.target.value)
-      event.target.style.height = 'auto'
-      event.target.style.height = `${Math.min(280, Math.max(96, event.target.scrollHeight))}px`
+      this.resizeInput()
+    },
+    resizeInput() {
+      const input = this.$refs.question
+      if (!input) return
+      input.style.height = 'auto'
+      input.style.height = `${Math.min(240, Math.max(88, input.scrollHeight))}px`
     },
     files(event) {
       const files = event.target.files || event.dataTransfer?.files
@@ -41,12 +50,10 @@ export default {
       if (event.target.type === 'file') event.target.value = ''
       this.dragging = false
     },
-    chooseTemplate() {
-      const profile = this.selectedTemplate
+    chooseTemplate(profile, category) {
       if (profile && profile.availability !== 'planned') {
         this.$emit('update:modelValue', profile.example_questions[0] || '')
-        this.$emit('option-change', { category: this.category, profile_ids: this.capabilities.profile_execution ? [profile.id] : [] })
-        this.$nextTick(() => this.$refs.question.focus())
+        this.$emit('option-change', { category, profile_ids: this.capabilities.profile_execution ? [profile.id] : [] })
       }
     },
   },
@@ -55,41 +62,35 @@ export default {
 
 <template>
   <form novalidate class="prompt-composer" :class="{ 'is-dragging': dragging }" @submit.prevent="submit" @dragover.prevent="dragging = !busy" @dragleave.prevent="dragging = false" @drop.prevent="files">
-    <slot />
+    <div v-if="$slots.attachments || $slots.default" class="composer-attachments"><slot name="attachments"><slot /></slot></div>
     <label class="sr-only" for="analysis-question">分析问题</label>
     <textarea id="analysis-question" ref="question" class="resize-none" :value="modelValue" :disabled="busy" maxlength="2000" rows="3" placeholder="描述你的业务问题，或拖入数据文件…" @input="input" @keydown="handleEnter" @compositionstart="composing = true" @compositionend="composing = false"></textarea>
     <div class="prompt-toolbar">
       <input ref="fileInput" class="sr-only" type="file" multiple :accept="accept" aria-label="选择数据文件" :disabled="busy" @change="files" />
-      <el-button native-type="button" class="composer-file" :disabled="busy" @click="$refs.fileInput.click()"><el-icon><Plus /></el-icon><span>文件</span></el-button>
-      <label class="composer-choice">分析方向<select v-model="category" :disabled="busy" aria-label="分析方向" @change="templateId = ''; $emit('option-change', { category, profile_ids: [] })"><option value="">自动</option><option v-for="item in catalog.categories" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
-      <label class="composer-choice">分析模板<select v-model="templateId" :disabled="busy" aria-label="分析模板" @change="templateId ? chooseTemplate() : $emit('option-change', { profile_ids: [] })"><option value="">自动选择</option><option v-for="item in templates" :key="item.id" :value="item.id" :disabled="item.availability === 'planned'">{{ item.name }}{{ item.availability === 'planned' ? ' · 规划中' : item.availability === 'limited' ? ' · 通用能力' : '' }}</option></select></label>
-      <label class="composer-choice">分析深度<select v-model="depth" aria-label="分析深度" :disabled="busy || !capabilities.depth_selection" @change="$emit('option-change', { depth })"><option v-for="value in capabilities.depths || ['STANDARD']" :key="value" :value="value">{{ { FAST: '快速', STANDARD: '标准', DEEP: '深度' }[value] }}</option></select></label>
-      <label class="composer-choice">报告类型<select v-model="reportTemplate" aria-label="报告类型" :disabled="busy || !capabilities.automatic_reports" @change="$emit('option-change', { report_template: reportTemplate || null, output_formats: reportTemplate ? ['xlsx', 'docx', 'pdf', 'python'] : [] })"><option value="">手动生成</option><option v-for="item in capabilities.report_templates || []" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
-      <label class="composer-choice model-choice">模型<select v-model="modelId" aria-label="模型" :disabled="busy || !capabilities.model_selection" @change="$emit('option-change', { model_id: modelId || null })"><option value="">{{ capabilities.models?.[0]?.id || '服务端配置' }}</option><option v-for="model in capabilities.models || []" :key="model.id" :value="model.id" :disabled="!model.configured">{{ model.id }}</option></select></label>
+      <el-button native-type="button" class="composer-file" :disabled="busy" aria-label="添加附件" title="添加附件" @click="$refs.fileInput.click()"><el-icon><Plus /></el-icon></el-button>
+      <ComposerSettingsPopover :catalog="catalog" :capabilities="capabilities" :options="options" :busy="busy" @option-change="$emit('option-change', $event)" @template-select="chooseTemplate" />
+      <span class="composer-summary" :title="summary" aria-label="当前分析配置">{{ summary }}</span>
       <el-button v-if="busy && interruptible" native-type="button" class="composer-send composer-interrupt run-stop-button" :disabled="interruptDisabled || interrupting" :aria-label="interrupting ? '正在中断分析' : '中断分析'" :title="interrupting ? '正在中断，等待服务端确认' : '中断分析'" :aria-busy="interrupting" @click="interrupt"><span v-if="interrupting" class="run-stop-spinner" aria-hidden="true"></span><span class="run-stop-glyph" aria-hidden="true"></span><span class="sr-only">{{ interrupting ? '正在中断…' : '中断' }}</span></el-button>
       <el-button v-else native-type="submit" type="primary" class="composer-send" :disabled="busy || uploading || !modelValue.trim()" :loading="busy" :aria-busy="busy" :aria-label="busy ? '处理中' : '发送问题'" :title="busy ? '处理中' : '发送问题'"><span class="sr-only">{{ busy ? '处理中' : '发送问题' }}</span><el-icon v-if="!busy"><Top /></el-icon></el-button>
     </div>
-    <p v-if="selectedTemplate?.availability === 'limited'" class="composer-note">{{ selectedTemplate.constraints?.[1] }}</p>
-    <p v-if="reportTemplate" class="composer-note">分析后自动生成 Excel、Word、PDF 和 Python 文件；缺少来源或格式失败会保留部分结果。</p>
-    <p class="composer-note">Enter 发送 · Shift+Enter 换行 · {{ capabilities.profile_execution ? '模板决定关注点，系统根据数据生成分析计划。' : '模板填入可修改示例；当前分析使用选中的一个数据集。' }}</p>
   </form>
+  <p class="composer-keyboard-hint">Enter 发送 · Shift+Enter 换行</p>
 </template>
 
 <style scoped>
 .prompt-composer { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: var(--shadow-card); transition: border-color .15s; }
 .prompt-composer:focus-within, .prompt-composer.is-dragging { border-color: var(--brand); }
-textarea { width: 100%; height: 112px; min-height: 96px; max-height: 280px; resize: none; border: 0; background: transparent; outline: none; color: var(--ink); font: inherit; line-height: 1.7; }
+textarea { display: block; width: 100%; height: 88px; min-height: 88px; max-height: 240px; padding: 0; resize: none; border: 0; background: transparent; outline: none; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.7; }
 textarea:disabled { opacity: .65; }
-.prompt-toolbar { position: relative; display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; padding-right: 56px; min-height: 44px; }
-.prompt-toolbar .el-button { height: 36px; margin-left: 0; padding: 0 14px; border-radius: var(--radius-sm); font-size: 12px; }
+.prompt-toolbar { display: flex; gap: 4px; align-items: center; min-width: 0; min-height: 44px; margin-top: 12px; }
+.prompt-toolbar .composer-file { width: 40px; height: 40px; flex-shrink: 0; margin: 0; padding: 0; border-color: transparent; border-radius: 9px; color: var(--muted); background: transparent; }
+.prompt-toolbar .composer-file:hover { color: var(--ink); background: var(--canvas); }
 .prompt-toolbar .el-button :deep(.el-icon) { font-size: 14px; }
-.composer-file :deep(.el-icon) { margin-right: 6px; }
+.composer-file :deep(.el-icon) { font-size: 20px; }
 .composer-send :deep(.el-icon) { margin: 0; font-size: 20px; }
-select { cursor: pointer; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); height: 36px; }
-.composer-choice { display: grid; gap: 3px; font-size: 10px; color: var(--muted); }
-select { max-width: 150px; font-size: 12px; padding: 3px 5px; }
-select:disabled { cursor: default; opacity: .55; }
-.prompt-toolbar .composer-send { position: absolute; right: 0; bottom: 0; width: 44px; height: 44px; min-width: 44px; margin: 0; padding: 0; border-radius: 50%; }
-.composer-note { color: var(--muted); font-size: 11px; margin: 10px 0 0; line-height: 1.6; }
-@media (max-width: 600px) { .model-choice { display: none; } .prompt-composer { padding: 12px; } select { max-width: 120px; } }
+.prompt-toolbar .composer-send { width: 44px; height: 44px; min-width: 44px; flex-shrink: 0; margin: 0 0 0 8px; padding: 0; border-radius: 50%; }
+.composer-summary { flex: 1; min-width: 0; padding-left: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }
+.composer-attachments { margin-bottom: 12px; } .composer-attachments:empty { display: none; }
+.composer-keyboard-hint { margin: 6px 16px 0; color: var(--muted); font-size: 11px; line-height: 1.6; text-align: right; }
+@media (max-width: 600px) { .composer-keyboard-hint { display: none; } }
 </style>

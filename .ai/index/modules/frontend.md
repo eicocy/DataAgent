@@ -13,6 +13,7 @@ depends: Vue Router、Pinia、Axios
 frontend/src/views/AnalysisWorkspaceView.vue；stores/analysis.js；api/analysis.js
 role: 提问、按会话持久提交 ID、任务轮询与服务端运行记录恢复；取消和旧请求隔离
 interrupt: PromptComposer 的 interrupt 事件与工件面板入口 -> cancelTask -> analysis store.cancel -> 既有 /analysis/runs/{id}/cancel；继续订阅至服务端终态，未受理时禁用，取消请求跟随会话 signal。
+composer: PromptComposer.vue 负责输入自适应、单行工具栏、配置摘要和 attachments 命名插槽（兼容默认插槽）；ComposerSettingsPopover.vue Options API 管理五项即时设置、传送弹层与键盘焦点，仍通过 option-change/template-select 交回输入区与工作台。
 depends: AgentSteps、AnalysisResult、ChartView
 
 frontend/src/components/{AgentSteps,AnalysisResult,ChartView,ReportWorkbench}.vue；utils/chartOption.js
