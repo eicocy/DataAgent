@@ -12,6 +12,7 @@ depends: Vue Router、Pinia、Axios
 
 frontend/src/views/AnalysisWorkspaceView.vue；stores/analysis.js；api/analysis.js
 role: 提问、按会话持久提交 ID、任务轮询与服务端运行记录恢复；取消和旧请求隔离
+interrupt: PromptComposer 的 interrupt 事件与工件面板入口 -> cancelTask -> analysis store.cancel -> 既有 /analysis/runs/{id}/cancel；继续订阅至服务端终态，未受理时禁用，取消请求跟随会话 signal。
 depends: AgentSteps、AnalysisResult、ChartView
 
 frontend/src/components/{AgentSteps,AnalysisResult,ChartView,ReportWorkbench}.vue；utils/chartOption.js

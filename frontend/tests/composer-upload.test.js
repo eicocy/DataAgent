@@ -9,6 +9,22 @@ vi.mock('../src/api/datasets', () => ({ datasetApi: { upload: vi.fn(), detail: v
 
 describe('workspace composer and upload queue', () => {
   beforeEach(() => vi.clearAllMocks())
+  it('replaces send with interrupt while running and prevents duplicate requests', async () => {
+    const wrapper = mount(PromptComposer, { props: { busy: true, interruptible: true, modelValue: '' } })
+    expect(wrapper.find('.composer-send').text()).toBe('中断')
+    await wrapper.get('.composer-interrupt').trigger('click')
+    expect(wrapper.emitted('interrupt')).toHaveLength(1)
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    await wrapper.setProps({ interrupting: true })
+    expect(wrapper.get('.composer-interrupt').text()).toContain('正在中断')
+    expect(wrapper.get('.composer-interrupt').attributes('disabled')).toBeDefined()
+    await wrapper.get('.composer-interrupt').trigger('click')
+    expect(wrapper.emitted('interrupt')).toHaveLength(1)
+    await wrapper.setProps({ busy: false, interrupting: false })
+    expect(wrapper.find('.composer-interrupt').exists()).toBe(false)
+    expect(wrapper.get('.composer-send').text()).toBe('发送问题')
+    wrapper.unmount()
+  })
   it('preserves IME composition and permits deliberate Enter submission', async () => {
     const wrapper = mount(PromptComposer, { props: { modelValue: '分析销售' } })
     await wrapper.get('textarea').trigger('keydown', { key: 'Enter', isComposing: true })

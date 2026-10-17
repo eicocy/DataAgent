@@ -7,11 +7,12 @@ export default {
   components: { ElButton, ElIcon, Plus, Top },
   props: {
     modelValue: { type: String, default: '' }, busy: Boolean, uploading: Boolean,
+    interruptible: Boolean, interruptDisabled: Boolean, interrupting: Boolean,
     catalog: { type: Object, default: () => ({ categories: [], items: [] }) },
     capabilities: { type: Object, default: () => ({ file_formats: ['csv', 'tsv', 'json', 'xlsx', 'xls', 'parquet'] }) },
     options: { type: Object, default: () => ({}) },
   },
-  emits: ['update:modelValue', 'submit', 'upload', 'option-change', 'templates'],
+  emits: ['update:modelValue', 'submit', 'interrupt', 'upload', 'option-change', 'templates'],
   data() { return { category: '', templateId: '', reportTemplate: '', depth: 'STANDARD', modelId: '', dragging: false, composing: false } },
   watch: {
     options: { immediate: true, deep: true, handler(value) { this.category = value.category || ''; this.templateId = value.profile_ids?.[0] || ''; this.depth = value.depth || 'STANDARD'; this.modelId = value.model_id || ''; this.reportTemplate = value.report_template || '' } },
@@ -23,6 +24,8 @@ export default {
   },
   methods: {
     submit() { if (!this.busy && !this.uploading && this.modelValue.trim() && !this.composing) this.$emit('submit') },
+    // 中断只发出操作事件，任务终止与确认交由工作台处理。
+    interrupt() { if (this.busy && this.interruptible && !this.interruptDisabled && !this.interrupting) this.$emit('interrupt') },
     handleEnter(event) {
       // 中文输入法候选确认不是发送；Shift+Enter 保留换行。
       if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && !this.composing) { event.preventDefault(); this.submit() }
@@ -63,7 +66,8 @@ export default {
       <label class="composer-choice">分析深度<select v-model="depth" aria-label="分析深度" :disabled="busy || !capabilities.depth_selection" @change="$emit('option-change', { depth })"><option v-for="value in capabilities.depths || ['STANDARD']" :key="value" :value="value">{{ { FAST: '快速', STANDARD: '标准', DEEP: '深度' }[value] }}</option></select></label>
       <label class="composer-choice">报告类型<select v-model="reportTemplate" aria-label="报告类型" :disabled="busy || !capabilities.automatic_reports" @change="$emit('option-change', { report_template: reportTemplate || null, output_formats: reportTemplate ? ['xlsx', 'docx', 'pdf', 'python'] : [] })"><option value="">手动生成</option><option v-for="item in capabilities.report_templates || []" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
       <label class="composer-choice model-choice">模型<select v-model="modelId" aria-label="模型" :disabled="busy || !capabilities.model_selection" @change="$emit('option-change', { model_id: modelId || null })"><option value="">{{ capabilities.models?.[0]?.id || '服务端配置' }}</option><option v-for="model in capabilities.models || []" :key="model.id" :value="model.id" :disabled="!model.configured">{{ model.id }}</option></select></label>
-      <el-button native-type="submit" type="primary" class="composer-send" :disabled="busy || uploading || !modelValue.trim()" :loading="busy" :aria-busy="busy"><span>{{ busy ? '处理中' : '发送问题' }}</span><el-icon v-if="!busy"><Top /></el-icon></el-button>
+      <el-button v-if="busy && interruptible" native-type="button" type="danger" class="composer-send composer-interrupt" :disabled="interruptDisabled || interrupting" :loading="interrupting" :aria-busy="interrupting" @click="interrupt"><span v-if="!interrupting" class="interrupt-icon" aria-hidden="true"></span><span>{{ interrupting ? '正在中断…' : '中断' }}</span></el-button>
+      <el-button v-else native-type="submit" type="primary" class="composer-send" :disabled="busy || uploading || !modelValue.trim()" :loading="busy" :aria-busy="busy"><span>{{ busy ? '处理中' : '发送问题' }}</span><el-icon v-if="!busy"><Top /></el-icon></el-button>
     </div>
     <p v-if="selectedTemplate?.availability === 'limited'" class="composer-note">{{ selectedTemplate.constraints?.[1] }}</p>
     <p v-if="reportTemplate" class="composer-note">分析后自动生成 Excel、Word、PDF 和 Python 文件；缺少来源或格式失败会保留部分结果。</p>
@@ -86,6 +90,7 @@ select { cursor: pointer; border: 1px solid var(--line); border-radius: var(--ra
 select { max-width: 150px; font-size: 12px; padding: 3px 5px; }
 select:disabled { cursor: default; opacity: .55; }
 .prompt-toolbar .composer-send { margin-left: auto; min-width: 110px; }
+.interrupt-icon { display: inline-block; width: 10px; height: 10px; margin-right: 7px; border-radius: 1px; background: currentColor; }
 .composer-note { color: var(--muted); font-size: 11px; margin: 10px 0 0; line-height: 1.6; }
 @media (max-width: 600px) { .model-choice { display: none; } .prompt-composer { padding: 12px; } select { max-width: 120px; } }
 </style>

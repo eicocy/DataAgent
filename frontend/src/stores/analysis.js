@@ -136,9 +136,9 @@ export const useAnalysisStore = defineStore('analysis', {
         refresh()
       })
     },
-    async cancel() {
+    async cancel(config = {}) {
       if (!this.pending?.record_id) return null
-      return analysisApi.cancel(this.pending.record_id)
+      return analysisApi.cancel(this.pending.record_id, config)
     },
   },
 })

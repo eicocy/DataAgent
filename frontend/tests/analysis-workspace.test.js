@@ -48,6 +48,51 @@ describe('analysis workspace', () => {
     })
   }
 
+  it('interrupts the accepted run once and waits for server cancellation before unlocking input', async () => {
+    let finishRun
+    analysisApi.run.mockImplementationOnce(() => new Promise(resolve => { finishRun = resolve }))
+    analysisApi.cancel.mockResolvedValue({ record_id: 9, status: 'running' })
+    const wrapper = mountWorkspace()
+    await flushPromises()
+    wrapper.vm.question = '统计电影总数'
+    const submission = wrapper.vm.submitQuestion()
+    await flushPromises()
+    await wrapper.get('.composer-interrupt').trigger('click')
+    await wrapper.vm.cancelTask()
+    expect(analysisApi.cancel).toHaveBeenCalledTimes(1)
+    expect(analysisApi.cancel).toHaveBeenCalledWith(9, expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    expect(wrapper.vm.loading).toBe(true)
+    expect(wrapper.get('.composer-interrupt').text()).toContain('正在中断')
+    finishRun({ record_id: 9, status: 'cancelled', tool_calls: [], tool_result: { rows: [{ count: 9125 }] } })
+    await submission
+    expect(wrapper.vm.loading).toBe(false)
+    expect(wrapper.find('.composer-interrupt').exists()).toBe(false)
+    expect(wrapper.text()).toContain('任务已中断，已完成的结果仍可查看')
+    wrapper.unmount()
+  })
+
+  it('does not cancel an unaccepted run or show late cancellation errors in another session', async () => {
+    const wrapper = mountWorkspace()
+    await flushPromises()
+    wrapper.vm.loading = true
+    await wrapper.vm.cancelTask()
+    expect(analysisApi.cancel).not.toHaveBeenCalled()
+    expect(wrapper.vm.cancelRequested).toBe(false)
+    let rejectCancel
+    analysisApi.cancel.mockImplementationOnce(() => new Promise((_, reject) => { rejectCancel = reject }))
+    const { useAnalysisStore } = await import('../src/stores/analysis')
+    useAnalysisStore().pending = { record_id: 9, session_id: 5 }
+    const cancelling = wrapper.vm.cancelTask()
+    wrapper.vm.controller.abort()
+    wrapper.vm.controller = new AbortController()
+    wrapper.vm.cancelRequested = false
+    rejectCancel(new Error('old request failed'))
+    await cancelling
+    expect(wrapper.vm.errorMessage).toBe('')
+    expect(wrapper.vm.cancelRequested).toBe(false)
+    wrapper.unmount()
+  })
+
   it('does not create empty sessions on the landing page and creates once on send', async () => {
     analysisApi.createSession.mockResolvedValue({ id: 5 })
     analysisApi.run.mockResolvedValue({ record_id: 9, status: 'succeeded', answer: '你好', tool_calls: [] })
